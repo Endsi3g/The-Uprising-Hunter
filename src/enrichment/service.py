@@ -1,6 +1,7 @@
 from typing import List
 from ..core.models import Lead, Company
 from .client import SourcingClient
+import uuid
 
 class EnrichmentService:
     def __init__(self, client: SourcingClient):
@@ -21,11 +22,15 @@ class EnrichmentService:
         company = Company(**company_data)
 
         # Create Lead object
+        # Generate a UUID if email is missing, though we prefer email as ID.
+        email = raw_data.get("email")
+        lead_id = email if email else str(uuid.uuid4())
+
         lead = Lead(
-            id=raw_data.get("email"), # using email as ID for simplicity
-            first_name=raw_data.get("first_name"),
-            last_name=raw_data.get("last_name"),
-            email=raw_data.get("email"),
+            id=lead_id,
+            first_name=raw_data.get("first_name", "Unknown"),
+            last_name=raw_data.get("last_name", ""),
+            email=email if email else f"no-email-{lead_id}@placeholder.com", # Placeholder if missing
             title=raw_data.get("title"),
             linkedin_url=raw_data.get("linkedin_url"),
             company=company,
@@ -42,7 +47,10 @@ class EnrichmentService:
         processed_leads = []
         
         for raw in raw_leads:
-            lead = self.format_lead(raw)
-            processed_leads.append(lead)
+            try:
+                lead = self.format_lead(raw)
+                processed_leads.append(lead)
+            except Exception as e:
+                print(f"Error formatting lead {raw.get('company_name')}: {e}")
             
         return processed_leads

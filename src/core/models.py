@@ -62,6 +62,7 @@ class Lead(BaseModel):
     
     score: ScoringData = Field(default_factory=ScoringData)
     interactions: List[Interaction] = Field(default_factory=list)
+    details: Dict[str, Any] = Field(default_factory=dict)
     
     tags: List[str] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=datetime.now)
