@@ -1,69 +1,38 @@
-# 🚀 Next Steps : Système de Prospection Automatisé
+# 🚀 Roadmap & Next Steps
 
-Félicitations ! Le cœur du système (Core, Enrichment, Scoring, AI) est en place. Voici comment transformer ce prototype en machine de guerre opérationnelle.
+## ✅ Completed Milestones
 
-## 🛠 1. Installation & Setup (Nouvel Emplacement)
+- [x] **Core Architecture**: Models, Enrichment, Scoring, AI Engine.
+- [x] **API Integration**: Connected `Apollo.io` and `OpenAI`.
+- [x] **New Source**: Integrated `Apify` for Google Maps sourcing.
+- [x] **Database**: Implemented `SQLite` with `SQLAlchemy` for persistence.
+- [x] **CLI**: Added command-line arguments (source, query, location).
+- [x] **Automation**: Created Windows Task Scheduler script.
+- [x] **Deployment**: Git initialized and codebase secured.
 
-Puisque vous avez déplacé le projet, il est recommandé de recréer l'environnement virtuel pour éviter les conflits de chemins.
+## 🔜 Upcoming Priorities
 
-```bash
-# Supprimer l'ancien venv (si existe)
-Remove-Item -Recurse -Force venv
+### 1. Advanced Scoring & Intelligence
 
-# Créer un nouveau venv
-python -m venv venv
+- [ ] **Custom ICP Config**: Move hardcoded scoring weights to a YAML config file.
+- [ ] **Intent Data**: Integrate a real intent data provider (e.g., Bombora or website visitor tracking).
 
-# Activer
-.\venv\Scripts\Activate
+### 2. Outreach Automation
 
-# Installer les dépendances
-pip install -r requirements.txt
-```
+- [ ] **Email Sending**: Connect SMTP (Gmail/Outlook) to actually *send* the generated drafts.
+- [ ] **Sequence Logic**: Implement follow-ups (Day 1, Day 3, Day 7).
 
-## 🔗 2. Connecter les "Vraies" APIs
+### 3. User Interface (UI)
 
-Actuellement, le système utilise des mocks (données simulées). Pour passer en production :
+- [ ] **Dashboard**: Build a simple React/Streamlit admin panel to view leads and approve emails.
+- [ ] **Stats**: Visualize conversion rates and pipeline health.
 
-### Sourcing (Apollo/ZoomInfo)
-1. Obtenez une clé API Apollo.io.
-2. Modifiez `src/enrichment/client.py` pour remplacer `MockApolloClient` par une vraie implémentation `Requests`.
-3. Stockez la clé API dans un fichier `.env` (ne pas commiter !).
+### 4. Cloud Deployment
 
-### AI Generation (OpenAI/Anthropic)
-1. Installez le client : `pip install openai`.
-2. Dans `src/ai_engine/generator.py`, remplacez la logique "mock" par un appel réel :
-   ```python
-   client = OpenAI(api_key="sk-...")
-   response = client.chat.completions.create(...)
-   ```
+- [ ] **Dockerize**: Create a `Dockerfile` for easy deployment.
+- [ ] **Cloud Run**: Deploy the worker to a cloud provider (AWS/GCP/Render) for 24/7 operation.
 
-## 🤖 3. Automatisation & Base de Données
+## 📝 Maintenance
 
-### Base de Données
-Le système utilise des objets en mémoire. Pour la persistance :
-- Installez SQLite ou PostgreSQL.
-- Utilisez **SQLAlchemy** (déjà dans requirements) pour mapper les modèles `src/core/models.py` vers des tables DB.
-
-### Scheduling
-Pour tourner tous les jours automatiquement :
-- Créez une tâche Cron ou Windows Task Scheduler qui lance `python run_system.py`.
-- Ou déployez sur un service Cloud (Render, Railway, AWS Lambda).
-
-## 📦 4. Gestion du Code (GitHub)
-
-Le dépôt est initialisé localement. Pour le pousser sur GitHub :
-
-1. Créez un nouveau dépôt **vide** sur [GitHub.com](https://github.com/new).
-2. Exécutez les commandes suivantes :
-
-```bash
-git remote add origin https://github.com/VOTRE_USER/ProspectionApp.git
-git branch -M main
-git push -u origin main
-```
-
-## 📈 Roadmap
-
-- [ ] **J+1** : Brancher la vraie API OpenAI pour générer les emails.
-- [ ] **J+2** : Configurer la base de données SQLite.
-- [ ] **J+5** : Tester l'envoi réel d'emails (via SMTP ou Gmail API).
+- Monitor API usage quotes (Apollo/OpenAI/Apify).
+- Backup `prospect.db` regularly.
