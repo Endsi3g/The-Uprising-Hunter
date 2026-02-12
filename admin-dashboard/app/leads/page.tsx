@@ -4,8 +4,10 @@ import * as React from "react"
 import useSWR from "swr"
 
 import { AppSidebar } from "@/components/app-sidebar"
+import { ImportCsvSheet } from "@/components/import-csv-sheet"
 import { Lead, LeadsTable } from "@/components/leads-table"
 import { SiteHeader } from "@/components/site-header"
+import { Skeleton } from "@/components/ui/skeleton"
 import { fetchApi } from "@/lib/api"
 import {
   SidebarInset,
@@ -74,6 +76,7 @@ export default function LeadsPage() {
         <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
           <div className="flex items-center justify-between py-4">
             <h2 className="text-3xl font-bold tracking-tight">Leads</h2>
+            <ImportCsvSheet onImported={() => void mutate()} />
           </div>
           {error ? (
             <div className="text-sm text-red-600">
@@ -81,7 +84,11 @@ export default function LeadsPage() {
             </div>
           ) : null}
           {isLoading ? (
-            <div>Chargement des leads...</div>
+            <div className="space-y-3">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
           ) : (
             <LeadsTable data={leads} onDataChanged={() => void mutate()} />
           )}
@@ -90,4 +97,3 @@ export default function LeadsPage() {
     </SidebarProvider>
   )
 }
-

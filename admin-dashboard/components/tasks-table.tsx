@@ -15,6 +15,22 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
 import {
   Table,
   TableBody,
@@ -24,21 +40,40 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { formatDateFr } from "@/lib/format"
+import { requestApi } from "@/lib/api"
 
 export type Task = {
   id: string
   title: string
   status: "To Do" | "In Progress" | "Done"
   priority: "Low" | "Medium" | "High" | "Critical"
-  due_date: string
+  due_date: string | null
   assigned_to: string
   lead_id?: string
 }
+
+const TASK_STATUSES: Task["status"][] = ["To Do", "In Progress", "Done"]
+const TASK_PRIORITIES: Task["priority"][] = ["Low", "Medium", "High", "Critical"]
 
 function priorityClass(priority: Task["priority"]): string {
   if (priority === "Critical") return "border-red-500 text-red-600"
   if (priority === "High") return "border-orange-500 text-orange-600"
   return ""
+}
+
+function toDatetimeLocal(value?: string | null): string {
+  if (!value) return ""
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ""
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+  return local.toISOString().slice(0, 16)
+}
+
+function toIsoFromDatetimeLocal(value: string): string | null {
+  if (!value) return null
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return null
+  return date.toISOString()
 }
 
 export function TasksTable({
@@ -48,8 +83,19 @@ export function TasksTable({
   data: Task[]
   onDataChanged?: () => void
 }) {
-  const { openProjectForm } = useModalSystem()
+  const { openProjectForm, openConfirm } = useModalSystem()
   const [filter, setFilter] = React.useState("")
+  const [editingTask, setEditingTask] = React.useState<Task | null>(null)
+  const [editOpen, setEditOpen] = React.useState(false)
+  const [editSubmitting, setEditSubmitting] = React.useState(false)
+  const [editForm, setEditForm] = React.useState({
+    title: "",
+    status: "To Do" as Task["status"],
+    priority: "Medium" as Task["priority"],
+    due_date: "",
+    assigned_to: "Vous",
+    lead_id: "",
+  })
 
   const filteredData = React.useMemo(() => {
     const cleanFilter = filter.trim().toLowerCase()
@@ -75,6 +121,64 @@ export function TasksTable({
       },
       onSuccess: () => {
         toast.success("Projet cree depuis la tache.")
+        onDataChanged?.()
+      },
+    })
+  }
+
+  function openEdit(task: Task) {
+    setEditingTask(task)
+    setEditForm({
+      title: task.title,
+      status: task.status,
+      priority: task.priority,
+      due_date: toDatetimeLocal(task.due_date),
+      assigned_to: task.assigned_to || "Vous",
+      lead_id: task.lead_id || "",
+    })
+    setEditOpen(true)
+  }
+
+  async function submitEdit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!editingTask) return
+    if (!editForm.title.trim()) {
+      toast.error("Le titre de la tache est obligatoire.")
+      return
+    }
+    const payload = {
+      title: editForm.title.trim(),
+      status: editForm.status,
+      priority: editForm.priority,
+      due_date: toIsoFromDatetimeLocal(editForm.due_date),
+      assigned_to: editForm.assigned_to.trim() || "Vous",
+      lead_id: editForm.lead_id.trim() || null,
+    }
+    try {
+      setEditSubmitting(true)
+      await requestApi(`/api/v1/admin/tasks/${editingTask.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+      toast.success("Tache mise a jour.")
+      setEditOpen(false)
+      onDataChanged?.()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Mise a jour impossible")
+    } finally {
+      setEditSubmitting(false)
+    }
+  }
+
+  function deleteTask(task: Task) {
+    openConfirm({
+      title: "Supprimer cette tache ?",
+      description: `La tache '${task.title}' sera supprimee definitivement.`,
+      confirmLabel: "Supprimer",
+      onConfirm: async () => {
+        await requestApi(`/api/v1/admin/tasks/${task.id}`, { method: "DELETE" })
+        toast.success("Tache supprimee.")
         onDataChanged?.()
       },
     })
@@ -136,11 +240,11 @@ export function TasksTable({
                         Convertir en projet
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => toast.info("Edition de tache a venir")}> 
+                      <DropdownMenuItem onClick={() => openEdit(task)}>
                         <IconPencil className="size-4" />
                         Modifier
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => toast.info("Suppression de tache a venir")}> 
+                      <DropdownMenuItem onClick={() => deleteTask(task)}>
                         <IconTrash className="size-4" />
                         Supprimer
                       </DropdownMenuItem>
@@ -159,6 +263,119 @@ export function TasksTable({
           </TableBody>
         </Table>
       </div>
+
+      <Sheet open={editOpen} onOpenChange={setEditOpen}>
+        <SheetContent className="sm:max-w-lg">
+          <form onSubmit={submitEdit}>
+            <SheetHeader>
+              <SheetTitle>Modifier la tache</SheetTitle>
+              <SheetDescription>Mettez a jour les details de la tache.</SheetDescription>
+            </SheetHeader>
+            <div className="mt-4 space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="task-title">Titre</Label>
+                <Input
+                  id="task-title"
+                  value={editForm.title}
+                  onChange={(event) =>
+                    setEditForm((current) => ({ ...current, title: event.target.value }))
+                  }
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="task-status">Statut</Label>
+                  <Select
+                    value={editForm.status}
+                    onValueChange={(value) =>
+                      setEditForm((current) => ({
+                        ...current,
+                        status: value as Task["status"],
+                      }))
+                    }
+                  >
+                    <SelectTrigger id="task-status">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TASK_STATUSES.map((statusValue) => (
+                        <SelectItem key={statusValue} value={statusValue}>
+                          {statusValue}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="task-priority">Priorite</Label>
+                  <Select
+                    value={editForm.priority}
+                    onValueChange={(value) =>
+                      setEditForm((current) => ({
+                        ...current,
+                        priority: value as Task["priority"],
+                      }))
+                    }
+                  >
+                    <SelectTrigger id="task-priority">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TASK_PRIORITIES.map((priorityValue) => (
+                        <SelectItem key={priorityValue} value={priorityValue}>
+                          {priorityValue}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="task-due-date">Echeance</Label>
+                  <Input
+                    id="task-due-date"
+                    type="datetime-local"
+                    value={editForm.due_date}
+                    onChange={(event) =>
+                      setEditForm((current) => ({ ...current, due_date: event.target.value }))
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="task-assigned">Assigne a</Label>
+                  <Input
+                    id="task-assigned"
+                    value={editForm.assigned_to}
+                    onChange={(event) =>
+                      setEditForm((current) => ({ ...current, assigned_to: event.target.value }))
+                    }
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="task-lead-id">Lead ID</Label>
+                <Input
+                  id="task-lead-id"
+                  value={editForm.lead_id}
+                  onChange={(event) =>
+                    setEditForm((current) => ({ ...current, lead_id: event.target.value }))
+                  }
+                />
+              </div>
+            </div>
+            <SheetFooter className="mt-6">
+              <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>
+                Annuler
+              </Button>
+              <Button type="submit" disabled={editSubmitting}>
+                {editSubmitting ? "Enregistrement..." : "Enregistrer"}
+              </Button>
+            </SheetFooter>
+          </form>
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }

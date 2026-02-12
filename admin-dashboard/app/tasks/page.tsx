@@ -6,6 +6,7 @@ import useSWR from "swr"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import { Task, TasksTable } from "@/components/tasks-table"
+import { Skeleton } from "@/components/ui/skeleton"
 import { fetchApi } from "@/lib/api"
 import {
   SidebarInset,
@@ -64,7 +65,11 @@ export default function TasksPage() {
             </div>
           ) : null}
           {isLoading ? (
-            <div>Chargement des taches...</div>
+            <div className="space-y-3">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
           ) : (
             <TasksTable data={tasks} onDataChanged={() => void mutate()} />
           )}

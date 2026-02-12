@@ -28,7 +28,9 @@ async function forwardRequest(
 
   const method = request.method.toUpperCase()
   const body =
-    method === "GET" || method === "HEAD" ? undefined : await request.text()
+    method === "GET" || method === "HEAD"
+      ? undefined
+      : Buffer.from(await request.arrayBuffer())
 
   const upstream = await fetch(targetUrl, {
     method,

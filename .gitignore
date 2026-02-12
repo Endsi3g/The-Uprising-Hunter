@@ -11,3 +11,4 @@ verify.log
 admin-dashboard/.next/
 admin-dashboard/node_modules/
 scripts/ops/.localhost_pids.json
+artifacts/

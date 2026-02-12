@@ -110,6 +110,8 @@ Available endpoints:
 - `POST /api/v1/admin/leads` create a lead
 - `GET /api/v1/admin/tasks` list tasks
 - `POST /api/v1/admin/tasks` create a task
+- `PATCH /api/v1/admin/tasks/{task_id}` update a task
+- `DELETE /api/v1/admin/tasks/{task_id}` delete a task
 - `GET /api/v1/admin/projects` list projects
 - `POST /api/v1/admin/projects` create a project
 - `PATCH /api/v1/admin/projects/{project_id}` update a project
@@ -119,6 +121,12 @@ Available endpoints:
 - `PUT /api/v1/admin/settings` persist dashboard settings
 - `GET /api/v1/admin/search?q=...&limit=...` global search
 - `GET /api/v1/admin/help` help payload
+- `POST /api/v1/admin/import/csv/preview` detect table + preview import
+- `POST /api/v1/admin/import/csv/commit` commit CSV import
+- `POST /api/v1/admin/diagnostics/run` run intelligent diagnostics
+- `GET /api/v1/admin/diagnostics/latest` latest diagnostics artifact
+- `POST /api/v1/admin/autofix/run` run diagnostics with codex autofix
+- `GET /api/v1/admin/autofix/latest` latest autofix artifact
 - `POST /api/v1/admin/rescore` rescore all persisted leads
 - `POST /api/v1/score/preview` score a payload without persistence
 
@@ -134,6 +142,19 @@ Stop localhost processes:
 
 ```powershell
 .\scripts\ops\stop_localhost.ps1
+```
+
+One-shot localhost validation (API + frontend + CRUD + import + diagnostics endpoints):
+
+```powershell
+.\test_localhost_all_features.ps1
+```
+
+Intelligent diagnostics runner (scrape + aggregate findings + optional codex autofix):
+
+```powershell
+.\run_intelligent_tests.ps1
+.\run_intelligent_tests.ps1 -AutoFix
 ```
 
 Example preview request:
@@ -167,6 +188,12 @@ The scoring engine persists these fields and dashboard APIs consume them directl
 - `scripts/ops/start_localhost_one_shot.ps1`
 - `scripts/ops/stop_localhost.ps1`
 - `scripts/ops/setup_schedule.ps1`
+- `scripts/qa/run_intelligent_diagnostics.ps1`
+- `scripts/qa/scrape_frontend_errors.mjs`
+- `scripts/qa/analyze_findings.py`
+- `scripts/qa/build_codex_prompt.py`
+- `scripts/qa/run_codex_autofix.ps1`
+- `scripts/qa/validate_after_fix.ps1`
 - `scripts/verification/verify_funnel.py`
 - `scripts/verification/verify_advanced_system.py`
 - `scripts/verification/test_followup_logic.py`
@@ -200,3 +227,4 @@ python scripts/ops/healthcheck.py --url http://localhost:8000/healthz
 - `assets/reference` reference manuals
 
 For a complete navigation map, see `docs/PROJECT_NAVIGATION.md`.
+For admin endpoint contracts, see `docs/api/admin_v1.md`.

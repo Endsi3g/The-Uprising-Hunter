@@ -1,43 +1,49 @@
 # Next Steps
 
-## 1. Stabilisation Technique
-- Ajouter des tests frontend (Playwright) pour les flows critiques:
+## 1. Ce qui est deja implemente
+- Backend admin enrichi:
+  - CRUD complet taches (`POST/GET/PATCH/DELETE /api/v1/admin/tasks`)
+  - Import CSV intelligent (`/api/v1/admin/import/csv/preview` + `/commit`)
+  - Diagnostics/autofix (`/api/v1/admin/diagnostics/*`, `/api/v1/admin/autofix/*`)
+- Frontend:
+  - Actions taches "Modifier/Supprimer" connectees au backend
+  - Import CSV depuis la page Leads (preview + mapping + commit)
+  - Skeleton loaders sur pages leads/tasks/projects/settings/help
+  - Proxy Next compatible body binaire/multipart
+- QA/Ops:
+  - Script root smoke `test_localhost_all_features.ps1`
+  - Pipeline QA intelligent `run_intelligent_tests.ps1` + `scripts/qa/*`
+  - Tests backend pour tasks/import/diagnostics
+
+## 2. Priorites produit restantes
+- Ajouter une page detail Lead (score breakdown, historique, taches liees).
+- Ajouter filtres serveur + pagination serveur pour leads/taches.
+- Completer analytics avec vues concretes (funnel conversion, performance par source).
+- Ajouter actions bulk leads (export, assignation, ajout campagne).
+
+## 3. Priorites techniques restantes
+- Migrer les deprecations SQLAlchemy/Pydantic signalees par `pytest`.
+- Ajouter tests frontend E2E (Playwright) pour:
   - Lead -> Projet
   - Lead -> Tache
-  - Tache -> Projet
+  - Import CSV
   - Recherche globale (`Ctrl+K` / `Cmd+K`)
-- Ajouter des tests d'integration pour le proxy Next (`/api/proxy/[...path]`) avec gestion des erreurs upstream.
-- Traiter les warnings de deprecation Python (SQLAlchemy + Pydantic) pour preparer la migration future.
+- Ajouter tests integration proxy Next (`/api/proxy/[...path]`) avec erreurs upstream.
 
-## 2. Securite
-- Remplacer les credentials Basic statiques par une authentification admin plus robuste (session/JWT + rotation secrets).
-- Ajouter une configuration de credentials differenciee par environnement (dev/staging/prod).
-- Ajouter des tests de non-regression sur rate limiting et controle d'acces admin.
+## 4. Securite
+- Remplacer Basic Auth statique par session/JWT admin robuste.
+- Introduire credentials differencies par environnement.
+- Ajouter rotation des secrets et tests de non-regression d'acces.
 
-## 3. UX Produit
-- Finaliser les actions "Modifier/Supprimer" cote taches (actuellement placeholders UX).
-- Ajouter pagination/tri/filtrage serveur pour leads et taches (au lieu du mode 100 items client).
-- Ajouter confirmation unifiee sur toutes les actions destructives restantes.
-- Ajouter indicateurs de chargement plus explicites (skeletons) sur pages `projects`, `settings`, `help`.
-
-## 4. Performance
-- Cacher certaines reponses peu volatiles (`help`, `settings`) avec invalidation sur update.
-- Optimiser `search` (index SQLite complementaires sur colonnes sollicitees).
-- Introduire revalidation selective SWR par cle d'entite au lieu de reload global.
-
-## 5. Observabilite
-- Ajouter logs structures par endpoint admin (latence + statut + utilisateur).
-- Ajouter metriques techniques minimales (`request_count`, `error_rate`, `p95`) pour l'API admin.
-- Ajouter script de verification smoke unique pour API + UI proxy.
-
-## 6. Delivery / Ops
-- Ajouter une CI qui execute:
+## 5. Observabilite et delivery
+- Ajouter logs structures par endpoint admin (latence/statut).
+- Ajouter metriques minimales (`request_count`, `error_rate`, `p95`).
+- Ajouter CI:
   - `python -m pytest -q`
   - `cd admin-dashboard && npm run build`
-- Ajouter versionnement de release (changelog) apres stabilisation.
-- Ajouter un script de seed local pour demos (leads, taches, projets, settings).
+  - `powershell -ExecutionPolicy Bypass -File .\test_localhost_all_features.ps1 -SkipUnitTests -SkipFrontendBuild`
 
-## 7. Documentation
-- Documenter le contrat exact des nouveaux endpoints dans un fichier API dedie (`docs/api/admin_v1.md`).
-- Ajouter un guide "Troubleshooting localhost" pour erreurs frequentes (`port used`, `auth`, `CORS`).
-- Ajouter un guide utilisateur FR court pour les nouveaux flows modaux.
+## 6. Documentation
+- Ajouter spec API admin dediee (`docs/api/admin_v1.md`).
+- Ajouter guide "Troubleshooting localhost" (ports, auth, CORS, env).
+- Ajouter mini guide utilisateur FR pour modales/import/recherche/diagnostics.

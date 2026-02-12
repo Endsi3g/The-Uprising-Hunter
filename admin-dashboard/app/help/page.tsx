@@ -6,6 +6,7 @@ import useSWR from "swr"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   SidebarInset,
   SidebarProvider,
@@ -37,7 +38,13 @@ export default function HelpPage() {
         <SiteHeader />
         <div className="flex flex-1 flex-col gap-4 p-4 pt-0 md:p-8">
           <h2 className="text-3xl font-bold tracking-tight">Centre d'aide</h2>
-          {isLoading ? <div>Chargement de l'aide...</div> : null}
+          {isLoading ? (
+            <div className="grid gap-4 lg:grid-cols-2">
+              <Skeleton className="h-32 w-full" />
+              <Skeleton className="h-32 w-full" />
+              <Skeleton className="h-56 w-full lg:col-span-2" />
+            </div>
+          ) : null}
           {error ? (
             <div className="text-sm text-red-600">Impossible de charger l'aide.</div>
           ) : null}

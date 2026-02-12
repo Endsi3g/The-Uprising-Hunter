@@ -9,6 +9,7 @@ import { SiteHeader } from "@/components/site-header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   SidebarInset,
   SidebarProvider,
@@ -86,7 +87,11 @@ export default function SettingsPage() {
             <div className="text-sm text-red-600">Impossible de charger les parametres.</div>
           ) : null}
           {isLoading ? (
-            <div>Chargement des parametres...</div>
+            <div className="space-y-3">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
           ) : (
             <form onSubmit={onSubmit} className="max-w-3xl space-y-6">
               <div className="grid gap-4 sm:grid-cols-2">

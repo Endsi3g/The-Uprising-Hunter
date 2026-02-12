@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import secrets
 import time
@@ -9,7 +10,7 @@ from pathlib import Path
 from threading import Lock
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, status
+from fastapi import APIRouter, Depends, FastAPI, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
@@ -26,6 +27,12 @@ from ..core.db_models import DBAdminSetting, DBCompany, DBLead, DBProject, DBTas
 from ..core.logging import configure_logging, get_logger
 from ..core.models import Company, Interaction, Lead, LeadStage, LeadStatus
 from ..scoring.engine import ScoringEngine
+from .diagnostics_service import (
+    get_latest_autofix,
+    get_latest_diagnostics,
+    run_intelligent_diagnostics,
+)
+from .import_service import commit_csv_import, preview_csv_import
 from .stats_service import compute_core_funnel_stats, list_leads
 
 
@@ -93,6 +100,15 @@ class AdminTaskCreateRequest(BaseModel):
     lead_id: str | None = None
 
 
+class AdminTaskUpdateRequest(BaseModel):
+    title: str | None = Field(default=None, min_length=1)
+    status: str | None = None
+    priority: str | None = None
+    due_date: str | None = None
+    assigned_to: str | None = None
+    lead_id: str | None = None
+
+
 class AdminProjectCreateRequest(BaseModel):
     name: str = Field(min_length=1)
     description: str | None = None
@@ -139,6 +155,10 @@ class AdminHelpPayload(BaseModel):
     support_email: EmailStr
     faqs: list[dict[str, str]]
     links: list[dict[str, str]]
+
+
+class AdminDiagnosticsRunRequest(BaseModel):
+    auto_fix: bool = False
 
 
 def _is_production() -> bool:
@@ -429,6 +449,60 @@ def _create_task_payload(db: Session, payload: AdminTaskCreateRequest) -> dict[s
             detail="Failed to create task.",
         ) from exc
     return _serialize_task(task)
+
+
+def _update_task_payload(
+    db: Session,
+    task_id: str,
+    payload: AdminTaskUpdateRequest,
+) -> dict[str, Any]:
+    task = db.query(DBTask).filter(DBTask.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found.")
+
+    update_data = payload.model_dump(exclude_unset=True)
+    if "title" in update_data and payload.title is not None:
+        task.title = payload.title.strip()
+    if "status" in update_data:
+        task.status = _coerce_task_status(payload.status)
+    if "priority" in update_data:
+        task.priority = _coerce_task_priority(payload.priority)
+    if "due_date" in update_data:
+        task.due_date = _parse_datetime_field(payload.due_date, "due_date")
+    if "assigned_to" in update_data:
+        task.assigned_to = (payload.assigned_to or "You").strip()
+    if "lead_id" in update_data:
+        task.lead_id = payload.lead_id
+
+    try:
+        db.commit()
+        db.refresh(task)
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Failed to update task.", extra={"error": str(exc), "task_id": task_id})
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update task.",
+        ) from exc
+    return _serialize_task(task)
+
+
+def _delete_task_payload(db: Session, task_id: str) -> dict[str, Any]:
+    task = db.query(DBTask).filter(DBTask.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found.")
+
+    db.delete(task)
+    try:
+        db.commit()
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Failed to delete task.", extra={"error": str(exc), "task_id": task_id})
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete task.",
+        ) from exc
+    return {"deleted": True, "id": task_id}
 
 
 def _create_project_payload(db: Session, payload: AdminProjectCreateRequest) -> dict[str, Any]:
@@ -796,6 +870,29 @@ def _help_payload(db: Session) -> dict[str, Any]:
     return payload.model_dump()
 
 
+def _parse_import_mapping(mapping_json: str | None) -> dict[str, str] | None:
+    if not mapping_json:
+        return None
+    try:
+        payload = json.loads(mapping_json)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Invalid mapping_json payload.",
+        ) from exc
+    if not isinstance(payload, dict):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="mapping_json must be a JSON object.",
+        )
+    normalized: dict[str, str] = {}
+    for key, value in payload.items():
+        if key is None or value is None:
+            continue
+        normalized[str(key)] = str(value)
+    return normalized
+
+
 def create_app() -> FastAPI:
     configure_logging()
     _validate_admin_credentials_security()
@@ -869,6 +966,21 @@ def create_app() -> FastAPI:
         tasks = db.query(DBTask).order_by(DBTask.created_at.desc()).all()
         return [_serialize_task(task) for task in tasks]
 
+    @admin_v1.patch("/tasks/{task_id}")
+    def update_task_v1(
+        task_id: str,
+        payload: AdminTaskUpdateRequest,
+        db: Session = Depends(get_db),
+    ) -> dict[str, Any]:
+        return _update_task_payload(db, task_id, payload)
+
+    @admin_v1.delete("/tasks/{task_id}")
+    def delete_task_v1(
+        task_id: str,
+        db: Session = Depends(get_db),
+    ) -> dict[str, Any]:
+        return _delete_task_payload(db, task_id)
+
     @admin_v1.post("/rescore")
     def rescore_leads_v1(db: Session = Depends(get_db)) -> dict[str, Any]:
         return _rescore_payload(db)
@@ -926,6 +1038,46 @@ def create_app() -> FastAPI:
     @admin_v1.get("/help")
     def help_v1(db: Session = Depends(get_db)) -> dict[str, Any]:
         return _help_payload(db)
+
+    @admin_v1.post("/import/csv/preview")
+    async def import_csv_preview_v1(
+        file: UploadFile = File(...),
+        table: str | None = Form(default=None),
+        mapping_json: str | None = Form(default=None),
+    ) -> dict[str, Any]:
+        content = await file.read()
+        mapping = _parse_import_mapping(mapping_json)
+        return preview_csv_import(content=content, table=table, mapping=mapping)
+
+    @admin_v1.post("/import/csv/commit")
+    async def import_csv_commit_v1(
+        db: Session = Depends(get_db),
+        file: UploadFile = File(...),
+        table: str | None = Form(default=None),
+        mapping_json: str | None = Form(default=None),
+    ) -> dict[str, Any]:
+        content = await file.read()
+        mapping = _parse_import_mapping(mapping_json)
+        return commit_csv_import(db=db, content=content, table=table, mapping=mapping)
+
+    @admin_v1.post("/diagnostics/run")
+    def diagnostics_run_v1(
+        payload: AdminDiagnosticsRunRequest | None = None,
+    ) -> dict[str, Any]:
+        auto_fix = bool(payload.auto_fix) if payload else False
+        return run_intelligent_diagnostics(auto_fix=auto_fix)
+
+    @admin_v1.get("/diagnostics/latest")
+    def diagnostics_latest_v1() -> dict[str, Any]:
+        return get_latest_diagnostics()
+
+    @admin_v1.post("/autofix/run")
+    def autofix_run_v1() -> dict[str, Any]:
+        return run_intelligent_diagnostics(auto_fix=True)
+
+    @admin_v1.get("/autofix/latest")
+    def autofix_latest_v1() -> dict[str, Any]:
+        return get_latest_autofix()
 
     @api_v1.post(
         "/score/preview",

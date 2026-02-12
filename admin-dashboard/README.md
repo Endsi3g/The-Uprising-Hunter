@@ -40,6 +40,8 @@ Ces variables sont **server-only** (aucune exposition navigateur).
 - Page Parametres persistante (`GET/PUT /api/v1/admin/settings`)
 - Recherche globale (`Ctrl+K` / `Cmd+K`)
 - Panneau et page d'aide (`/help`)
+- Import CSV intelligent (preview + mapping + commit) depuis la page Leads
+- Edition/Suppression de taches connectees au backend (`PATCH/DELETE /api/v1/admin/tasks/{id}`)
 - Flows:
   - Lead -> Projet
   - Lead -> Tache

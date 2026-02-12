@@ -11,6 +11,7 @@ import { SiteHeader } from "@/components/site-header"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   Select,
   SelectContent,
@@ -153,7 +154,11 @@ export default function ProjectsPage() {
           </div>
 
           {isLoading ? (
-            <div>Chargement des projets...</div>
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <Skeleton className="h-48 w-full" />
+              <Skeleton className="h-48 w-full" />
+              <Skeleton className="h-48 w-full" />
+            </div>
           ) : error ? (
             <div className="text-red-500">Impossible de charger les projets.</div>
           ) : (

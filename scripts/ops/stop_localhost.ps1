@@ -13,12 +13,17 @@ function Stop-IfRunning([int]$Pid) {
 
 if (Test-Path $PidFile) {
     try {
-        $pids = Get-Content $PidFile | ConvertFrom-Json
-        Stop-IfRunning -Pid ([int]$pids.backend_pid)
-        Stop-IfRunning -Pid ([int]$pids.frontend_pid)
+        $raw = Get-Content $PidFile -Raw
+        if (-not [string]::IsNullOrWhiteSpace($raw)) {
+            $raw = $raw.Trim()
+            $raw = $raw.TrimStart([char]0xFEFF)
+            $pids = $raw | ConvertFrom-Json
+            Stop-IfRunning -Pid ([int]$pids.backend_pid)
+            Stop-IfRunning -Pid ([int]$pids.frontend_pid)
+        }
     }
     catch {
-        Write-Warning "Unable to parse PID file: $PidFile"
+        # Ignore parse errors and fallback to port-based shutdown below.
     }
     Remove-Item $PidFile -Force
 }
@@ -33,4 +38,3 @@ foreach ($port in @(8000, 3000)) {
 }
 
 Write-Host "Localhost services stopped for ports 8000 and 3000."
-
