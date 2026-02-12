@@ -1,6 +1,13 @@
 __pycache__/
 *.pyc
 venv/
+.venv/
 .env
+.env.local
+.env.*.local
 .DS_Store
 prospect.db
+verify.log
+admin-dashboard/.next/
+admin-dashboard/node_modules/
+scripts/ops/.localhost_pids.json

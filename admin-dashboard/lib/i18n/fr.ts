@@ -1,0 +1,24 @@
+export const fr = {
+  appName: "Prospect",
+  sidebar: {
+    dashboard: "Tableau de bord",
+    tasks: "Taches",
+    leads: "Leads",
+    analytics: "Analytique",
+    projects: "Projets",
+    settings: "Parametres",
+    getHelp: "Aide",
+    search: "Recherche",
+    quickLead: "Creation rapide de lead",
+  },
+  common: {
+    save: "Enregistrer",
+    cancel: "Annuler",
+    create: "Creer",
+    loading: "Chargement...",
+    noData: "Aucune donnee disponible.",
+    delete: "Supprimer",
+    edit: "Modifier",
+  },
+} as const
+

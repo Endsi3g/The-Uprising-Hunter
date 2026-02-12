@@ -1,38 +1,43 @@
-# 🚀 Roadmap & Next Steps
+# Next Steps
 
-## ✅ Completed Milestones
+## 1. Stabilisation Technique
+- Ajouter des tests frontend (Playwright) pour les flows critiques:
+  - Lead -> Projet
+  - Lead -> Tache
+  - Tache -> Projet
+  - Recherche globale (`Ctrl+K` / `Cmd+K`)
+- Ajouter des tests d'integration pour le proxy Next (`/api/proxy/[...path]`) avec gestion des erreurs upstream.
+- Traiter les warnings de deprecation Python (SQLAlchemy + Pydantic) pour preparer la migration future.
 
-- [x] **Core Architecture**: Models, Enrichment, Scoring, AI Engine.
-- [x] **API Integration**: Connected `Apollo.io` and `OpenAI`.
-- [x] **New Source**: Integrated `Apify` for Google Maps sourcing.
-- [x] **Database**: Implemented `SQLite` with `SQLAlchemy` for persistence.
-- [x] **CLI**: Added command-line arguments (source, query, location).
-- [x] **Automation**: Created Windows Task Scheduler script.
-- [x] **Deployment**: Git initialized and codebase secured.
+## 2. Securite
+- Remplacer les credentials Basic statiques par une authentification admin plus robuste (session/JWT + rotation secrets).
+- Ajouter une configuration de credentials differenciee par environnement (dev/staging/prod).
+- Ajouter des tests de non-regression sur rate limiting et controle d'acces admin.
 
-## 🔜 Upcoming Priorities
+## 3. UX Produit
+- Finaliser les actions "Modifier/Supprimer" cote taches (actuellement placeholders UX).
+- Ajouter pagination/tri/filtrage serveur pour leads et taches (au lieu du mode 100 items client).
+- Ajouter confirmation unifiee sur toutes les actions destructives restantes.
+- Ajouter indicateurs de chargement plus explicites (skeletons) sur pages `projects`, `settings`, `help`.
 
-### 1. Advanced Scoring & Intelligence
+## 4. Performance
+- Cacher certaines reponses peu volatiles (`help`, `settings`) avec invalidation sur update.
+- Optimiser `search` (index SQLite complementaires sur colonnes sollicitees).
+- Introduire revalidation selective SWR par cle d'entite au lieu de reload global.
 
-- [ ] **Custom ICP Config**: Move hardcoded scoring weights to a YAML config file.
-- [ ] **Intent Data**: Integrate a real intent data provider (e.g., Bombora or website visitor tracking).
+## 5. Observabilite
+- Ajouter logs structures par endpoint admin (latence + statut + utilisateur).
+- Ajouter metriques techniques minimales (`request_count`, `error_rate`, `p95`) pour l'API admin.
+- Ajouter script de verification smoke unique pour API + UI proxy.
 
-### 2. Outreach Automation
+## 6. Delivery / Ops
+- Ajouter une CI qui execute:
+  - `python -m pytest -q`
+  - `cd admin-dashboard && npm run build`
+- Ajouter versionnement de release (changelog) apres stabilisation.
+- Ajouter un script de seed local pour demos (leads, taches, projets, settings).
 
-- [ ] **Email Sending**: Connect SMTP (Gmail/Outlook) to actually *send* the generated drafts.
-- [ ] **Sequence Logic**: Implement follow-ups (Day 1, Day 3, Day 7).
-
-### 3. User Interface (UI)
-
-- [ ] **Dashboard**: Build a simple React/Streamlit admin panel to view leads and approve emails.
-- [ ] **Stats**: Visualize conversion rates and pipeline health.
-
-### 4. Cloud Deployment
-
-- [ ] **Dockerize**: Create a `Dockerfile` for easy deployment.
-- [ ] **Cloud Run**: Deploy the worker to a cloud provider (AWS/GCP/Render) for 24/7 operation.
-
-## 📝 Maintenance
-
-- Monitor API usage quotes (Apollo/OpenAI/Apify).
-- Backup `prospect.db` regularly.
+## 7. Documentation
+- Documenter le contrat exact des nouveaux endpoints dans un fichier API dedie (`docs/api/admin_v1.md`).
+- Ajouter un guide "Troubleshooting localhost" pour erreurs frequentes (`port used`, `auth`, `CORS`).
+- Ajouter un guide utilisateur FR court pour les nouveaux flows modaux.

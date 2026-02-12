@@ -1,0 +1,75 @@
+"use client"
+
+import * as React from "react"
+import useSWR from "swr"
+
+import { AppSidebar } from "@/components/app-sidebar"
+import { SiteHeader } from "@/components/site-header"
+import { Task, TasksTable } from "@/components/tasks-table"
+import { fetchApi } from "@/lib/api"
+import {
+  SidebarInset,
+  SidebarProvider,
+} from "@/components/ui/sidebar"
+
+type ApiTask = {
+  id: string
+  title: string
+  status: "To Do" | "In Progress" | "Done"
+  priority: "Low" | "Medium" | "High" | "Critical"
+  due_date?: string | null
+  assigned_to?: string | null
+  lead_id?: string | null
+}
+
+const fetcher = <T,>(path: string) => fetchApi<T>(path)
+
+export default function TasksPage() {
+  const { data, error, isLoading, mutate } = useSWR<ApiTask[]>(
+    "/api/v1/admin/tasks",
+    fetcher,
+  )
+
+  const tasks: Task[] = data
+    ? data.map((task) => ({
+      id: task.id,
+      title: task.title,
+      status: task.status,
+      priority: task.priority,
+      due_date: task.due_date || "",
+      assigned_to: task.assigned_to || "Vous",
+      lead_id: task.lead_id || undefined,
+    }))
+    : []
+
+  return (
+    <SidebarProvider
+      style={
+        {
+          "--sidebar-width": "calc(var(--spacing) * 72)",
+          "--header-height": "calc(var(--spacing) * 12)",
+        } as React.CSSProperties
+      }
+    >
+      <AppSidebar variant="inset" />
+      <SidebarInset>
+        <SiteHeader />
+        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+          <div className="flex items-center justify-between py-4">
+            <h2 className="text-3xl font-bold tracking-tight">Taches</h2>
+          </div>
+          {error ? (
+            <div className="text-sm text-red-600">
+              Erreur de chargement des taches.
+            </div>
+          ) : null}
+          {isLoading ? (
+            <div>Chargement des taches...</div>
+          ) : (
+            <TasksTable data={tasks} onDataChanged={() => void mutate()} />
+          )}
+        </div>
+      </SidebarInset>
+    </SidebarProvider>
+  )
+}
