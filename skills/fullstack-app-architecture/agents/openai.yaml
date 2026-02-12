@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fullstack App Architecture"
+  short_description: "Structure scalable production full-stack app workflows"
+  default_prompt: "Use $fullstack-app-architecture to design and implement a production-ready TypeScript full-stack app from requirements to deployment."

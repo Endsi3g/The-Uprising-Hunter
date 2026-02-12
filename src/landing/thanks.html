@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Merci | ClinicFlow IA</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2563eb;
+            --background: #f8fafc;
+            --text: #0f172a;
+            --white: #ffffff;
+            --border: #e2e8f0;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--background);
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 600px;
+            width: 90%;
+            background: var(--white);
+            padding: 3rem;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        h2 {
+            margin-bottom: 1rem;
+            font-size: 2rem;
+            color: var(--primary);
+        }
+
+        p.intro {
+            margin-bottom: 2.5rem;
+            color: #64748b;
+        }
+
+        form {
+            text-align: left;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        input,
+        select,
+        textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            font-family: inherit;
+            font-size: 1rem;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            outline: 2px solid var(--primary);
+            outline-offset: 2px;
+        }
+
+        button {
+            width: 100%;
+            padding: 1rem;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            margin-top: 1rem;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        button:focus {
+            outline: 2px solid var(--text);
+            outline-offset: 4px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h2>C'est noté ! ✅</h2>
+        <p class="intro">Pour préparer au mieux notre échange de 15 min, merci de répondre à ces 3 questions rapides :
+        </p>
+
+        <form action="/" method="GET">
+            <div class="form-group">
+                <label for="praticiens">Combien de praticiens travaillent dans votre clinique ?</label>
+                <select id="praticiens" name="praticiens" required>
+                    <option value="">Sélectionnez...</option>
+                    <option value="1">Seul(e)</option>
+                    <option value="2-5">2 à 5 praticiens</option>
+                    <option value="5-10">5 à 10 praticiens</option>
+                    <option value="10+">Plus de 10</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="logiciel">Quel logiciel de gestion utilisez-vous actuellement ?</label>
+                <input type="text" id="logiciel" name="logiciel" placeholder="Ex: Julie, Doctolib, CloudDentist..."
+                    required>
+            </div>
+
+            <div class="form-group">
+                <label for="priorite">Quelle est votre priorité n°1 pour les 3 prochains mois ?</label>
+                <textarea id="priorite" name="priorite" rows="3"
+                    placeholder="Ex: Gagner du temps, augmenter le CA, réduire les no-shows..." required></textarea>
+            </div>
+
+            <button type="submit">Valider mes réponses</button>
+        </form>
+    </div>
+</body>
+
+</html>

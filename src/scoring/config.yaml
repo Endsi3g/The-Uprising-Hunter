@@ -1,0 +1,167 @@
+icp_weights:
+  fit:
+    prac_2_5: 15
+    medical_industry: 10
+    location_priority: 5
+    admin_present: 2
+    solo_penalty: -6
+    group_10_penalty: -4
+  pain:
+    high_friction: 6
+    vague_booking: 12
+    no_faq: 8
+    missing_essentials: 6
+    surcharge_signals: 3
+  digital:
+    bad_mobile: 10
+    no_fold_cta: 6
+    weak_contact: 4
+  access:
+    direct_email: 6
+    contact_form: 3
+    active_social: 1
+  urgency:
+    recent_post: 2
+    hiring: 2
+    new_service: 1
+heat_weights:
+  email:
+    open: 5
+    click: 15
+    double_open: 10
+    forward: 10
+  site:
+    pricing_page: 10
+    multi_page: 8
+    return_visit: 7
+  reply:
+    positive: 15
+    nurture: 8
+    curiosity: 5
+    negative: -10
+  timing:
+    within_24h: 10
+    within_48h: 6
+    within_7d: 2
+  intent:
+    high: 20
+    medium: 10
+    low: 4
+    topic_bonus: 1
+    surge_multiplier: 0.05
+thresholds:
+  qualification_min_score: 40
+  heat_hot_min: 70
+  heat_warm_min: 40
+tier_cutoffs:
+  tier_a: 80
+  tier_b: 60
+  tier_c: 40
+caps:
+  fit: 30
+  pain: 35
+  digital: 20
+  access_urgency: 15
+  email_engagement: 40
+  site_reply: 50
+  timing: 10
+  total_icp: 100
+  total_heat: 100
+rules:
+  fit:
+    small_size_ranges:
+    - 2-5
+    - 2-10
+    solo_size_ranges:
+    - '1'
+    - solo
+    large_size_ranges:
+    - 10+
+    - 11-50
+    - 51-200
+    - 200+
+    - 500-1000
+    - 1000+
+    medical_industry_keywords:
+    - medical
+    - dent
+    - physio
+    - sante
+    - "sant\xE9"
+    - clinic
+    - gmf
+    priority_location_keywords:
+    - montreal
+    - montreal, qc
+    - laval
+    - longueuil
+    - quebec
+    - quebec city
+    location_priority_detail_key: location_priority
+    admin_present_detail_key: admin_present
+  pain:
+    high_friction_keywords_all:
+    - rendez-vous
+    - appelez
+    vague_booking_keywords_any:
+    - prendre rendez-vous
+    - prise de rendez-vous
+    - book
+    - booking
+    vague_booking_detail_key: vague_booking
+    no_faq_detail_key: no_faq
+    missing_essentials_detail_key: missing_essentials
+    surcharge_signal_keywords_any:
+    - "achaland\xE9"
+    - achalande
+    - sans rdv
+    - sans rendez-vous
+    - sans rendez vous
+    - liste d'attente
+  digital:
+    low_mobile_detail_key: low_mobile_score
+    no_fold_cta_detail_key: no_fold_cta
+    weak_contact_detail_key: weak_contact_page
+  access:
+    contact_form_detail_key: has_contact_form
+    active_social_detail_key: active_social
+  urgency:
+    recent_post_detail_key: recent_post
+    hiring_detail_key: hiring
+    new_service_detail_key: new_service
+  timing:
+    buckets_hours:
+      within_24h: 24
+      within_48h: 48
+      within_7d: 168
+  heat:
+    click_detail_key: clicked
+    forward_detail_key: forwarded
+    site_event_detail_key: site_events
+    site_page_key: page
+    site_return_within_hours_key: return_within_hours
+    pricing_page_tokens:
+    - pricing
+    - price
+    - tarif
+    - offre
+    return_visit_hours_max: 48
+  intent:
+    enabled: true
+    detail_key: intent
+    max_topic_bonus_count: 5
+    supported_levels:
+    - none
+    - low
+    - medium
+    - high
+  actions:
+    tier:
+      tier_a: Loom personalise + proposition RDV 15 min + follow-up J+2/5/9
+      tier_b: Email personnalise + offre audit (Loom si Heat > 40)
+      tier_c: DM / porte-a-porte / nurture contenu
+      tier_d: Skip / archivage
+    heat:
+      hot: Proposer RDV immediat + lien Stripe possible
+      warm: Envoyer audit Loom + proposer 2 creneaux
+      cold: Continuer sequence de valeur

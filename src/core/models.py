@@ -1,6 +1,7 @@
 from datetime import datetime
 from enum import Enum
 from typing import List, Optional, Dict, Any
+import uuid
 from pydantic import BaseModel, Field, EmailStr, HttpUrl
 
 class LeadStatus(str, Enum):
@@ -12,6 +13,23 @@ class LeadStatus(str, Enum):
     CONVERTED = "CONVERTED"
     LOST = "LOST"
     DQ = "DISQUALIFIED"
+
+class LeadStage(str, Enum):
+    NEW = "NEW"
+    CONTACTED = "CONTACTED"
+    OPENED = "OPENED"
+    REPLIED = "REPLIED"
+    BOOKED = "BOOKED"
+    SHOW = "SHOW"
+    SOLD = "SOLD"
+    LOST = "LOST"
+
+class LeadOutcome(str, Enum):
+    BOOKED = "BOOKED"
+    SHOW = "SHOW"
+    CLOSED = "CLOSED"
+    LOST = "LOST"
+    NO_REPLY = "NO_REPLY"
 
 class InteractionType(str, Enum):
     EMAIL_SENT = "EMAIL_SENT"
@@ -41,11 +59,14 @@ class Company(BaseModel):
     description: Optional[str] = None
 
 class ScoringData(BaseModel):
-    demographic_score: float = 0.0
-    behavioral_score: float = 0.0
-    intent_score: float = 0.0
-    total_score: float = 0.0
-    score_breakdown: Dict[str, float] = Field(default_factory=dict)
+    icp_score: float = 0.0
+    heat_score: float = 0.0
+    total_score: float = 0.0 # Legacy/Combined
+    tier: str = "Tier D"
+    heat_status: str = "Cold"
+    next_best_action: Optional[str] = None
+    icp_breakdown: Dict[str, float] = Field(default_factory=dict)
+    heat_breakdown: Dict[str, float] = Field(default_factory=dict)
     last_scored_at: Optional[datetime] = None
 
 class Lead(BaseModel):
@@ -59,9 +80,17 @@ class Lead(BaseModel):
     
     company: Company
     status: LeadStatus = LeadStatus.NEW
+    segment: Optional[str] = None
     
+    total_score: float = 0.0 # Added for easy root access
     score: ScoringData = Field(default_factory=ScoringData)
     interactions: List[Interaction] = Field(default_factory=list)
+    outcome: Optional[LeadOutcome] = None
+    
+    # Follow-up Engine Fields
+    stage: LeadStage = LeadStage.NEW
+    next_action_date: Optional[datetime] = None
+    
     details: Dict[str, Any] = Field(default_factory=dict)
     
     tags: List[str] = Field(default_factory=list)
@@ -69,4 +98,52 @@ class Lead(BaseModel):
     updated_at: datetime = Field(default_factory=datetime.now)
 
     class Config:
+        from_attributes = True
+        use_enum_values = True
+
+class TaskPriority(str, Enum):
+    LOW = "Low"
+    MEDIUM = "Medium"
+    HIGH = "High"
+    CRITICAL = "Critical"
+
+class TaskStatus(str, Enum):
+    TODO = "To Do"
+    IN_PROGRESS = "In Progress"
+    DONE = "Done"
+
+class Task(BaseModel):
+    id: str = Field(..., description="Unique ID of the task")
+    title: str
+    status: TaskStatus = TaskStatus.TODO
+    priority: TaskPriority = TaskPriority.MEDIUM
+    due_date: Optional[datetime] = None
+    assigned_to: str = "You"
+    lead_id: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.now)
+    
+    class Config:
+        # Use simple strings in API responses for enums
+        from_attributes = True
+        use_enum_values = True
+
+class ProjectStatus(str, Enum):
+    PLANNING = "Planning"
+    IN_PROGRESS = "In Progress"
+    ON_HOLD = "On Hold"
+    COMPLETED = "Completed"
+    CANCELLED = "Cancelled"
+
+class Project(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    description: Optional[str] = None
+    status: ProjectStatus = ProjectStatus.PLANNING
+    lead_id: Optional[str] = None
+    due_date: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
+
+    class Config:
+        from_attributes = True
         use_enum_values = True

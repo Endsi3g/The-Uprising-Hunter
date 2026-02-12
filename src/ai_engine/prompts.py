@@ -1,18 +1,33 @@
 COLD_EMAIL_TEMPLATE = """
-Subject: Question about {company_name}'s {pain_point_area} strategy
+Subject: Question rapide - {company_name}
 
-Hi {first_name},
+Bonjour {first_name},
 
-I saw that {company_name} is currently focusing on {company_focus} - congrats on the progress.
+J'ai remarqué votre travail chez {company_name} - félicitations pour votre développement.
 
-Many {job_title}s I talk to mention that {pain_point} is a major bottleneck as they scale.
+De nombreuses cliniques avec lesquelles nous travaillons mentionnent que {pain_point} ralentit leur croissance au quotidien.
 
-We help companies like {related_competitor} solve this by {value_proposition}.
+On aide des établissements de santé à automatiser {pain_point_area} pour libérer du temps médical.
 
-Worth a brief chat to see if this aligns with your goals?
+Est-ce que vous seriez OK pour un appel de 15 min ?
 
-Best,
-[Your Name]
+Bonne journée,
+[Votre Nom]
+"""
+
+FOLLOW_UP_TEMPLATE = """
+Subject: Suite à mon message - {company_name}
+
+Bonjour {first_name},
+
+Je me permets de vous relancer concernant mon précédent message. 
+
+Comme mentionné, nous aidons les cliniques à optimiser leur {pain_point_area} via l'intelligence artificielle.
+
+Seriez-vous disponible pour un court échange de 15 min cette semaine ?
+
+Bien à vous,
+[Votre Nom]
 """
 
 LINKEDIN_CONNECTION_TEMPLATE = """

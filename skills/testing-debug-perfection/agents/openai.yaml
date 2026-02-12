@@ -1,0 +1,4 @@
+interface:
+  display_name: "Testing and Debug Perfection"
+  short_description: "Build reliable test suites and debug regressions fast"
+  default_prompt: "Use $testing-debug-perfection to define unit, integration, and E2E tests and a reproducible debugging workflow."

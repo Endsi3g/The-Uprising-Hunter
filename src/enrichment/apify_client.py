@@ -1,7 +1,17 @@
-from typing import List, Dict, Any
+from __future__ import annotations
+
+from typing import List, Dict, Any, Optional
 from apify_client import ApifyClient
 from .client import SourcingClient
-import os
+from urllib.parse import urlparse
+import re
+import requests
+
+from ..core.http import HttpRequestConfig, request_with_retries
+from ..core.logging import get_logger
+
+
+logger = get_logger(__name__)
 
 class ApifyMapsClient(SourcingClient):
     """
@@ -11,6 +21,178 @@ class ApifyMapsClient(SourcingClient):
         self.client = ApifyClient(api_token)
         # Using the Compass Google Maps crawler (compass/crawler-google-places) or similar
         self.actor_id = "compass/crawler-google-places" 
+        self._website_probe_cache: Dict[str, Dict[str, Any]] = {}
+        self._http_session = requests.Session()
+        self._http_request_config = HttpRequestConfig(timeout=4.0, max_retries=2)
+
+    @staticmethod
+    def _safe_str(value: Any) -> str:
+        if value is None:
+            return ""
+        if isinstance(value, str):
+            return value
+        return str(value)
+
+    def _blob_text(self, item: Dict[str, Any]) -> str:
+        parts = []
+        candidate_keys = (
+            "title",
+            "categoryName",
+            "address",
+            "description",
+            "about",
+            "website",
+            "phone",
+            "temporarilyClosed",
+            "popularTimesHistogram",
+            "reviews",
+            "additionalInfo",
+            "openingHours",
+            "businessStatus",
+        )
+        for key in candidate_keys:
+            raw = item.get(key)
+            if raw is None:
+                continue
+            if isinstance(raw, list):
+                parts.extend(self._safe_str(x) for x in raw)
+            elif isinstance(raw, dict):
+                parts.extend(self._safe_str(v) for v in raw.values())
+            else:
+                parts.append(self._safe_str(raw))
+        return " ".join(parts).lower()
+
+    @staticmethod
+    def _contains_any(text: str, keywords: List[str]) -> bool:
+        return any(keyword in text for keyword in keywords)
+
+    def _extract_domain(self, url: str) -> Optional[str]:
+        if not url:
+            return None
+        parsed = urlparse(url)
+        domain = parsed.netloc
+        if domain.startswith("www."):
+            domain = domain[4:]
+        return domain or None
+
+    def _probe_website(self, website_url: Optional[str]) -> Dict[str, Any]:
+        if not website_url:
+            return {}
+
+        domain = self._extract_domain(website_url)
+        if domain and domain in self._website_probe_cache:
+            return self._website_probe_cache[domain]
+
+        try:
+            response = request_with_retries(
+                self._http_session,
+                "GET",
+                website_url,
+                config=self._http_request_config,
+                headers={"User-Agent": "Mozilla/5.0"},
+            )
+            html = response.text.lower()
+        except requests.RequestException as exc:
+            logger.debug(
+                "Website probe failed.",
+                extra={"website_url": website_url, "error": str(exc)},
+            )
+            result = {}
+            if domain:
+                self._website_probe_cache[domain] = result
+            return result
+
+        first_fold = html[:4000]
+        visible_blob = re.sub(r"<[^>]+>", " ", html)
+        visible_blob = re.sub(r"\s+", " ", visible_blob)
+
+        has_faq = any(token in visible_blob for token in ["faq", "foire aux questions", "questions frequentes"])
+        has_contact_form = "<form" in html and any(token in html for token in ["contact", "appointment", "rendez"])
+        has_social = any(token in html for token in ["facebook.com", "instagram.com", "linkedin.com", "tiktok.com"])
+
+        cta_tokens = ("prendre rendez", "book now", "book appointment", "contact", "calendly")
+        no_fold_cta = not any(token in first_fold for token in cta_tokens)
+
+        mobile_signals_bad = False
+        if 'name="viewport"' not in html and "width=device-width" not in html:
+            mobile_signals_bad = True
+        if "font-size:10px" in html or "font-size: 10px" in html:
+            mobile_signals_bad = True
+
+        has_map_or_direction = any(token in html for token in ("google.com/maps", "itineraire", "directions"))
+
+        result = {
+            "website_has_faq": has_faq,
+            "website_has_contact_form": has_contact_form,
+            "website_has_social_links": has_social,
+            "website_no_fold_cta": no_fold_cta,
+            "website_mobile_signals_bad": mobile_signals_bad,
+            "website_has_map_or_directions": has_map_or_direction,
+        }
+
+        if domain:
+            self._website_probe_cache[domain] = result
+
+        return result
+
+    def _build_scoring_details(self, item: Dict[str, Any], website_probe: Dict[str, Any]) -> Dict[str, Any]:
+        text_blob = self._blob_text(item)
+        address = self._safe_str(item.get("address")).lower()
+
+        opening_hours = item.get("openingHours")
+        has_hours = bool(opening_hours)
+        has_phone = bool(item.get("phoneUnformatted") or item.get("phone"))
+        has_website = bool(item.get("website"))
+
+        # ICP fit / pain / digital flags from scraped + website heuristic.
+        details: Dict[str, Any] = {
+            "source": "Google Maps",
+            "location_priority": self._contains_any(
+                address,
+                ["montreal", "laval", "longueuil", "quebec", "qc"],
+            ),
+            "admin_present": self._contains_any(
+                text_blob,
+                ["gestionnaire", "admin", "reception", "manager", "coordinator"],
+            ),
+            "vague_booking": self._contains_any(
+                text_blob,
+                ["rendez-vous", "rendez vous", "book", "appointment", "prise de rendez-vous"],
+            ),
+            "no_faq": not bool(item.get("questionsAndAnswers")) and not website_probe.get("website_has_faq", False),
+            "missing_essentials": not has_hours or not has_phone,
+            "low_mobile_score": bool(website_probe.get("website_mobile_signals_bad", False)),
+            "no_fold_cta": bool(website_probe.get("website_no_fold_cta", False)),
+            "weak_contact_page": (
+                not has_phone
+                or not has_website
+                or not website_probe.get("website_has_map_or_directions", False)
+            ),
+            "has_contact_form": bool(website_probe.get("website_has_contact_form", False)),
+            "active_social": bool(website_probe.get("website_has_social_links", False)),
+            "recent_post": self._contains_any(
+                text_blob,
+                ["2026", "2025", "recent", "new post", "nouveau", "actu", "mise a jour"],
+            ),
+            "hiring": self._contains_any(
+                text_blob,
+                ["hiring", "join our team", "we are hiring", "recrute", "emploi", "careers"],
+            ),
+            "new_service": self._contains_any(
+                text_blob,
+                ["new service", "nouveau service", "now offering", "offre desormais", "nouveaute"],
+            ),
+            # Optional site telemetry bucket used by heat scoring.
+            "site_events": [
+                {
+                    "page": "offre" if self._contains_any(text_blob, ["offre", "pricing", "tarif", "price"]) else "home",
+                    "return_within_hours": 24 if self._contains_any(text_blob, ["recent", "return", "retour"]) else 72,
+                    "multi_page": bool(has_website and has_hours),
+                }
+            ],
+        }
+
+        return details
 
     def search_leads(self, criteria: Dict[str, Any]) -> List[Dict[str, Any]]:
         """
@@ -29,7 +211,7 @@ class ApifyMapsClient(SourcingClient):
                  search_terms = [criteria.get("query")]
 
         if not search_terms:
-             print("Apify: No search terms provided.")
+             logger.warning("Apify search called without search terms.")
              return []
 
         run_input = {
@@ -41,7 +223,7 @@ class ApifyMapsClient(SourcingClient):
             }
         }
 
-        print(f"Apify: Starting run for {search_terms}...")
+        logger.info("Apify lead search started.", extra={"search_terms": search_terms})
         try:
             run = self.client.actor(self.actor_id).call(run_input=run_input)
             
@@ -56,7 +238,9 @@ class ApifyMapsClient(SourcingClient):
                 website = item.get("website")
                 phone = item.get("phoneUnformatted") or item.get("phone")
                 address = item.get("address")
-                
+                website_probe = self._probe_website(website)
+                details = self._build_scoring_details(item, website_probe)
+
                 # Check if we have enough info to be useful
                 if not company_name:
                     continue
@@ -71,14 +255,18 @@ class ApifyMapsClient(SourcingClient):
                     "location": address,
                     "phone": phone,
                     "website": website,
-                    "source": "Google Maps"
+                    "source": "Google Maps",
+                    "details": details,
                 })
             
-            print(f"Apify: Found {len(leads)} raw results.")
+            logger.info("Apify lead search completed.", extra={"lead_count": len(leads)})
             return leads
 
-        except Exception as e:
-            print(f"Apify Error: {e}")
+        except Exception as exc:
+            logger.exception(
+                "Apify lead search failed.",
+                extra={"search_terms": search_terms, "error": str(exc)},
+            )
             return []
 
     def enrich_company(self, company_domain: str) -> Dict[str, Any]:
@@ -88,12 +276,3 @@ class ApifyMapsClient(SourcingClient):
         For now, returns basic info or we could daisy-chain to Apollo if we had hybrid setup.
         """
         return {"domain": company_domain, "source": "Apify"}
-
-    def _extract_domain(self, url: str) -> str:
-        if not url: return None
-        from urllib.parse import urlparse
-        parsed = urlparse(url)
-        domain = parsed.netloc
-        if domain.startswith("www."):
-            domain = domain[4:]
-        return domain

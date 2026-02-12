@@ -1,0 +1,42 @@
+[
+    {
+        "id": "lead-1",
+        "name": "Dr. Martin",
+        "company": "Cabinet Dentaire Martin",
+        "email": "dr.martin@example.com",
+        "phone": "+33 6 12 34 56 78",
+        "status": "Contacted",
+        "score": 85,
+        "segment": "Clinic - High Priority"
+    },
+    {
+        "id": "lead-2",
+        "name": "Sarah Connor",
+        "company": "Tech Solutions",
+        "email": "sarah@tech.com",
+        "phone": "+33 6 98 76 54 32",
+        "status": "New",
+        "score": 45,
+        "segment": "General - Cold"
+    },
+    {
+        "id": "lead-3",
+        "name": "Clinique des Lilas",
+        "company": "Clinique des Lilas",
+        "email": "contact@lilas.com",
+        "phone": "+33 1 23 45 67 89",
+        "status": "Proposal Sent",
+        "score": 92,
+        "segment": "Clinic - High Priority"
+    },
+    {
+        "id": "lead-4",
+        "name": "Jean Dupont",
+        "company": "Dupont Physio",
+        "email": "jean@dupont.com",
+        "phone": "+33 7 00 00 00 00",
+        "status": "Meeting Booked",
+        "score": 78,
+        "segment": "Clinic - Standard"
+    }
+]

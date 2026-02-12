@@ -1,11 +1,32 @@
-from typing import List
+from typing import List, Optional
+from uuid import uuid4
+
+from ..core.logging import get_logger
 from ..core.models import Lead, Company
 from .client import SourcingClient
-import uuid
+from ..intent.base import IntentProviderClient
+
+
+logger = get_logger(__name__)
 
 class EnrichmentService:
-    def __init__(self, client: SourcingClient):
+    def __init__(self, client: SourcingClient, intent_client: Optional[IntentProviderClient] = None):
         self.client = client
+        self.intent_client = intent_client
+
+    def enrich_intent(self, lead: Lead) -> None:
+        if not self.intent_client:
+            return
+
+        intent_data = self.intent_client.fetch_company_intent(
+            company_name=lead.company.name,
+            company_domain=lead.company.domain,
+        )
+        if not intent_data:
+            return
+
+        lead.details["intent"] = intent_data
+        lead.details["intent_provider"] = intent_data.get("provider", self.intent_client.provider_name)
 
     def format_lead(self, raw_data: dict) -> Lead:
         """
@@ -24,7 +45,7 @@ class EnrichmentService:
         # Create Lead object
         # Generate a UUID if email is missing, though we prefer email as ID.
         email = raw_data.get("email")
-        lead_id = email if email else str(uuid.uuid4())
+        lead_id = email if email else str(uuid4())
 
         lead = Lead(
             id=lead_id,
@@ -36,6 +57,14 @@ class EnrichmentService:
             company=company,
             phone=raw_data.get("phone")
         )
+
+        if isinstance(raw_data.get("details"), dict):
+            lead.details.update(raw_data["details"])
+        for key in ("source", "website", "location"):
+            if key in raw_data and raw_data[key] is not None:
+                lead.details[key] = raw_data[key]
+
+        self.enrich_intent(lead)
         
         return lead
 
@@ -50,7 +79,10 @@ class EnrichmentService:
             try:
                 lead = self.format_lead(raw)
                 processed_leads.append(lead)
-            except Exception as e:
-                print(f"Error formatting lead {raw.get('company_name')}: {e}")
+            except (TypeError, ValueError) as exc:
+                logger.warning(
+                    "Failed to normalize raw lead payload.",
+                    extra={"company_name": raw.get("company_name"), "error": str(exc)},
+                )
             
         return processed_leads

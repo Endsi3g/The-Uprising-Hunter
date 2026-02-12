@@ -1,0 +1,42 @@
+[
+  {
+    "id": "1",
+    "title": "Call Dr. Martin for follow-up",
+    "status": "To Do",
+    "priority": "High",
+    "due_date": "2024-10-25",
+    "assigned_to": "You"
+  },
+  {
+    "id": "2",
+    "title": "Prepare Audit Loom for Clinique Santé",
+    "status": "In Progress",
+    "priority": "Critical",
+    "due_date": "2024-10-26",
+    "assigned_to": "System"
+  },
+  {
+    "id": "3",
+    "title": "Send Proposal to Cabinet Dentaire",
+    "status": "Done",
+    "priority": "Medium",
+    "due_date": "2024-10-24",
+    "assigned_to": "You"
+  },
+  {
+    "id": "4",
+    "title": "Configure Stripe Payments",
+    "status": "Done",
+    "priority": "High",
+    "due_date": "2024-10-23",
+    "assigned_to": "System"
+  },
+  {
+    "id": "5",
+    "title": "Review Heat Scores for Campaign A",
+    "status": "To Do",
+    "priority": "Medium",
+    "due_date": "2024-10-27",
+    "assigned_to": "You"
+  }
+]

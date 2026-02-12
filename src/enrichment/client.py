@@ -1,8 +1,14 @@
-import requests
-import os
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any
+
+import requests
+
+from ..core.http import HttpRequestConfig, request_json
+from ..core.logging import get_logger
 from ..core.models import Lead, Company, LeadStatus
+
+
+logger = get_logger(__name__)
 
 class SourcingClient(ABC):
     @abstractmethod
@@ -20,10 +26,13 @@ class ApolloClient(SourcingClient):
     def __init__(self, api_key: str):
         self.api_key = api_key
         self.base_url = "https://api.apollo.io/v1"
+        self.request_config = HttpRequestConfig(timeout=12.0, max_retries=3)
         self.headers = {
             "Content-Type": "application/json",
             "Cache-Control": "no-cache"
         }
+        self.session = requests.Session()
+        self.session.headers.update(self.headers)
 
     def search_leads(self, criteria: Dict[str, Any]) -> List[Dict[str, Any]]:
         url = f"{self.base_url}/mixed_people/search"
@@ -36,13 +45,17 @@ class ApolloClient(SourcingClient):
             "person_locations": [criteria.get("location")] if criteria.get("location") else [],
             "organization_num_employees_ranges": criteria.get("size_ranges"),
             "page": 1,
-            "per_page": 10
+            "per_page": max(1, min(int(criteria.get("limit", 10)), 100))
         }
         
         try:
-            response = requests.post(url, json=payload, headers=self.headers)
-            response.raise_for_status()
-            data = response.json()
+            data = request_json(
+                self.session,
+                "POST",
+                url,
+                config=self.request_config,
+                json=payload,
+            )
             
             leads = []
             for person in data.get("people", []):
@@ -60,8 +73,15 @@ class ApolloClient(SourcingClient):
                 })
             return leads
             
-        except Exception as e:
-            print(f"Error searching Apollo: {e}")
+        except (requests.RequestException, ValueError, TypeError) as exc:
+            logger.warning(
+                "Apollo search failed.",
+                extra={
+                    "error": str(exc),
+                    "role": criteria.get("role"),
+                    "location": criteria.get("location"),
+                },
+            )
             return []
 
     def enrich_company(self, company_domain: str) -> Dict[str, Any]:
@@ -72,22 +92,35 @@ class ApolloClient(SourcingClient):
         }
         
         try:
-            response = requests.get(url, params=params, headers=self.headers)
-            response.raise_for_status()
-            data = response.json().get("organization", {})
+            body = request_json(
+                self.session,
+                "GET",
+                url,
+                config=self.request_config,
+                params=params,
+            )
+            data = body.get("organization", {})
             
+            loc_parts = [data.get('city'), data.get('country')]
+            location = ", ".join([str(p) for p in loc_parts if p])
             return {
                 "name": data.get("name"),
                 "industry": data.get("industry"),
                 "size_range": data.get("estimated_num_employees"),
                 "revenue_range": data.get("annual_revenue_printed"),
-                "tech_stack": [t.get("name") for t in data.get("keywords", [])[:10]], # Using keywords as proxy for stack if needed, or specific tech fields
+                "tech_stack": [t.get("name") for t in data.get("keywords", [])[:10]], 
                 "description": data.get("short_description"),
                 "linkedin_url": data.get("linkedin_url"),
-                "location": f"{data.get('city')}, {data.get('country')}"
+                "location": location
             }
-        except Exception as e:
-            print(f"Error enriching company {company_domain}: {e}")
+        except (requests.RequestException, ValueError, TypeError) as exc:
+            logger.warning(
+                "Apollo company enrichment failed.",
+                extra={
+                    "company_domain": company_domain,
+                    "error": str(exc),
+                },
+            )
             return {"name": "Unknown", "domain": company_domain}
 
 class MockApolloClient(SourcingClient):
@@ -97,7 +130,7 @@ class MockApolloClient(SourcingClient):
     """
     def search_leads(self, criteria: Dict[str, Any]) -> List[Dict[str, Any]]:
         # Simulation of API response
-        print(f"Searching Apollo with criteria: {criteria}")
+        logger.info("Using mock Apollo search.", extra={"criteria": criteria})
         return [
             {
                 "first_name": "John",
@@ -122,7 +155,7 @@ class MockApolloClient(SourcingClient):
         ]
 
     def enrich_company(self, company_domain: str) -> Dict[str, Any]:
-        print(f"Enriching company: {company_domain}")
+        logger.info("Using mock company enrichment.", extra={"company_domain": company_domain})
         # Simulation of company enrichment data
         if company_domain == "techcorp.com":
             return {

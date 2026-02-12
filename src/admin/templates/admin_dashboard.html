@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Prospect Admin Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg: #f5f7fb;
+            --surface: #ffffff;
+            --ink: #0f172a;
+            --muted: #64748b;
+            --brand: #0b6e99;
+            --accent: #f59e0b;
+            --line: #dbe2ec;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--ink);
+            background:
+                radial-gradient(circle at top right, rgba(11, 110, 153, 0.12), transparent 35%),
+                radial-gradient(circle at bottom left, rgba(245, 158, 11, 0.12), transparent 30%),
+                var(--bg);
+        }
+
+        .wrap {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.8rem;
+            letter-spacing: 0.2px;
+        }
+
+        .sub {
+            margin: 0;
+            color: var(--muted);
+            font-size: 0.95rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+        }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 14px;
+            box-shadow: 0 6px 20px rgba(15, 23, 42, 0.06);
+        }
+
+        .label {
+            color: var(--muted);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+
+        .value {
+            margin-top: 6px;
+            font-size: 1.3rem;
+            font-weight: 700;
+        }
+
+        .panels {
+            margin-top: 16px;
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 14px;
+        }
+
+        .panel {
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 14px;
+        }
+
+        .panel h2 {
+            margin: 0 0 12px 0;
+            font-size: 1rem;
+        }
+
+        .table-wrap {
+            margin-top: 14px;
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 10px;
+            border-bottom: 1px solid var(--line);
+            font-size: 0.9rem;
+            vertical-align: top;
+        }
+
+        th {
+            background: #f8fbff;
+            color: #1e293b;
+        }
+
+        .status-pill {
+            display: inline-block;
+            background: #e2e8f0;
+            border-radius: 999px;
+            padding: 3px 9px;
+            font-size: 0.75rem;
+        }
+
+        @media (max-width: 900px) {
+            .panels {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="wrap">
+        <header class="header">
+            <div>
+                <h1>Admin Dashboard</h1>
+                <p class="sub">Qualification threshold: {{ qualification_threshold }}</p>
+            </div>
+        </header>
+
+        <section id="kpi-grid" class="grid"></section>
+
+        <section class="panels">
+            <article class="panel">
+                <h2>30-Day Pipeline Trend</h2>
+                <canvas id="trendChart" height="110"></canvas>
+            </article>
+            <article class="panel">
+                <h2>Tier Distribution</h2>
+                <canvas id="tierChart" height="110"></canvas>
+            </article>
+        </section>
+
+        <section class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Lead</th>
+                        <th>Company</th>
+                        <th>Status</th>
+                        <th>Heat</th>
+                        <th>Scores (I/H/T)</th>
+                        <th>Tier / Action</th>
+                    </tr>
+                </thead>
+                <tbody id="leadsTableBody"></tbody>
+            </table>
+        </section>
+    </main>
+
+    <script>
+        const kpiKeys = [
+            ["sourced_total", "Sourced"],
+            ["qualified_total", "Qualified"],
+            ["contacted_total", "Contacted"],
+            ["replied_total", "Replied"],
+            ["booked_total", "Booked"],
+            ["closed_total", "Closed"],
+            ["qualified_rate", "Qualified %"],
+            ["close_rate", "Close %"]
+        ];
+
+        function buildKpiCards(stats) {
+            const grid = document.getElementById("kpi-grid");
+            grid.innerHTML = "";
+            kpiKeys.forEach(([key, label]) => {
+                const card = document.createElement("div");
+                card.className = "card";
+                const value = stats[key];
+                const formatted = key.endsWith("_rate")
+                    ? `${Number(value || 0).toFixed(2)}%`
+                    : Number(value || 0).toLocaleString();
+                card.innerHTML = `<div class="label">${label}</div><div class="value">${formatted}</div>`;
+                grid.appendChild(card);
+            });
+        }
+
+        function renderTrend(trend) {
+            const labels = trend.map(item => item.date);
+            const created = trend.map(item => item.created);
+            const contacted = trend.map(item => item.contacted);
+            const closed = trend.map(item => item.closed);
+
+            new Chart(document.getElementById("trendChart"), {
+                type: "line",
+                data: {
+                    labels,
+                    datasets: [
+                        { label: "Created", data: created, borderColor: "#0b6e99", tension: 0.3 },
+                        { label: "Contacted", data: contacted, borderColor: "#f59e0b", tension: 0.3 },
+                        { label: "Closed", data: closed, borderColor: "#16a34a", tension: 0.3 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+        }
+
+        function renderTiers(tiers) {
+            const labels = Object.keys(tiers);
+            const values = labels.map(label => tiers[label]);
+
+            new Chart(document.getElementById("tierChart"), {
+                type: "doughnut",
+                data: {
+                    labels,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: ["#0b6e99", "#0284c7", "#f59e0b", "#94a3b8", "#64748b"]
+                    }]
+                }
+            });
+        }
+
+        function renderLeads(leads) {
+            const body = document.getElementById("leadsTableBody");
+            body.innerHTML = "";
+            leads.forEach(lead => {
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td>${lead.first_name} ${lead.last_name}<br><small>${lead.email}</small></td>
+                    <td>${lead.company_name || "-"}</td>
+                    <td><span class="status-pill">${lead.status}</span></td>
+                    <td><span class="status-pill">${lead.heat_status || "-"}</span></td>
+                    <td>${Number(lead.icp_score || 0).toFixed(1)} / ${Number(lead.heat_score || 0).toFixed(1)} / ${Number(lead.total_score || 0).toFixed(1)}</td>
+                    <td>${lead.tier || "-"}<br><small>${lead.next_best_action || "-"}</small></td>
+                `;
+                body.appendChild(tr);
+            });
+        }
+
+        async function loadDashboard() {
+            const [statsRes, leadsRes] = await Promise.all([
+                fetch("/api/v1/admin/stats"),
+                fetch("/api/v1/admin/leads?page=1&page_size=25")
+            ]);
+            const stats = await statsRes.json();
+            const leads = await leadsRes.json();
+
+            buildKpiCards(stats);
+            renderTrend(stats.daily_pipeline_trend || []);
+            renderTiers(stats.tier_distribution || {});
+            renderLeads(leads.items || []);
+        }
+
+        loadDashboard();
+    </script>
+</body>
+</html>

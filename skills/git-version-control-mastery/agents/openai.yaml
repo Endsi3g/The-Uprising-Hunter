@@ -1,0 +1,4 @@
+interface:
+  display_name: "Git Version Control Mastery"
+  short_description: "Run safe, clean Git workflows for app delivery"
+  default_prompt: "Use $git-version-control-mastery to set up a safe Git branching, commit, and release workflow for this project."

@@ -1,0 +1,47 @@
+# Project Navigation Guide
+
+This repository is organized to keep runtime code separate from operational scripts and planning docs.
+
+## Top-level runtime files
+
+- `run_system.py`: Main CLI entrypoint for sourcing, enrichment, scoring, and outreach flow.
+- `requirements.txt`: Python dependencies.
+- `.env.example`: Environment variable template.
+- `README.md`: Product overview and quickstart.
+
+## Source code
+
+- `src/core/`: Models, database setup, and lightweight schema compatibility migrations.
+- `src/enrichment/`: Apollo/Apify sourcing and enrichment services.
+- `src/intent/`: Intent provider adapters (mock, Bombora, 6sense).
+- `src/scoring/`: Scoring engine, rules config, and optimizer.
+- `src/workflows/`: Pipeline orchestration logic.
+- `src/admin/`: FastAPI admin dashboard and APIs.
+- `src/outreach/`: Follow-up automation logic.
+- `src/ai_engine/`: Prompting and message generation.
+
+## Documentation
+
+- `docs/strategy/ADVANCED_FEATURES.md`
+- `docs/strategy/NEXT_STEPS.md`
+- `docs/playbooks/AUDIT_PLAYBOOK.md`
+- `docs/playbooks/ELITE_SALES_MANUAL.md`
+
+## Scripts
+
+- `scripts/ops/check_connections.py`
+- `scripts/ops/check_pipeline.py`
+- `scripts/ops/setup_schedule.ps1`
+- `scripts/verification/verify_funnel.py`
+- `scripts/verification/verify_advanced_system.py`
+- `scripts/verification/test_followup_logic.py`
+- `scripts/utilities/extract_manual.py`
+- `scripts/utilities/generate_proposal.py`
+
+## Assets
+
+- `assets/reference/`: Reference PDFs and manual source materials.
+
+## Archive
+
+- `archive/root-frontend-artifacts/`: Legacy npm artifacts moved out of root for cleaner navigation.

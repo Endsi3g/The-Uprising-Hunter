@@ -1,0 +1,4 @@
+interface:
+  display_name: "Deployment Scaling Optimization"
+  short_description: "Deploy, monitor, and scale production apps safely"
+  default_prompt: "Use $deployment-scaling-optimization to create a zero-downtime deployment, observability, and scaling plan for this app."
