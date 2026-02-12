@@ -5,7 +5,7 @@ BASE_URL = "http://localhost:8000/api/v1/admin"
 # Ensure we use the correct basic auth if enabled in dev, but usually dev has loose settings or we can use the default.
 # The `require_admin` dependency checks env vars ADMIN_USERNAME/PASSWORD. 
 # Default is admin/admin if not set, or we can see from checks.
-AUTH = ("admin", "admin") 
+AUTH = ("admin", "change-me") 
 
 def test_delete_lead():
     print("Testing Single Lead Delete...")
