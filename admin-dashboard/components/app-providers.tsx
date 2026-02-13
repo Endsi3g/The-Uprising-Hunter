@@ -2,8 +2,10 @@
 
 import * as React from "react"
 import { SWRConfig } from "swr"
+import { useTheme } from "next-themes"
 
 import { ModalSystemProvider } from "@/components/modal-system-provider"
+import { ThemeProvider } from "@/components/theme-provider"
 import { requestApi } from "@/lib/api"
 
 type AdminSettingsResponse = {
@@ -23,17 +25,14 @@ export function useSyncSettings(): SyncSettingsContextValue {
   return React.useContext(SyncSettingsContext)
 }
 
-export function AppProviders({ children }: { children: React.ReactNode }) {
-  const [refreshSeconds, setRefreshSeconds] = React.useState(30)
-
-  function applyTheme(theme: "light" | "dark" | "system") {
-    if (theme === "system") {
-      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches
-      document.documentElement.classList.toggle("dark", prefersDark)
-      return
-    }
-    document.documentElement.classList.toggle("dark", theme === "dark")
-  }
+function SettingsSyncer({
+  children,
+  setRefreshSeconds,
+}: {
+  children: React.ReactNode
+  setRefreshSeconds: (s: number) => void
+}) {
+  const { setTheme } = useTheme()
 
   React.useEffect(() => {
     let active = true
@@ -41,13 +40,17 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
       try {
         const payload = await requestApi<AdminSettingsResponse>("/api/v1/admin/settings")
         if (!active) return
+
         const seconds = Number(payload.dashboard_refresh_seconds || 30)
         setRefreshSeconds(Math.max(10, Math.min(seconds, 3600)))
-        applyTheme(payload.theme || "system")
+
+        if (payload.theme) {
+          setTheme(payload.theme)
+        }
       } catch {
         if (active) {
           setRefreshSeconds(30)
-          applyTheme("system")
+          // On error, keep existing local theme preference to avoid jarring changes
         }
       }
     }
@@ -55,19 +58,34 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
     return () => {
       active = false
     }
-  }, [])
+  }, [setRefreshSeconds, setTheme])
+
+  return <>{children}</>
+}
+
+export function AppProviders({ children }: { children: React.ReactNode }) {
+  const [refreshSeconds, setRefreshSeconds] = React.useState(30)
 
   return (
-    <SyncSettingsContext.Provider value={{ refreshSeconds }}>
-      <SWRConfig
-        value={{
-          refreshInterval: refreshSeconds * 1000,
-          revalidateOnFocus: true,
-          keepPreviousData: true,
-        }}
-      >
-        <ModalSystemProvider>{children}</ModalSystemProvider>
-      </SWRConfig>
-    </SyncSettingsContext.Provider>
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="system"
+      enableSystem
+      disableTransitionOnChange
+    >
+      <SyncSettingsContext.Provider value={{ refreshSeconds }}>
+        <SWRConfig
+          value={{
+            refreshInterval: refreshSeconds * 1000,
+            revalidateOnFocus: true,
+            keepPreviousData: true,
+          }}
+        >
+          <SettingsSyncer setRefreshSeconds={setRefreshSeconds}>
+            <ModalSystemProvider>{children}</ModalSystemProvider>
+          </SettingsSyncer>
+        </SWRConfig>
+      </SyncSettingsContext.Provider>
+    </ThemeProvider>
   )
 }
