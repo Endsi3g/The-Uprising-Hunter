@@ -82,7 +82,7 @@ export function AssistantProspectPanel() {
     const { data: runDetail, isLoading: detailLoading } = useSWR<RunDetail>(
         selectedRunId ? `/api/v1/admin/assistant/prospect/runs/${selectedRunId}` : null,
         fetcher,
-        { refreshInterval: runDetail?.status === "running" ? 3000 : 0 },
+        { refreshInterval: (data) => (data?.status === "running" ? 3000 : 0) },
     )
 
     // When a run finishes executing, show it
