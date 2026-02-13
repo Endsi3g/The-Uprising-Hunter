@@ -1,5 +1,9 @@
 /** @type {import('next').NextConfig} */
-const apiBaseUrl = process.env.API_BASE_URL || "http://127.0.0.1:8000";
+const apiBaseUrl =
+    process.env.API_BASE_URL ||
+    (process.env.NODE_ENV === "production"
+        ? "https://prospect-api-iso3.onrender.com"
+        : "http://127.0.0.1:8000");
 
 const nextConfig = {
     output: "standalone",

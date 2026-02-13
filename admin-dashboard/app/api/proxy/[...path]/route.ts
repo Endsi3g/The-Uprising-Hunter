@@ -1,5 +1,7 @@
 import { NextRequest } from "next/server"
 
+const DEFAULT_PRODUCTION_API_BASE_URL = "https://prospect-api-iso3.onrender.com"
+
 function getBaseUrl(): string | null {
   const configured = process.env.API_BASE_URL
   if (configured && configured.trim()) {
@@ -7,7 +9,7 @@ function getBaseUrl(): string | null {
   }
 
   if (process.env.NODE_ENV === "production") {
-    return null
+    return DEFAULT_PRODUCTION_API_BASE_URL
   }
 
   return "http://localhost:8000"
