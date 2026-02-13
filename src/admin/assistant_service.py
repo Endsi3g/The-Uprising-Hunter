@@ -35,6 +35,7 @@ SAFE_ACTION_TYPES = frozenset({
     "create_project",
     "nurture",
     "rescore",
+    "research",
 })
 
 # Actions that always require manual confirmation
@@ -354,6 +355,35 @@ def _handle_delete_lead(db: Session, payload: dict[str, Any]) -> dict[str, Any]:
     return {"deleted": True, "id": lead_id}
 
 
+def _handle_research(db: Session, payload: dict[str, Any]) -> dict[str, Any]:
+    """Execute deep research via Perplexity/web search."""
+    from .research_service import run_web_research
+
+    query = payload.get("query", "")
+    limit = payload.get("limit", 3)
+    provider = payload.get("provider", "perplexity")
+
+    if not query:
+        return {"skipped": True, "reason": "No query provided"}
+
+    results = run_web_research(
+        query=query,
+        limit=limit,
+        provider_selector=provider,
+        provider_configs={
+            "perplexity": {"enabled": True},
+            "duckduckgo": {"enabled": True},
+            "firecrawl": {"enabled": True},
+        },
+    )
+    # Could potentially save results to a note or lead details here
+    return {
+        "researched": True,
+        "total_items": results.get("total", 0),
+        "summary": results.get("items", [])[:1],  # Return top item as summary
+    }
+
+
 _ACTION_HANDLERS: dict[str, Any] = {
     "source_leads": _handle_source_leads,
     "create_lead": _handle_create_lead,
@@ -361,6 +391,7 @@ _ACTION_HANDLERS: dict[str, Any] = {
     "rescore": _handle_rescore,
     "nurture": _handle_nurture,
     "delete_lead": _handle_delete_lead,
+    "research": _handle_research,
 }
 
 

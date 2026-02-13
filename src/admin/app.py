@@ -478,6 +478,12 @@ class AdminReportScheduleUpdateRequest(BaseModel):
     enabled: bool | None = None
 
 
+class ResearchRequest(BaseModel):
+    query: str
+    limit: int = 5
+    provider: str = "perplexity"  # perplexity, duckduckgo, firecrawl
+
+
 class AdminAuthLoginRequest(BaseModel):
     username: str = Field(min_length=1)
     password: str = Field(min_length=1)
@@ -4030,6 +4036,33 @@ def create_app() -> FastAPI:
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Prospect AI is not enabled. Set assistant_prospect_enabled to true in settings.",
             )
+
+    class ResearchRequest(BaseModel):
+        query: str
+        limit: int = 5
+        provider: str = "perplexity"
+
+    @admin_v1.post("/research")
+    def research_query_v1(
+        payload: ResearchRequest,
+        username: str = Depends(require_admin),
+    ) -> Response:
+        """Run a web search using the specified provider (default: Perplexity)."""
+        try:
+            results = run_web_research(
+                query=payload.query,
+                limit=payload.limit,
+                provider_selector=payload.provider,
+                provider_configs={
+                    "perplexity": {"enabled": True},
+                    "duckduckgo": {"enabled": True},
+                    "firecrawl": {"enabled": True},
+                },
+            )
+            return JSONResponse(results)
+        except Exception as exc:
+            logger.error("Research error: %s", exc)
+            raise HTTPException(status_code=500, detail=str(exc))
 
     @admin_v1.post("/assistant/prospect/execute")
     def assistant_prospect_execute(
