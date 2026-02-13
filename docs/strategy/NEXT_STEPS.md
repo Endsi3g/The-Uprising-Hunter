@@ -1,35 +1,90 @@
-# 🚀 Roadmap & Next Steps
+# Next Steps
 
-## ✅ Completed Milestones
+## 1. Deja implemente
 
-- [x] **Core Architecture**: Models, Enrichment, Scoring, AI Engine.
-- [x] **API Integration**: Connected `Apollo.io` and `OpenAI`.
-- [x] **New Source**: Integrated `Apify` for Google Maps sourcing.
-- [x] **Database**: Implemented `SQLite` with `SQLAlchemy` for persistence.
-- [x] **CLI**: Added command-line arguments (source, query, location).
-- [x] **Automation**: Created Windows Task Scheduler script.
-- [x] **Deployment**: Git initialized and codebase secured.
-- [x] **Funnel "Propre"**: Implemented Step A (Scoring), Step B (Sequences), Step C (Landing/Booking), Step D (Stripe).
-- [x] **Clinic Targeting**: Refined scoring engine for medical/dental leads.
+- Backend admin:
+  - CRUD complet taches (`POST/GET/PATCH/DELETE /api/v1/admin/tasks`)
+  - Import CSV intelligent (`/api/v1/admin/import/csv/preview` + `/commit`)
+  - Diagnostics/autofix (`/api/v1/admin/diagnostics/*`, `/api/v1/admin/autofix/*`)
+- Frontend:
+  - Actions taches "Modifier/Supprimer" connectees au backend
+  - Import CSV depuis la page Leads (preview + mapping + commit)
+  - Skeleton loaders sur pages leads/tasks/projects/settings/help
+  - Proxy Next compatible body binaire/multipart
+- QA/Ops:
+  - Script smoke root `test_localhost_all_features.ps1`
+  - Pipeline QA intelligent `run_intelligent_tests.ps1` + `scripts/qa/*`
+  - Tests backend pour tasks/import/diagnostics
+- Leads:
+  - Page detaillee avec score breakdown, taches et projets lies
+  - Edition rapide des informations
+  - Filtres serveur (recherche, statut), pagination et tri serveur
+- Compte et facturation:
+  - Endpoints profil et facturation (`/account`, `/billing`)
+  - Generation de factures PDF
+- Notifications:
+  - Canaux in-app et email
+  - Preferences de notification par evenement
+- Rapports planifies:
+  - Creation/edition de plannings (`/reports/schedules`)
+  - Export PDF/CSV et envoi email
+- Core leads:
+  - Creation manuelle de lead
+  - Suppression unitaire avec confirmation
+  - Actions en masse (bulk delete)
+- UX:
+  - Navigation fluide (liens noms leads, breadcrumbs)
+  - Indicateurs de fraicheur des donnees
+  - Toasts globaux
+  - Badges de statut colores
 
-## 🔜 Upcoming Priorities
+## 2. Priorites produit
 
-### 1. Advanced Intelligence
+### Critique (audit)
 
-- [ ] **Custom ICP Config**: Move scoring weights from `engine.py` to a YAML config file.
-- [ ] **Intent Data**: Integrate a real intent data provider (Bombora/6sense).
+- Formulaire lead: validation email temps reel + toast succes (fait)
+- Navigation leads: nom cliquable vers details (fait)
+- UI: contraste dark mode + banniere donnees perimees (fait)
 
-### 2. Outreach & Operations
+### Haute priorite
 
-- [ ] **Email Sending**: Connect Gmail/Outlook API to send the generated sequences.
-- [ ] **CRM Sync**: Push interested leads directly to HubSpot or Pipedrive.
+- Analytics: corriger etat vide/chargement
+- UI globale: standardiser formulaires et toasts
+- Exports: verifier CSV/PDF en bout en bout
 
-### 3. User Interface (UI)
+### Priorite moyenne
 
-- [ ] **Admin Dashboard**: Build a React/Streamlit panel to manage leads and approve emails.
-- [ ] **Stats**: Visualiser les taux de conversion du funnel.
+- Ajouter filtres serveur + pagination serveur pour les taches
+- Completer analytics avec vues concretes
+- Ajouter autres bulk actions leads (export, assignation, ajout campagne)
 
-## 📝 Maintenance
+## 3. Priorites techniques
 
-- Monitor API usage quotes (Apollo/OpenAI/Apify).
-- Backup `prospect.db` regularly.
+- Migrer les deprecations SQLAlchemy/Pydantic signalees par `pytest`
+- Ajouter tests frontend E2E (Playwright) pour:
+  - Lead -> Projet
+  - Lead -> Tache
+  - Import CSV
+  - Recherche globale (`Ctrl+K` / `Cmd+K`)
+- Ajouter tests integration proxy Next (`/api/proxy/[...path]`) avec erreurs upstream
+
+## 4. Securite
+
+- Remplacer Basic Auth statique par session/JWT admin robuste
+- Introduire credentials differencies par environnement
+- Ajouter rotation des secrets et tests de non-regression d'acces
+
+## 5. Observabilite et delivery
+
+- Ajouter logs structures par endpoint admin (latence/statut)
+- Ajouter metriques minimales (`request_count`, `error_rate`, `p95`)
+- Ajouter CI:
+  - `python -m pytest -q`
+  - `cd admin-dashboard && npm run build`
+  - `powershell -ExecutionPolicy Bypass -File .\deploy.ps1 check`
+
+## 6. Documentation
+
+- Maintenir `docs/api/admin_v1.md` a jour
+- Ajouter guide "Troubleshooting localhost" (ports, auth, CORS, env)
+- Ajouter mini guide utilisateur FR pour modales/import/recherche/diagnostics

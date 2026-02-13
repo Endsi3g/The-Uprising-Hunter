@@ -4,14 +4,16 @@
 
 .DESCRIPTION
     Validates that admin-dashboard and system-playground compile cleanly.
-    Does NOT start any servers or require the backend to be running.
+    Does not start any servers unless -StartMock is provided.
 
 .EXAMPLE
     .\test_frontends.ps1
     .\test_frontends.ps1 -SkipInstall
+    .\test_frontends.ps1 -StartMock
 #>
 param(
-    [switch]$SkipInstall
+    [switch]$SkipInstall,
+    [switch]$StartMock
 )
 
 $ErrorActionPreference = "Stop"
@@ -39,7 +41,7 @@ foreach ($app in $apps) {
 
     Push-Location $app.Path
     try {
-        # ── Install ──────────────────────────────
+        # Install dependencies
         if (-not $SkipInstall) {
             Write-Host "  [1/3] Installing dependencies..." -ForegroundColor Gray
             $installOutput = npm install --prefer-offline --no-audit --no-fund 2>&1
@@ -52,7 +54,7 @@ foreach ($app in $apps) {
             Write-Host "  [1/3] Skipping install (--SkipInstall)" -ForegroundColor Gray
         }
 
-        # ── Lint ─────────────────────────────────
+        # Lint
         Write-Host "  [2/3] Running lint..." -ForegroundColor Gray
         $lintOutput = npm run lint 2>&1
         if ($LASTEXITCODE -ne 0) {
@@ -63,10 +65,8 @@ foreach ($app in $apps) {
             Write-Host "  [2/3] Lint OK" -ForegroundColor Green
         }
 
-        # ── Build ────────────────────────────────
+        # Build
         Write-Host "  [3/3] Building for production..." -ForegroundColor Gray
-        
-        # Capture output but prevent stderr from throwing a terminating error
         $prevAction = $ErrorActionPreference
         $ErrorActionPreference = "Continue"
         $buildOutput = npm run build 2>&1
@@ -94,7 +94,6 @@ foreach ($app in $apps) {
     }
 }
 
-# ── Summary ──────────────────────────────────────────
 Write-Host ""
 Write-Host "============================================" -ForegroundColor Cyan
 Write-Host "  RESULTS" -ForegroundColor Cyan
@@ -114,12 +113,39 @@ foreach ($r in $results) {
     Write-Host "  $icon $($r.Name): $($r.Status)" -ForegroundColor $color
 }
 
-Write-Host ""
 if ($failed) {
+    Write-Host ""
     Write-Host "  Some apps FAILED. Fix errors above before deploying." -ForegroundColor Red
     exit 1
 }
-else {
-    Write-Host "  All frontends are production-ready!" -ForegroundColor Green
+
+Write-Host ""
+Write-Host "  All frontends are production-ready!" -ForegroundColor Green
+
+if (-not $StartMock) {
     exit 0
 }
+
+function Start-MockApp {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][string]$Name,
+        [Parameter(Mandatory = $true)][int]$Port
+    )
+
+    Write-Host "    Starting $Name on http://localhost:$Port (Mock Mode)..." -ForegroundColor Gray
+    $command = "cd '$Path'; `$env:NEXT_PUBLIC_USE_MOCK='true'; `$env:PORT='$Port'; npm run dev"
+    Start-Process powershell -ArgumentList "-NoExit", "-Command", $command
+}
+
+Write-Host ""
+Write-Host "  Starting frontends with NEXT_PUBLIC_USE_MOCK=true..." -ForegroundColor Cyan
+
+$AdminPath = Join-Path $RootDir "admin-dashboard"
+Start-MockApp -Path $AdminPath -Name "Admin Dashboard" -Port 3000
+
+$PlaygroundPath = Join-Path $RootDir "system-playground"
+Start-MockApp -Path $PlaygroundPath -Name "System Playground" -Port 3001
+
+Write-Host "  Apps started in new windows." -ForegroundColor Green
+exit 0

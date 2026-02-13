@@ -25,7 +25,7 @@ async function parseErrorMessage(response: Response, normalizedPath: string): Pr
         message = text
       }
     } catch {
-      // body already consumed or empty — use default message
+      // Body may be already consumed or empty.
     }
     return message
   }
@@ -50,6 +50,12 @@ export async function requestApi<T>(
   init?: RequestInit,
   options?: RequestApiOptions,
 ): Promise<T> {
+  // Mock mode for local UI-only testing.
+  if (process.env.NEXT_PUBLIC_USE_MOCK === "true") {
+    const { getMockResponse } = await import("./mocks")
+    return getMockResponse<T>(path)
+  }
+
   const normalizedPath = path.startsWith("/") ? path : `/${path}`
   const url = path.startsWith("http") ? path : `${getApiBaseUrl()}${normalizedPath}`
   const headers = new Headers(init?.headers || undefined)

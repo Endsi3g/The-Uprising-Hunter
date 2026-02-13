@@ -22,6 +22,11 @@ This repository is organized to keep runtime code separate from operational scri
 
 ## Documentation
 
+- `docs/README.md`
+- `docs/api/admin_v1.md`
+- `docs/operations/OPERATIONS_MANUAL.md`
+- `docs/frontend/FRONTEND_REFACTOR_GUIDE.md`
+- `docs/strategy/AI_INTEGRATION_PLAN.md`
 - `docs/strategy/ADVANCED_FEATURES.md`
 - `docs/strategy/NEXT_STEPS.md`
 - `docs/playbooks/AUDIT_PLAYBOOK.md`
