@@ -36,10 +36,10 @@ if DATABASE_URL.startswith("postgresql://"):
             # Pass hostaddr to libpq to force connection to this IP
             create_engine_kwargs["connect_args"]["hostaddr"] = ipv4
 
-        except socket.gaierror:
-            # Fallback for Supabase: If project-specific hostname has no IPv4, try the generic pooler (US-East-1 default)
+        except (socket.gaierror, IndexError):
+            # Fallback for Supabase: If project-specific hostname has no IPv4, try the generic pooler
             # This is common for newer Supabase projects or specific Render DNS issues.
-            print(f"Warning: Failed to resolve {hostname} to IPv4. Switching to generic pooler.", flush=True)
+            print(f"Warning: Failed to resolve {hostname} to IPv4. Switching to generic pooler logic.", flush=True)
             
             # Extract project ref from hostname (db.REF.supabase.co)
             # Hostname text: db.rykkphesilpsyzhvvest.supabase.co
@@ -47,19 +47,35 @@ if DATABASE_URL.startswith("postgresql://"):
             if len(parts) >= 4 and parts[0] == 'db':
                 project_ref = parts[1]
                 
-                # New generic host
-                fallback_host = "aws-0-us-east-1.pooler.supabase.com"
+                # List of regions to try. Priority based on likely location (EU/US) or default.
+                regions_to_try = [
+                    "us-east-1",     # Default US
+                    "eu-central-1",  # Frankfurt (Common EU)
+                    "eu-west-1",     # Ireland
+                    "eu-west-2",     # London
+                    "eu-west-3",     # Paris
+                    "ap-southeast-1", # Singapore
+                    "sa-east-1",     # Sao Paulo
+                    "us-west-1",     # California
+                    "ap-northeast-1", # Tokyo
+                    "ap-south-1",    # Mumbai
+                    "ca-central-1",  # Canada
+                ]
                 
-                # Update username to user.project_ref if not already
+                # If explicit region is set in env, prioritize it
+                env_region = os.getenv("SUPABASE_REGION")
+                if env_region:
+                     regions_to_try.insert(0, env_region)
+
+                found_working_url = False
+                
+                # Update username to user.project_ref if not already (required for transaction pooler)
                 current_user = parsed.username
                 if project_ref not in current_user:
                     new_user = f"{current_user}.{project_ref}"
                 else:
                     new_user = current_user
-                
-                print(f"Rewriting DATABASE_URL to use generic pooler: {fallback_host} with user {new_user}", flush=True)
-                
-                # Reconstruct URL with new host and user
+                    
                 port = parsed.port or 5432
                 password = parsed.password
                 
@@ -67,20 +83,60 @@ if DATABASE_URL.startswith("postgresql://"):
                 safe_user = quote_plus(new_user)
                 safe_password = quote_plus(password) if password else ""
                 
-                netloc = f"{safe_user}:{safe_password}@{fallback_host}:{port}"
-                parsed = parsed._replace(netloc=netloc)
-                DATABASE_URL = urlunparse(parsed)
+                # Helper function to test a connection URL
+                def test_connection(test_url):
+                    try:
+                        # Create a temp engine just for testing with short timeout
+                        t_engine = create_engine(test_url, connect_args={"connect_timeout": 3})
+                        with t_engine.connect() as conn:
+                            return True
+                    except Exception as e:
+                        err_str = str(e).lower()
+                        if "tenant or user not found" in err_str:
+                            return False 
+                        if "timeout" in err_str:
+                             return False
+                        return False
+                    finally:
+                        try:
+                            if 't_engine' in locals():
+                                t_engine.dispose()
+                        except:
+                            pass
+
+                print(f"Attempting to auto-detect Supabase region pooler for project {project_ref}...", flush=True)
+
+                for region in regions_to_try:
+                    pooler_host = f"aws-0-{region}.pooler.supabase.com"
+                    # Use port 6543 strictly for pooler fallback
+                    pooler_port = 6543 
+                    
+                    netloc = f"{safe_user}:{safe_password}@{pooler_host}:{pooler_port}"
+                    test_parsed = parsed._replace(netloc=netloc)
+                    candidate_url = urlunparse(test_parsed)
+                    
+                    if test_connection(candidate_url):
+                        print(f"SUCCESS: Connected to Supabase via region {region} ({pooler_host})", flush=True)
+                        DATABASE_URL = candidate_url
+                        found_working_url = True
+                        break
                 
-                # Resolving the fallback host to IPv4 to be safe (though aws-0 usually has A records)
-                try:
-                    fallback_ipv4 = socket.getaddrinfo(fallback_host, None, socket.AF_INET)[0][4][0]
-                     # Helper to ensure connect_args exists
-                    if "connect_args" not in create_engine_kwargs:
-                        create_engine_kwargs["connect_args"] = {}
-                    create_engine_kwargs["connect_args"]["hostaddr"] = fallback_ipv4
-                    print(f"Resolved fallback host {fallback_host} to IPv4: {fallback_ipv4}", flush=True)
-                except Exception as e:
-                     print(f"Warning: Could not resolve fallback host {fallback_host}: {e}", flush=True)
+                if not found_working_url:
+                    print("CRITICAL: Failed to connect to any Supabase region pooler. Defaulting to us-east-1 but expect failure.", flush=True)
+                    # Fallback to default construction if check fails
+                    fallback_host = "aws-0-us-east-1.pooler.supabase.com"
+                    netloc = f"{safe_user}:{safe_password}@{fallback_host}:6543"
+                    parsed = parsed._replace(netloc=netloc)
+                    DATABASE_URL = urlunparse(parsed)
+                    
+                    # Resolving the fallback host to IPv4 to be safe
+                    try:
+                        fallback_ipv4 = socket.getaddrinfo(fallback_host, None, socket.AF_INET)[0][4][0]
+                        if "connect_args" not in create_engine_kwargs:
+                            create_engine_kwargs["connect_args"] = {}
+                        create_engine_kwargs["connect_args"]["hostaddr"] = fallback_ipv4
+                    except:
+                        pass
 
             else:
                  print("Warning: Could not parse project ref from hostname. Fallback might fail.", flush=True)
