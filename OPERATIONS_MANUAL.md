@@ -37,6 +37,10 @@ Pour administrer l'application, vous devez vous connecter aux services suivants 
 * **Compte/Team** : `theuprising`
 * **Rôle** : Hébergement des applications Next.js.
 * **Action requise** : Déployer les sites, configurer les variables d'environnement (API URL).
+* **Service** : [Netlify](https://app.netlify.com/)
+* **Compte/Team** : `theuprising`
+* **Rôle** : Hébergement des applications Next.js.
+* **Action requise** : Déployer les sites, configurer les variables d'environnement (API URL).
 
 ---
 
@@ -44,7 +48,8 @@ Pour administrer l'application, vous devez vous connecter aux services suivants 
 
 ### Étape 1 : Configuration de la Base de Données (Supabase)
 
-* **Connection String** : `postgresql://postgres:Endsieg25$@db.rykkphesilpsyzhvvest.supabase.co:5432/postgres`
+* **Connection String** : `postgresql://postgres:Endsieg25$@db.rykkphesilpsyzhvvest.supabase.co:6543/postgres`
+  * **IMPORTANT** : Utilisez le port **6543** (Transaction Pooler) au lieu de 5432. Le port 5432 utilise IPv6 qui peut être bloqué ou instable sur Render (erreur "Network is unreachable").
 * **Supabase URL** : `https://rykkphesilpsyzhvvest.supabase.co`
 * **Publishable Key** : `sb_publishable_f8AJB5VVNTheKh1XRtav_g_DZsNLeDj`
 
@@ -53,9 +58,9 @@ Pour administrer l'application, vous devez vous connecter aux services suivants 
 1. Connectez-vous à Render avec `quebecsaas@gmail.com`.
 2. Sélectionnez le service Web `prospect-api` (ou créez-en un nouveau lié au dépôt GitHub).
 3. Allez dans **Environment**. Assurez-vous que les variables suivantes sont définies :
-    * `DATABASE_URL` : La chaîne de connexion Supabase (voir Étape 1).
+    * `DATABASE_URL` : La chaîne de connexion Supabase (Port 6543 !).
     * `OPENAI_API_KEY` : Votre clé API OpenAI.
-    * `ADMIN_CORS_ALLOW_ORIGINS` : La liste des URLs des frontends Netlify (ex: `https://votre-admin-dashboard.netlify.app,https://votre-playground.netlify.app`). Séparez par des virgules, sans espaces.
+    * `ADMIN_CORS_ALLOW_ORIGINS` : (Optionnel) Liste des domaines principaux. Le code autorise désormais automatiquement tous les sous-domaines `*.netlify.app` (y compris les prévisualisations).
     * `JWT_SECRET` : Une clé secrète longue pour sécuriser les tokens.
     * `PYTHON_VERSION` : `3.11.14` (Géré automatiquement via `.tool-versions`).
 4. Si vous faites une mise à jour de code, cliquez sur **Manual Deploy > Deploy latest commit**.
