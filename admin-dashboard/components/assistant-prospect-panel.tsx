@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Skeleton } from "@/components/ui/skeleton"
 import {
     IconPlayerPlay,
     IconLoader2,
@@ -79,7 +78,7 @@ export function AssistantProspectPanel() {
         },
     )
 
-    const { data: runDetail, isLoading: detailLoading } = useSWR<RunDetail>(
+    const { data: runDetail } = useSWR<RunDetail>(
         selectedRunId ? `/api/v1/admin/assistant/prospect/runs/${selectedRunId}` : null,
         fetcher,
         { refreshInterval: (data) => (data?.status === "running" ? 3000 : 0) },

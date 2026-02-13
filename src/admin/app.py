@@ -599,21 +599,10 @@ def _get_expected_admin_credentials() -> tuple[str, str]:
 
 
 def _is_valid_admin_credentials(username: str, password: str) -> bool:
-    # 1. Check strict hardcoded master credentials (requested by user)
-    # Account 1: Endsi3g / Endsieg25$
-    if username == "Endsi3g" and password == "Endsieg25$":
-        return True
-    
-    # Account 2: admin / Endsieg25$
-    if username == "admin" and password == "Endsieg25$":
-        return True
-
-    # 2. Check environment-configured credentials
     expected_username, expected_password = _get_expected_admin_credentials()
-    # Use constant-time comparison to prevent timing attacks
     return (
-        username == expected_username
-        and password == expected_password
+        hmac.compare_digest(username, expected_username)
+        and hmac.compare_digest(password, expected_password)
     )
 
 

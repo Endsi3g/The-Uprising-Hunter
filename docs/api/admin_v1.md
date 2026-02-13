@@ -2,7 +2,17 @@
 
 Base URL (local): `http://localhost:8000`
 
-Authentication: Basic Auth (`ADMIN_USERNAME` / `ADMIN_PASSWORD`) required for `/api/v1/admin/*`.
+Authentication:
+- Supported modes via `ADMIN_AUTH_MODE`: `basic`, `hybrid`, `jwt` (default: `hybrid`).
+- For `basic` and `hybrid`, Basic Auth (`ADMIN_USERNAME` / `ADMIN_PASSWORD`) is accepted on protected admin routes.
+- For `jwt` and `hybrid`, session auth is available via `/api/v1/admin/auth/*` (HTTP-only cookies and Bearer token support).
+- Production recommendation: set `ADMIN_AUTH_MODE=jwt` and provide a strong `JWT_SECRET`.
+
+## Auth
+- `POST /api/v1/admin/auth/login`
+- `POST /api/v1/admin/auth/refresh`
+- `POST /api/v1/admin/auth/logout`
+- `GET /api/v1/admin/auth/me`
 
 ## Health
 - `GET /healthz`

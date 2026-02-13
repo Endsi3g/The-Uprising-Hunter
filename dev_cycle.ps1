@@ -22,6 +22,61 @@ function Start-Window {
     Start-Process powershell -ArgumentList "-NoExit", "-Command", "& { $Command }" -WorkingDirectory $WorkingDirectory
 }
 
+function Install-Dependencies {
+    param([string]$Path, [string]$Type)
+    
+    Write-Host "Checking $Type dependencies in $Path..." -ForegroundColor Cyan
+    
+    if ($Type -eq "Backend") {
+        $VenvPath = Join-Path $Path ".venv"
+        if (-not (Test-Path $VenvPath)) {
+            Write-Host "Virtual environment not found. Creating..." -ForegroundColor Yellow
+            python -m venv $VenvPath
+        }
+        
+        Write-Host "Updating backend dependencies..." -ForegroundColor Gray
+        $VenvPip = Join-Path $VenvPath "Scripts\pip.exe"
+        & $VenvPip install -r (Join-Path $Path "requirements.txt")
+    }
+    elseif ($Type -eq "Frontend") {
+        $NodeModules = Join-Path $Path "node_modules"
+        if (-not (Test-Path $NodeModules)) {
+            Write-Host "node_modules not found in $Path. Installing..." -ForegroundColor Yellow
+            Push-Location $Path
+            npm install
+            Pop-Location
+        }
+
+        Write-Host "Running security audit for $Path..." -ForegroundColor Cyan
+        Push-Location $Path
+        # Use npm audit. Return code non-zero indicates vulnerabilities found.
+        npm audit --audit-level=high
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "High/Critical vulnerabilities detected. Attempting to fix..." -ForegroundColor Yellow
+            npm audit fix --force
+            
+            # Re-check after fix
+            npm audit --audit-level=high
+            if ($LASTEXITCODE -ne 0) {
+                Write-Host "WARNING: High/Critical vulnerabilities persist in $Path." -ForegroundColor Yellow
+                Write-Host "Continuing anyway, but consider resolving them manually." -ForegroundColor Yellow
+            }
+            else {
+                Write-Host "Vulnerabilities fixed successfully." -ForegroundColor Green
+            }
+        }
+        else {
+            Write-Host "Security audit passed." -ForegroundColor Green
+        }
+        Pop-Location
+    }
+}
+
+# 0. Check Dependencies
+Install-Dependencies -Path $RootDir -Type "Backend"
+Install-Dependencies -Path (Join-Path $RootDir "admin-dashboard") -Type "Frontend"
+Install-Dependencies -Path (Join-Path $RootDir "system-playground") -Type "Frontend"
+
 # 1. Start Backend
 $VenvPython = Join-Path $RootDir ".venv\Scripts\python.exe"
 if (-not (Test-Path $VenvPython)) {
@@ -80,9 +135,11 @@ if ($Confirm -eq 'y') {
     
     if ($LASTEXITCODE -eq 0) {
         Write-Host "SUCCESS: Pushed to remote." -ForegroundColor Green
-    } else {
+    }
+    else {
         Write-Host "ERROR: Push failed." -ForegroundColor Red
     }
-} else {
+}
+else {
     Write-Host "Aborted." -ForegroundColor Yellow
 }

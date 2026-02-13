@@ -65,8 +65,15 @@ foreach ($app in $apps) {
 
         # ── Build ────────────────────────────────
         Write-Host "  [3/3] Building for production..." -ForegroundColor Gray
+        
+        # Capture output but prevent stderr from throwing a terminating error
+        $prevAction = $ErrorActionPreference
+        $ErrorActionPreference = "Continue"
         $buildOutput = npm run build 2>&1
-        if ($LASTEXITCODE -ne 0) {
+        $exitCode = $LASTEXITCODE
+        $ErrorActionPreference = $prevAction
+
+        if ($exitCode -ne 0) {
             Write-Host "  [3/3] BUILD FAILED" -ForegroundColor Red
             Write-Host ($buildOutput | Out-String) -ForegroundColor Red
             $results += @{ Name = $app.Name; Status = "FAILED" }

@@ -5,7 +5,6 @@ import {
   IconChartBar,
   IconDashboard,
   IconDatabase,
-  IconFileWord,
   IconFolder,
   IconHelp,
   IconInnerShadowTop,
@@ -13,6 +12,7 @@ import {
   IconReport,
   IconSearch,
   IconSettings,
+  IconSparkles,
   IconUsers,
 } from "@tabler/icons-react"
 
@@ -60,6 +60,16 @@ const data = {
       icon: IconChartBar,
     },
     {
+      title: messages.sidebar.research,
+      url: "/research",
+      icon: IconSearch,
+    },
+    {
+      title: messages.sidebar.assistantAi,
+      url: "/assistant",
+      icon: IconSparkles,
+    },
+    {
       title: messages.sidebar.projects,
       url: "/projects",
       icon: IconFolder,
@@ -77,12 +87,6 @@ const data = {
       url: "/reports",
       icon: IconReport,
       badge: "Live",
-    },
-    {
-      name: "Assistant",
-      url: "/assistant",
-      icon: IconFileWord,
-      badge: "Beta",
     },
   ],
 }

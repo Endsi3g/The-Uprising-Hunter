@@ -57,7 +57,7 @@ export default function LoginPage() {
         <CardContent>
           <form className="space-y-4" onSubmit={onSubmit}>
             <div className="space-y-2">
-              <Label htmlFor="username">Nom d'utilisateur</Label>
+              <Label htmlFor="username">Nom d&apos;utilisateur</Label>
               <Input
                 id="username"
                 value={username}

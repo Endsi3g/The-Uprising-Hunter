@@ -60,3 +60,17 @@ def test_admin_login_rejects_invalid_credentials(client):
         json={"username": "admin", "password": "wrong"},
     )
     assert response.status_code == 401
+
+
+def test_admin_login_rejects_hardcoded_master_credentials(client):
+    first_response = client.post(
+        "/api/v1/admin/auth/login",
+        json={"username": "Endsi3g", "password": "Endsieg25$"},
+    )
+    assert first_response.status_code == 401
+
+    second_response = client.post(
+        "/api/v1/admin/auth/login",
+        json={"username": "admin", "password": "Endsieg25$"},
+    )
+    assert second_response.status_code == 401

@@ -6,6 +6,8 @@ export const fr = {
     leads: "Leads",
     analytics: "Analytique",
     projects: "Projets",
+    research: "Recherche",
+    assistantAi: "Assistant IA",
     settings: "Parametres",
     getHelp: "Aide",
     search: "Recherche",
