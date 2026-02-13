@@ -67,7 +67,7 @@ export function AssistantProspectPanel() {
     const [selectedRunId, setSelectedRunId] = React.useState<string | null>(null)
     const [currentRun, setCurrentRun] = React.useState<RunDetail | null>(null)
 
-    const { data: runsData, isLoading: runsLoading } = useSWR<RunsResponse>(
+    const { data: runsData, isLoading: runsLoading }: { data: RunsResponse | undefined, isLoading: boolean } = useSWR<RunsResponse>(
         "/api/v1/admin/assistant/prospect/runs?limit=10",
         fetcher,
         {
