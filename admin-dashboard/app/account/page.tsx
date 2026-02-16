@@ -26,17 +26,19 @@ import {
 import { requestApi } from "@/lib/api"
 import { formatDateTimeFr } from "@/lib/format"
 
+type AccountPreferences = Record<string, unknown> & {
+  density?: "compact" | "comfortable"
+  keyboard_shortcuts?: boolean
+  start_page?: string
+}
+
 type AccountPayload = {
   full_name: string
   email: string
   title: string
   locale: string
   timezone: string
-  preferences: {
-    density?: "compact" | "comfortable"
-    keyboard_shortcuts?: boolean
-    start_page?: string
-  }
+  preferences: AccountPreferences
   updated_at?: string | null
 }
 
@@ -60,12 +62,23 @@ export default function AccountPage() {
 
   React.useEffect(() => {
     if (!data) return
+    const currentPreferences = data.preferences || {}
     setForm({
       ...data,
       preferences: {
-        density: data.preferences?.density || "comfortable",
-        keyboard_shortcuts: data.preferences?.keyboard_shortcuts ?? true,
-        start_page: data.preferences?.start_page || "/dashboard",
+        ...currentPreferences,
+        density:
+          currentPreferences.density === "compact" || currentPreferences.density === "comfortable"
+            ? currentPreferences.density
+            : "comfortable",
+        keyboard_shortcuts:
+          typeof currentPreferences.keyboard_shortcuts === "boolean"
+            ? currentPreferences.keyboard_shortcuts
+            : true,
+        start_page:
+          typeof currentPreferences.start_page === "string" && currentPreferences.start_page.length > 0
+            ? currentPreferences.start_page
+            : "/dashboard",
       },
     })
   }, [data])
@@ -171,7 +184,11 @@ export default function AccountPage() {
                 <div className="space-y-2">
                   <Label>Densite interface</Label>
                   <Select
-                    value={form.preferences.density || "comfortable"}
+                    value={
+                      form.preferences.density === "compact" || form.preferences.density === "comfortable"
+                        ? form.preferences.density
+                        : "comfortable"
+                    }
                     onValueChange={(value) =>
                       updateField("preferences", { ...form.preferences, density: value as "compact" | "comfortable" })
                     }
@@ -190,7 +207,11 @@ export default function AccountPage() {
                 <div className="space-y-2">
                   <Label>Page de demarrage</Label>
                   <Select
-                    value={form.preferences.start_page || "/dashboard"}
+                    value={
+                      typeof form.preferences.start_page === "string" && form.preferences.start_page.length > 0
+                        ? form.preferences.start_page
+                        : "/dashboard"
+                    }
                     onValueChange={(value) =>
                       updateField("preferences", { ...form.preferences, start_page: value })
                     }

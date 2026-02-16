@@ -74,6 +74,13 @@ export interface Messages {
     logout: string
   }
   auth: {
+    hero: {
+      title: string
+      description: string
+      loginCta: string
+      createAccountCta: string
+      demoCta: string
+    }
     login: {
       title: string
       description: string
@@ -84,6 +91,55 @@ export interface Messages {
       successToast: string
       invalidCredentials: string
       genericError: string
+      createAccountCta: string
+    }
+    createAccount: {
+      title: string
+      description: string
+      emailLabel: string
+      displayNameLabel: string
+      passwordLabel: string
+      confirmPasswordLabel: string
+      submit: string
+      submitting: string
+      successToast: string
+      passwordMismatch: string
+      passwordTooShort: string
+      genericError: string
+      loginCta: string
+    }
+  }
+  onboarding: {
+    previous: string
+    next: string
+    skip: string
+    finish: string
+    stepProgress: string
+    saveError: string
+    skippedToast: string
+    completedToast: string
+    launchFromHelp: string
+    steps: {
+      dashboard: {
+        title: string
+        description: string
+        cta: string
+      }
+      leads: {
+        title: string
+        description: string
+        cta: string
+      }
+      tasks: {
+        title: string
+        description: string
+        cta: string
+      }
+      opportunities: {
+        title: string
+        description: string
+        cta: string
+      }
     }
   }
   dashboard: {
