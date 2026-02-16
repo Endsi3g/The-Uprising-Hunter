@@ -3,9 +3,8 @@
 import * as React from "react"
 import useSWR from "swr"
 
-import { AppSidebar } from "@/components/app-sidebar"
 import { ExportCsvButton } from "@/components/export-csv-button"
-import { SiteHeader } from "@/components/site-header"
+import { AppShell } from "@/components/layout/app-shell"
 import { SyncStatus } from "@/components/sync-status"
 import { Task, TasksTable } from "@/components/tasks-table"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -13,10 +12,6 @@ import { ErrorState } from "@/components/ui/error-state"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useLoadingTimeout } from "@/hooks/use-loading-timeout"
 import { fetchApi } from "@/lib/api"
-import {
-  SidebarInset,
-  SidebarProvider,
-} from "@/components/ui/sidebar"
 
 type ApiTask = {
   id: string
@@ -91,86 +86,73 @@ export default function TasksPage() {
     : []
 
   return (
-    <SidebarProvider
-      style={
-        {
-          "--sidebar-width": "calc(var(--spacing) * 72)",
-          "--header-height": "calc(var(--spacing) * 12)",
-        } as React.CSSProperties
-      }
-    >
-      <AppSidebar variant="inset" />
-      <SidebarInset>
-        <SiteHeader />
-        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-          <div className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <h2 className="text-3xl font-bold tracking-tight">Taches</h2>
-            <ExportCsvButton entity="tasks" />
-          </div>
-          <SyncStatus updatedAt={updatedAt} onRefresh={() => void mutate()} />
-          {isLoading && !loadingTimedOut ? (
-            <div className="space-y-3">
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
-            </div>
-          ) : error || loadingTimedOut ? (
-            <ErrorState
-              title="Impossible de charger les taches."
-              description={
-                loadingTimedOut
-                  ? "Le chargement depasse le delai attendu. Verifiez la sante de l'API puis reessayez."
-                  : error instanceof Error
-                    ? error.message
-                    : "La liste des taches est temporairement indisponible."
-              }
-              secondaryLabel="Ouvrir Parametres"
-              secondaryHref="/settings"
-              onRetry={() => void mutate()}
-            />
-          ) : (data?.total || 0) === 0 ? (
-            <EmptyState
-              title="Aucune tache disponible"
-              description="Les taches apparaissent ici apres creation ou conversion depuis les leads."
-            />
-          ) : (
-            <TasksTable
-              data={tasks}
-              total={data?.total || 0}
-              page={page}
-              pageSize={pageSize}
-              search={search}
-              status={status}
-              channel={channel}
-              source={source}
-              sort={sort}
-              order={order}
-              onSearchChange={(value) => {
-                setSearch(value)
-                setPage(1)
-              }}
-              onStatusChange={(value) => {
-                setStatus(value)
-                setPage(1)
-              }}
-              onChannelChange={(value) => {
-                setChannel(value)
-                setPage(1)
-              }}
-              onSourceChange={(value) => {
-                setSource(value)
-                setPage(1)
-              }}
-              onPageChange={setPage}
-              onSortChange={(nextSort, nextOrder) => {
-                setSort(nextSort)
-                setOrder(nextOrder)
-              }}
-              onDataChanged={() => void mutate()}
-            />
-          )}
+    <AppShell>
+      <div className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <h2 className="text-3xl font-bold tracking-tight">Taches</h2>
+        <ExportCsvButton entity="tasks" />
+      </div>
+      <SyncStatus updatedAt={updatedAt} onRefresh={() => void mutate()} />
+      {isLoading && !loadingTimedOut ? (
+        <div className="space-y-3">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
         </div>
-      </SidebarInset>
-    </SidebarProvider>
+      ) : error || loadingTimedOut ? (
+        <ErrorState
+          title="Impossible de charger les taches."
+          description={
+            loadingTimedOut
+              ? "Le chargement depasse le delai attendu. Verifiez la sante de l'API puis reessayez."
+              : error instanceof Error
+                ? error.message
+                : "La liste des taches est temporairement indisponible."
+          }
+          secondaryLabel="Ouvrir Parametres"
+          secondaryHref="/settings"
+          onRetry={() => void mutate()}
+        />
+      ) : (data?.total || 0) === 0 ? (
+        <EmptyState
+          title="Aucune tache disponible"
+          description="Les taches apparaissent ici apres creation ou conversion depuis les leads."
+        />
+      ) : (
+        <TasksTable
+          data={tasks}
+          total={data?.total || 0}
+          page={page}
+          pageSize={pageSize}
+          search={search}
+          status={status}
+          channel={channel}
+          source={source}
+          sort={sort}
+          order={order}
+          onSearchChange={(value) => {
+            setSearch(value)
+            setPage(1)
+          }}
+          onStatusChange={(value) => {
+            setStatus(value)
+            setPage(1)
+          }}
+          onChannelChange={(value) => {
+            setChannel(value)
+            setPage(1)
+          }}
+          onSourceChange={(value) => {
+            setSource(value)
+            setPage(1)
+          }}
+          onPageChange={setPage}
+          onSortChange={(nextSort, nextOrder) => {
+            setSort(nextSort)
+            setOrder(nextOrder)
+          }}
+          onDataChanged={() => void mutate()}
+        />
+      )}
+    </AppShell>
   )
 }

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import importlib
+
 from src.core.db_models import DBLead
 from src.core.models import LeadStage, LeadStatus
 
@@ -88,3 +90,54 @@ def test_enrichment_run_and_fetch(client, db_session):
     fetch_payload = fetch_response.json()
     assert fetch_payload["id"] == run_payload["id"]
     assert fetch_payload["status"] == "completed"
+
+
+def test_generate_content_with_ollama_provider(client, db_session, monkeypatch):
+    lead = _seed_content_lead(db_session)
+
+    put_response = client.put(
+        "/api/v1/admin/integrations",
+        auth=("admin", "secret"),
+        json={
+            "providers": {
+                "ollama": {
+                    "enabled": True,
+                    "config": {
+                        "api_base_url": "https://ollama.example.internal",
+                        "api_key_env": "OLLAMA_API_KEY",
+                        "model_content": "llama3.1:8b-instruct",
+                    },
+                }
+            }
+        },
+    )
+    assert put_response.status_code == 200, put_response.text
+
+    captured: dict[str, object] = {}
+    content_module = importlib.import_module("src.admin.content_service")
+
+    def fake_chat_completion(*, messages, config=None, **kwargs):
+        captured["messages"] = messages
+        captured["config"] = config
+        return '{"subject":"Objet Ollama","body":"Bonjour Claire, voici une proposition adaptee."}'
+
+    monkeypatch.setattr(content_module, "chat_completion", fake_chat_completion)
+
+    response = client.post(
+        "/api/v1/admin/content/generate",
+        auth=("admin", "secret"),
+        json={
+            "lead_id": lead.id,
+            "channel": "email",
+            "step": 1,
+            "provider": "ollama",
+            "context": {"pain_point": "les relances manuelles"},
+        },
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["provider"] == "ollama"
+    assert payload["subject"] == "Objet Ollama"
+    assert "Bonjour Claire" in payload["body"]
+    assert isinstance(captured.get("messages"), list)
+    assert isinstance(captured.get("config"), dict)

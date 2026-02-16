@@ -159,10 +159,10 @@ export default function ProjectDetailPage() {
   }
 
   if (loadingProject) {
-    return <SidebarProvider style={{ "--sidebar-width": "calc(var(--spacing) * 72)", "--header-height": "calc(var(--spacing) * 12)" } as React.CSSProperties}><AppSidebar variant="inset" /><SidebarInset><SiteHeader /><div className="p-8"><Skeleton className="h-72 w-full" /></div></SidebarInset></SidebarProvider>
+    return <SidebarProvider style={{ "--sidebar-width": "calc(var(--spacing) * 72)", "--header-height": "calc(var(--spacing) * 12)" } as React.CSSProperties}><AppSidebar variant="inset" /><SidebarInset><SiteHeader /><div className="p-4 sm:p-6"><Skeleton className="h-72 w-full" /></div></SidebarInset></SidebarProvider>
   }
   if (projectError || !project) {
-    return <SidebarProvider style={{ "--sidebar-width": "calc(var(--spacing) * 72)", "--header-height": "calc(var(--spacing) * 12)" } as React.CSSProperties}><AppSidebar variant="inset" /><SidebarInset><SiteHeader /><div className="p-8"><ErrorState title="Projet introuvable." onRetry={() => void mutateProject()} /></div></SidebarInset></SidebarProvider>
+    return <SidebarProvider style={{ "--sidebar-width": "calc(var(--spacing) * 72)", "--header-height": "calc(var(--spacing) * 12)" } as React.CSSProperties}><AppSidebar variant="inset" /><SidebarInset><SiteHeader /><div className="p-4 sm:p-6"><ErrorState title="Projet introuvable." onRetry={() => void mutateProject()} /></div></SidebarInset></SidebarProvider>
   }
 
   return (
@@ -170,7 +170,7 @@ export default function ProjectDetailPage() {
       <AppSidebar variant="inset" />
       <SidebarInset>
         <SiteHeader />
-        <div className="flex flex-1 flex-col gap-4 p-4 pt-0 md:p-8">
+        <div className="flex flex-1 flex-col gap-4 p-3 pt-0 sm:p-4 sm:pt-0 lg:p-6">
           <Card>
             <CardContent className="pt-6 space-y-3">
               <div className="flex flex-wrap items-start justify-between gap-3">
@@ -197,7 +197,7 @@ export default function ProjectDetailPage() {
             <Card>
               <CardContent className="pt-6">
                 <Tabs value={tab} onValueChange={setTab}>
-                  <TabsList className="grid w-full grid-cols-4">
+                  <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
                     <TabsTrigger value="kanban">Kanban</TabsTrigger>
                     <TabsTrigger value="timeline">Timeline</TabsTrigger>
                     <TabsTrigger value="team">Team</TabsTrigger>

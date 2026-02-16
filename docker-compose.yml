@@ -64,6 +64,18 @@ services:
       retries: 3
       start_period: 30s
 
+  # ── Optional local Ollama runtime (disabled by default) ─────
+  # Enable with: docker compose --profile local-ai up
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["local-ai"]
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    restart: unless-stopped
+
 volumes:
   db-data:
   khoj-data:
+  ollama-data:

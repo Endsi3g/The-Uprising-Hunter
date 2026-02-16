@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import html
+import json
 import os
 import re
 from typing import Any
@@ -10,6 +11,7 @@ import requests
 
 from ..core.http import HttpRequestConfig, request_json, request_with_retries
 from ..core.logging import get_logger
+from .ollama_service import chat_completion, parse_json_from_text
 
 
 logger = get_logger(__name__)
@@ -23,13 +25,14 @@ FIRECRAWL_SEARCH_URL = "https://api.firecrawl.dev/v2/search"
 DEFAULT_TIMEOUT_SECONDS = 20.0
 MAX_RESULT_LIMIT = 25
 
-SUPPORTED_RESEARCH_PROVIDERS = ("duckduckgo", "perplexity", "firecrawl")
+SUPPORTED_RESEARCH_PROVIDERS = ("duckduckgo", "perplexity", "firecrawl", "ollama")
 PROVIDER_ALIASES = {
     "ddg": "duckduckgo",
     "duckduckgo": "duckduckgo",
     "perplexity": "perplexity",
     "pplx": "perplexity",
     "firecrawl": "firecrawl",
+    "ollama": "ollama",
 }
 
 
@@ -375,6 +378,135 @@ def _search_firecrawl(query: str, limit: int, config: dict[str, Any]) -> list[di
     return _extract_firecrawl_items(response_payload, limit=limit)
 
 
+def _build_ollama_research_prompt(
+    *,
+    query: str,
+    candidates: list[dict[str, Any]],
+    limit: int,
+) -> str:
+    compact_candidates: list[dict[str, Any]] = []
+    for index, item in enumerate(candidates, start=1):
+        compact_candidates.append(
+            {
+                "id": index,
+                "title": item.get("title"),
+                "url": item.get("url"),
+                "snippet": item.get("snippet"),
+                "source": item.get("source"),
+            }
+        )
+
+    return (
+        "You are a strict web research ranking assistant.\n"
+        "Use ONLY the candidate results provided by the user. Do not invent sources.\n"
+        "Return valid JSON with this exact schema:\n"
+        '{"items":[{"title":"...","url":"https://...","snippet":"...","source":"..."}]}\n'
+        f"Select up to {limit} most relevant items for the query and improve snippets in concise factual French.\n"
+        "If no item is relevant, return {\"items\": []}.\n\n"
+        f"Query: {query}\n"
+        f"Candidates: {json.dumps(compact_candidates, ensure_ascii=False)}"
+    )
+
+
+def _normalize_ollama_research_items(
+    *,
+    parsed_payload: Any,
+    candidates: list[dict[str, Any]],
+    limit: int,
+) -> list[dict[str, Any]]:
+    rows: list[Any] = []
+    if isinstance(parsed_payload, dict) and isinstance(parsed_payload.get("items"), list):
+        rows = parsed_payload.get("items") or []
+    elif isinstance(parsed_payload, list):
+        rows = parsed_payload
+
+    candidates_by_url = {
+        str(item.get("url") or "").strip().lower(): item
+        for item in candidates
+        if str(item.get("url") or "").strip()
+    }
+
+    normalized_items: list[dict[str, Any]] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        row_url = str(row.get("url") or "").strip()
+        matched = candidates_by_url.get(row_url.lower()) if row_url else None
+        normalized = _normalize_item(
+            provider="ollama",
+            source=row.get("source") or (matched.get("source") if isinstance(matched, dict) else "ollama"),
+            title=row.get("title") or (matched.get("title") if isinstance(matched, dict) else ""),
+            url=row_url or (matched.get("url") if isinstance(matched, dict) else ""),
+            snippet=row.get("snippet") or (matched.get("snippet") if isinstance(matched, dict) else ""),
+        )
+        if normalized:
+            normalized_items.append(normalized)
+        if len(normalized_items) >= limit:
+            break
+
+    deduped = _dedupe_items(normalized_items)
+    if deduped:
+        return deduped[:limit]
+
+    fallback_items: list[dict[str, Any]] = []
+    for row in candidates[:limit]:
+        normalized = _normalize_item(
+            provider="ollama",
+            source=row.get("source") or "ollama",
+            title=row.get("title"),
+            url=row.get("url"),
+            snippet=row.get("snippet"),
+        )
+        if normalized:
+            fallback_items.append(normalized)
+    return fallback_items
+
+
+def _search_ollama(query: str, limit: int, config: dict[str, Any]) -> list[dict[str, Any]]:
+    retrieval_limit = max(limit, min(limit * 2, MAX_RESULT_LIMIT))
+    candidates = _search_duckduckgo(query, retrieval_limit)
+    if not candidates:
+        return []
+
+    try:
+        temperature = float(config.get("temperature", 0.2))
+    except (TypeError, ValueError):
+        temperature = 0.2
+    try:
+        max_tokens = int(config.get("max_tokens", 700))
+    except (TypeError, ValueError):
+        max_tokens = 700
+    max_tokens = max(200, min(max_tokens, 2048))
+
+    prompt = _build_ollama_research_prompt(query=query, candidates=candidates, limit=limit)
+    messages = [
+        {
+            "role": "system",
+            "content": "Return only valid JSON without markdown fences.",
+        },
+        {"role": "user", "content": prompt},
+    ]
+
+    try:
+        content = chat_completion(
+            messages=messages,
+            config=config,
+            config_model_key="model_research",
+            env_model_key="OLLAMA_MODEL_RESEARCH",
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+        parsed = parse_json_from_text(content)
+        return _normalize_ollama_research_items(
+            parsed_payload=parsed,
+            candidates=candidates,
+            limit=limit,
+        )
+    except Exception as exc:  # pragma: no cover - network/provider variation
+        logger.warning("Ollama research call failed.", extra={"error": str(exc)})
+        return []
+
+
 def run_web_research(
     *,
     query: str,
@@ -424,6 +556,8 @@ def run_web_research(
                 provider_items = _search_perplexity(clean_query, per_provider_limit, provider_config)
             elif provider == "firecrawl":
                 provider_items = _search_firecrawl(clean_query, per_provider_limit, provider_config)
+            elif provider == "ollama":
+                provider_items = _search_ollama(clean_query, per_provider_limit, provider_config)
             else:
                 provider_items = []
         except Exception as exc:  # pragma: no cover - defensive network fallback

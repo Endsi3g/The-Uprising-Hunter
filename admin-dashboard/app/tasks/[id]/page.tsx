@@ -433,7 +433,7 @@ export default function TaskDetailPage() {
         <AppSidebar variant="inset" />
         <SidebarInset>
           <SiteHeader />
-          <div className="space-y-3 p-4 pt-0">
+          <div className="space-y-3 p-3 pt-0 sm:p-4 sm:pt-0 lg:p-6">
             <Skeleton className="h-12 w-1/2" />
             <Skeleton className="h-28 w-full" />
             <Skeleton className="h-96 w-full" />
@@ -456,7 +456,7 @@ export default function TaskDetailPage() {
         <AppSidebar variant="inset" />
         <SidebarInset>
           <SiteHeader />
-          <div className="p-4 pt-0">
+          <div className="p-3 pt-0 sm:p-4 sm:pt-0 lg:p-6">
             <Card>
               <CardHeader>
                 <CardTitle>Tache introuvable</CardTitle>
@@ -486,7 +486,7 @@ export default function TaskDetailPage() {
       <AppSidebar variant="inset" />
       <SidebarInset>
         <SiteHeader />
-        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+        <div className="flex flex-1 flex-col gap-4 p-3 pt-0 sm:p-4 sm:pt-0 lg:p-6">
           <nav className="mb-1 flex items-center text-sm text-muted-foreground">
             <Link href="/tasks" className="transition-colors hover:text-foreground">
               Taches

@@ -22,6 +22,73 @@ const ASSIGNEES = ["Vous", "Alice SDR", "Camille Ops", "Jules Sales", "Nicolas A
 const OPPORTUNITY_STAGES: OpportunityStage[] = ["Prospect", "Qualified", "Proposed", "Won", "Lost"]
 const OPPORTUNITY_STAGE_ORDER: Record<OpportunityStage, number> = { Prospect: 0, Qualified: 1, Proposed: 2, Won: 3, Lost: 4 }
 const OPPORTUNITY_PROBABILITIES: Record<OpportunityStage, number> = { Prospect: 20, Qualified: 45, Proposed: 70, Won: 100, Lost: 0 }
+const CANONICAL_STAGES = ["new", "enriched", "qualified", "contacted", "engaged", "opportunity", "won", "post_sale", "lost", "disqualified"] as const
+const TERMINAL_CANONICAL_STAGE_SET = new Set<string>(["lost", "disqualified"])
+const LEAD_STATUS_TO_CANONICAL: Record<string, string> = {
+  NEW: "new",
+  ENRICHED: "enriched",
+  SCORED: "qualified",
+  CONTACTED: "contacted",
+  INTERESTED: "engaged",
+  CONVERTED: "won",
+  LOST: "lost",
+  DISQUALIFIED: "disqualified",
+}
+const LEAD_CANONICAL_TO_STATUS: Record<string, string> = {
+  new: "NEW",
+  enriched: "ENRICHED",
+  qualified: "SCORED",
+  contacted: "CONTACTED",
+  engaged: "INTERESTED",
+  opportunity: "INTERESTED",
+  won: "CONVERTED",
+  post_sale: "CONVERTED",
+  lost: "LOST",
+  disqualified: "DISQUALIFIED",
+}
+const OPPORTUNITY_STAGE_TO_CANONICAL: Record<OpportunityStage, string> = {
+  Prospect: "contacted",
+  Qualified: "qualified",
+  Proposed: "opportunity",
+  Won: "won",
+  Lost: "lost",
+}
+const CANONICAL_TO_OPPORTUNITY_STAGE: Record<string, OpportunityStage> = {
+  new: "Prospect",
+  enriched: "Prospect",
+  contacted: "Prospect",
+  qualified: "Qualified",
+  engaged: "Qualified",
+  opportunity: "Proposed",
+  won: "Won",
+  post_sale: "Won",
+  lost: "Lost",
+  disqualified: "Lost",
+}
+const STAGE_SLA_HOURS: Record<string, number> = {
+  new: 24,
+  enriched: 24,
+  qualified: 24,
+  contacted: 48,
+  engaged: 48,
+  opportunity: 72,
+  won: 24,
+  post_sale: 168,
+  lost: 168,
+  disqualified: 168,
+}
+const NEXT_ACTION_HOURS: Record<string, number> = {
+  new: 4,
+  enriched: 6,
+  qualified: 8,
+  contacted: 12,
+  engaged: 12,
+  opportunity: 18,
+  won: 4,
+  post_sale: 48,
+  lost: 48,
+  disqualified: 48,
+}
 
 const scenarioCount = (scenario: MockScenario) => {
   if (scenario === "empty") return { leads: 0, tasksPerLead: 0, projectModulo: 1000 }
@@ -58,6 +125,47 @@ const taskStatus = (scenario: MockScenario, idx: number) => {
   return rows[idx % rows.length]
 }
 
+const toIsoDate = (value: unknown): string => {
+  const parsed = new Date(String(value || ""))
+  if (!Number.isFinite(parsed.getTime())) return nowIso()
+  return parsed.toISOString()
+}
+
+const addHoursIso = (value: unknown, hours: number): string => {
+  const base = new Date(toIsoDate(value))
+  return new Date(base.getTime() + hours * 3600000).toISOString()
+}
+
+const canonicalFromLeadStatus = (status: unknown): string => {
+  const key = String(status || "").trim().toUpperCase()
+  return LEAD_STATUS_TO_CANONICAL[key] || "new"
+}
+
+const canonicalFromOpportunityStage = (stage: unknown): string => {
+  const normalized = normalizeOpportunityStage(stage)
+  return OPPORTUNITY_STAGE_TO_CANONICAL[normalized] || "opportunity"
+}
+
+const opportunityStageFromCanonical = (stage: unknown): OpportunityStage => {
+  const key = String(stage || "").trim().toLowerCase()
+  return CANONICAL_TO_OPPORTUNITY_STAGE[key] || "Prospect"
+}
+
+const opportunityStatusFromCanonical = (stage: unknown): string => {
+  const key = String(stage || "").trim().toLowerCase()
+  if (key === "won" || key === "post_sale") return "won"
+  if (key === "lost" || key === "disqualified") return "lost"
+  return "open"
+}
+
+const makeStageDeadlines = (stage: string, at: unknown) => {
+  const normalized = String(stage || "new").trim().toLowerCase()
+  return {
+    sla_due_at: addHoursIso(at, STAGE_SLA_HOURS[normalized] ?? 24),
+    next_action_at: addHoursIso(at, NEXT_ACTION_HOURS[normalized] ?? 8),
+  }
+}
+
 function scenarioFrom(url: URL): MockScenario {
   const fromPath = String(url.searchParams.get("mockScenario") || url.searchParams.get("mock_scenario") || "").trim().toLowerCase()
   if (SCENARIOS.includes(fromPath as MockScenario)) return fromPath as MockScenario
@@ -92,6 +200,9 @@ function makeState(scenario: MockScenario) {
     const heat = Math.max(8, Math.min(96, totalScore + (scenario === "conversion_peak" ? 8 : scenario === "ops_overload" ? -6 : 0) + ((i % 7) - 3)))
     const status = leadStatus(scenario, i)
     const leadId = `lead-${scenario}-${String(i + 1).padStart(3, "0")}`
+    const canonicalStage = canonicalFromLeadStatus(status)
+    const stageEnteredAt = daysAgo((i % 12) + 1)
+    const deadlines = makeStageDeadlines(canonicalStage, stageEnteredAt)
     leads.push({
       id: leadId,
       first_name: first,
@@ -116,6 +227,13 @@ function makeState(scenario: MockScenario) {
       },
       created_at: daysAgo((i * 2) % 70 + 1),
       updated_at: daysAgo((i * 3) % 28),
+      stage_canonical: canonicalStage,
+      lead_owner_user_id: i % 6 === 0 ? null : i % 2 === 0 ? "user-1" : "user-2",
+      stage_entered_at: stageEnteredAt,
+      sla_due_at: i % 5 === 0 ? daysAgo(1) : deadlines.sla_due_at,
+      next_action_at: i % 4 === 0 ? daysAgo(1) : deadlines.next_action_at,
+      handoff_required: canonicalStage === "won",
+      handoff_completed_at: canonicalStage === "won" && i % 3 === 0 ? daysAgo(1) : null,
     })
   }
 
@@ -269,6 +387,8 @@ function makeState(scenario: MockScenario) {
         ? -((i % 5) + 2)
         : ((i % 9) - 2)
     const createdAt = daysAgo((i % 30) + 2)
+    const canonicalStage = canonicalFromOpportunityStage(stage)
+    const deadlines = makeStageDeadlines(canonicalStage, createdAt)
     opportunities.push({
       id: `opp-${scenario}-${String(i + 1).padStart(3, "0")}`,
       lead_id: lead.id,
@@ -279,6 +399,13 @@ function makeState(scenario: MockScenario) {
       assigned_to: pick(ASSIGNEES, i + 2),
       expected_close_date: daysFromNow(closeOffset),
       status: stage === "Won" ? "won" : stage === "Lost" ? "lost" : "open",
+      owner_user_id: lead.lead_owner_user_id || "user-1",
+      stage_canonical: canonicalStage,
+      stage_entered_at: createdAt,
+      sla_due_at: deadlines.sla_due_at,
+      next_action_at: deadlines.next_action_at,
+      handoff_required: canonicalStage === "won",
+      handoff_completed_at: canonicalStage === "won" && i % 4 === 0 ? daysAgo(1) : null,
       created_at: createdAt,
       updated_at: createdAt,
     })
@@ -369,7 +496,19 @@ function makeState(scenario: MockScenario) {
     },
     report_schedules: [],
     report_runs: [],
-    campaigns: [],
+    campaigns: [
+      {
+        id: "campaign-1",
+        name: "Nurture Q1",
+        description: "Campagne mock active",
+        status: "active",
+        sequence_id: "sequence-1",
+        channel_strategy: { primary: "email" },
+        enrollment_filter: { statuses: ["NEW", "SCORED", "CONTACTED"] },
+        created_at: daysAgo(12),
+        updated_at: daysAgo(1),
+      },
+    ],
     campaign_runs: [],
     sequences: [
       {
@@ -387,6 +526,16 @@ function makeState(scenario: MockScenario) {
         updated_at: daysAgo(2),
       },
     ],
+    funnel_config: {
+      stages: Array.from(CANONICAL_STAGES),
+      terminal_stages: Array.from(TERMINAL_CANONICAL_STAGE_SET),
+      stage_sla_hours: { ...STAGE_SLA_HOURS },
+      next_action_hours: { ...NEXT_ACTION_HOURS },
+      model: "canonical_v1",
+    },
+    stage_events: [],
+    smart_recommendations: [],
+    lead_notes: {},
     content_generations: [],
     enrichment_jobs: [],
     assistant_runs: [],
@@ -503,6 +652,8 @@ const seedOpportunitiesFromLeads = (state: any) => {
     .map((lead: any, index: number) => {
       const stage = pick(OPPORTUNITY_STAGES, index)
       const createdAt = daysAgo((index % 24) + 1)
+      const canonicalStage = canonicalFromOpportunityStage(stage)
+      const deadlines = makeStageDeadlines(canonicalStage, createdAt)
       return {
         id: nextId("opp"),
         lead_id: String(lead.id),
@@ -513,6 +664,13 @@ const seedOpportunitiesFromLeads = (state: any) => {
         assigned_to: pick(ASSIGNEES, index),
         expected_close_date: daysFromNow((index % 10) - 2),
         status: stage === "Won" ? "won" : stage === "Lost" ? "lost" : "open",
+        owner_user_id: lead.lead_owner_user_id || "user-1",
+        stage_canonical: canonicalStage,
+        stage_entered_at: createdAt,
+        sla_due_at: deadlines.sla_due_at,
+        next_action_at: deadlines.next_action_at,
+        handoff_required: canonicalStage === "won",
+        handoff_completed_at: canonicalStage === "won" && index % 3 === 0 ? daysAgo(1) : null,
         created_at: createdAt,
         updated_at: createdAt,
       }
@@ -536,6 +694,7 @@ const buildOpportunityItem = (state: any, row: any) => {
   const createdAt = row.created_at ? String(row.created_at) : null
   const updatedAt = row.updated_at ? String(row.updated_at) : null
   const prospectName = lead ? opportunityProspectName(lead) : String(row.name || "Prospect")
+  const stageCanonical = String(row.stage_canonical || canonicalFromOpportunityStage(stage))
   const timestamp = closeDate ? Date.parse(closeDate) : Number.NaN
   const isOverdue = Number.isFinite(timestamp) && timestamp < Date.now()
   return {
@@ -544,9 +703,13 @@ const buildOpportunityItem = (state: any, row: any) => {
     prospect_name: prospectName,
     amount: Number(row.amount || 0),
     stage,
+    stage_canonical: stageCanonical,
     probability: Math.max(0, Math.min(100, Number(row.probability || 0))),
     assigned_to: String(row.assigned_to || "Vous"),
+    owner_user_id: row.owner_user_id ? String(row.owner_user_id) : null,
     close_date: closeDate,
+    next_action_at: row.next_action_at ? String(row.next_action_at) : null,
+    sla_due_at: row.sla_due_at ? String(row.sla_due_at) : null,
     created_at: createdAt,
     updated_at: updatedAt,
     is_overdue: isOverdue,
@@ -670,6 +833,332 @@ const opportunitiesSummaryPayload = (state: any, rows: any[]) => {
   }
 }
 
+const normalizeCanonicalStage = (raw: unknown): string => {
+  const value = String(raw || "").trim().toLowerCase()
+  if ((CANONICAL_STAGES as readonly string[]).includes(value)) return value
+  return "new"
+}
+
+const leadCanonicalStage = (lead: any): string => {
+  return normalizeCanonicalStage(lead.stage_canonical || canonicalFromLeadStatus(lead.status))
+}
+
+const ensureStageEvents = (state: any): any[] => {
+  if (!Array.isArray(state.stage_events)) state.stage_events = []
+  return state.stage_events
+}
+
+const createStageEvent = (
+  state: any,
+  payload: {
+    entity_type: "lead" | "opportunity"
+    entity_id: string
+    from_stage: string | null
+    to_stage: string
+    reason?: string | null
+    actor?: string
+    source?: string
+    metadata?: JsonObj
+  },
+) => {
+  const event = {
+    id: nextId("stage-event"),
+    entity_type: payload.entity_type,
+    entity_id: payload.entity_id,
+    from_stage: payload.from_stage,
+    to_stage: payload.to_stage,
+    reason: payload.reason || null,
+    actor: payload.actor || "admin",
+    source: payload.source || "manual",
+    metadata: payload.metadata || {},
+    created_at: nowIso(),
+  }
+  ensureStageEvents(state).unshift(event)
+  return event
+}
+
+const ensureLeadNotes = (state: any): Record<string, any[]> => {
+  if (!state.lead_notes || typeof state.lead_notes !== "object") state.lead_notes = {}
+  return state.lead_notes as Record<string, any[]>
+}
+
+const notesForLead = (state: any, leadId: string): any[] => {
+  const map = ensureLeadNotes(state)
+  if (!Array.isArray(map[leadId])) {
+    map[leadId] = [
+      {
+        id: nextId("note"),
+        content: "Note mock initiale pour suivi.",
+        author: "admin",
+        created_at: daysAgo(2),
+        updated_at: daysAgo(1),
+      },
+    ]
+  }
+  return map[leadId]
+}
+
+const interactionsForLead = (state: any, leadId: string): any[] => {
+  const tasks = (state.tasks as any[]).filter((task) => String(task.lead_id || "") === leadId).slice(0, 8)
+  return tasks.map((task) => ({
+    id: `interaction-${task.id}`,
+    type: String(task.channel || "email"),
+    timestamp: task.updated_at || task.created_at || nowIso(),
+    details: {
+      task_id: task.id,
+      title: task.title,
+      status: task.status,
+      source: task.source || "manual",
+    },
+  }))
+}
+
+const ensureRecommendations = (state: any): any[] => {
+  if (!Array.isArray(state.smart_recommendations)) state.smart_recommendations = []
+  const recommendations = state.smart_recommendations as any[]
+  const hasPending = (type: string, entityId: string) =>
+    recommendations.some((item) => String(item.status) === "pending" && String(item.recommendation_type) === type && String(item.entity_id) === entityId)
+
+  const leads = Array.isArray(state.leads) ? state.leads : []
+  for (const lead of leads) {
+    const canonical = leadCanonicalStage(lead)
+    const slaDueTs = Date.parse(String(lead.sla_due_at || ""))
+    if (!TERMINAL_CANONICAL_STAGE_SET.has(canonical) && Number.isFinite(slaDueTs) && slaDueTs < Date.now() && !hasPending("sla_followup", String(lead.id))) {
+      recommendations.push({
+        id: nextId("reco"),
+        entity_type: "lead",
+        entity_id: String(lead.id),
+        recommendation_type: "sla_followup",
+        priority: 90,
+        payload: {
+          title: "SLA depasse",
+          lead_id: String(lead.id),
+          stage_canonical: canonical,
+          owner_user_id: lead.lead_owner_user_id || null,
+        },
+        status: "pending",
+        requires_confirm: false,
+        created_at: nowIso(),
+        resolved_at: null,
+      })
+    }
+    if (["qualified", "contacted", "engaged"].includes(canonical) && !lead.lead_owner_user_id && !hasPending("assign_owner", String(lead.id))) {
+      recommendations.push({
+        id: nextId("reco"),
+        entity_type: "lead",
+        entity_id: String(lead.id),
+        recommendation_type: "assign_owner",
+        priority: 80,
+        payload: {
+          title: "Assigner un owner",
+          lead_id: String(lead.id),
+          stage_canonical: canonical,
+        },
+        status: "pending",
+        requires_confirm: true,
+        created_at: nowIso(),
+        resolved_at: null,
+      })
+    }
+    if (canonical === "won" && lead.handoff_required && !lead.handoff_completed_at && !hasPending("create_handoff", String(lead.id))) {
+      recommendations.push({
+        id: nextId("reco"),
+        entity_type: "lead",
+        entity_id: String(lead.id),
+        recommendation_type: "create_handoff",
+        priority: 95,
+        payload: {
+          title: "Creer un handoff post-sale",
+          lead_id: String(lead.id),
+        },
+        status: "pending",
+        requires_confirm: true,
+        created_at: nowIso(),
+        resolved_at: null,
+      })
+    }
+  }
+  return recommendations
+}
+
+const funnelConfigForState = (state: any) => {
+  if (!state.funnel_config || typeof state.funnel_config !== "object") {
+    state.funnel_config = {
+      stages: Array.from(CANONICAL_STAGES),
+      terminal_stages: Array.from(TERMINAL_CANONICAL_STAGE_SET),
+      stage_sla_hours: { ...STAGE_SLA_HOURS },
+      next_action_hours: { ...NEXT_ACTION_HOURS },
+      model: "canonical_v1",
+    }
+  }
+  return state.funnel_config
+}
+
+const workloadOwnersPayload = (state: any) => {
+  const users = Array.isArray(state.users) ? state.users : []
+  const leads = Array.isArray(state.leads) ? state.leads : []
+  const nowMs = Date.now()
+
+  const items = users.map((user: any) => {
+    const owned = leads.filter((lead) => String(lead.lead_owner_user_id || "") === String(user.id))
+    const active = owned.filter((lead) => !TERMINAL_CANONICAL_STAGE_SET.has(leadCanonicalStage(lead)))
+    const overdue = active.filter((lead) => {
+      const ts = Date.parse(String(lead.sla_due_at || ""))
+      return Number.isFinite(ts) && ts < nowMs
+    })
+    return {
+      user_id: String(user.id),
+      email: String(user.email),
+      display_name: String((user.display_name || "").trim() || user.email),
+      status: String(user.status || "active"),
+      lead_count_total: owned.length,
+      lead_count_active: active.length,
+      overdue_sla_count: overdue.length,
+    }
+  })
+  items.sort((a, b) => (b.overdue_sla_count - a.overdue_sla_count) || (b.lead_count_active - a.lead_count_active))
+
+  const unassignedActiveLeads = leads.filter((lead) => !lead.lead_owner_user_id && !TERMINAL_CANONICAL_STAGE_SET.has(leadCanonicalStage(lead))).length
+  return {
+    generated_at: nowIso(),
+    items,
+    unassigned_active_leads: unassignedActiveLeads,
+  }
+}
+
+const conversionFunnelPayload = (state: any, daysRaw: unknown) => {
+  const days = Math.max(1, Math.min(365, Number(daysRaw || 30)))
+  const to = new Date()
+  const from = new Date(to.getTime() - days * 86400000)
+  const leads = Array.isArray(state.leads) ? state.leads : []
+  const events = ensureStageEvents(state)
+  const currentCounts: Record<string, number> = {}
+  for (const lead of leads) {
+    const stage = leadCanonicalStage(lead)
+    currentCounts[stage] = (currentCounts[stage] || 0) + 1
+  }
+  const eventCounts: Record<string, number> = {}
+  for (const event of events) {
+    const ts = Date.parse(String(event.created_at || ""))
+    if (!Number.isFinite(ts) || ts < from.getTime()) continue
+    const stage = normalizeCanonicalStage(event.to_stage)
+    eventCounts[stage] = (eventCounts[stage] || 0) + 1
+  }
+  const stages = ["new", "enriched", "qualified", "contacted", "engaged", "opportunity", "won", "post_sale"]
+  let previousStageCount: number | null = null
+  const items = stages.map((stage) => {
+    const count = Number(currentCounts[stage] || 0)
+    const entries = Number(eventCounts[stage] || 0)
+    const rate = previousStageCount === null ? (count > 0 ? 100 : 0) : (previousStageCount > 0 ? Number(((count / previousStageCount) * 100).toFixed(2)) : 0)
+    previousStageCount = Math.max(1, count)
+    return {
+      stage,
+      lead_count: count,
+      entries_in_window: entries,
+      conversion_from_previous_percent: rate,
+    }
+  })
+  return {
+    window_days: days,
+    from: from.toISOString(),
+    to: to.toISOString(),
+    items,
+    totals: {
+      won: Number(currentCounts.won || 0),
+      post_sale: Number(currentCounts.post_sale || 0),
+      lost: Number(currentCounts.lost || 0),
+      disqualified: Number(currentCounts.disqualified || 0),
+    },
+  }
+}
+
+const findUser = (state: any, payload: { id?: unknown; email?: unknown; display_name?: unknown }) => {
+  const users = Array.isArray(state.users) ? state.users : []
+  const id = String(payload.id || "").trim()
+  if (id) {
+    const byId = users.find((user: any) => String(user.id) === id)
+    if (byId) return byId
+  }
+  const email = String(payload.email || "").trim().toLowerCase()
+  if (email) {
+    const byEmail = users.find((user: any) => String(user.email || "").trim().toLowerCase() === email)
+    if (byEmail) return byEmail
+  }
+  const displayName = String(payload.display_name || "").trim().toLowerCase()
+  if (displayName) {
+    const byDisplayName = users.find((user: any) => String(user.display_name || "").trim().toLowerCase() === displayName)
+    if (byDisplayName) return byDisplayName
+  }
+  return null
+}
+
+const transitionLeadState = (
+  state: any,
+  lead: any,
+  toStageRaw: unknown,
+  reason: string | null,
+  source: string,
+  syncLegacy: boolean,
+) => {
+  const toStage = normalizeCanonicalStage(toStageRaw)
+  const fromStage = leadCanonicalStage(lead)
+  const enteredAt = nowIso()
+  const deadlines = makeStageDeadlines(toStage, enteredAt)
+  lead.stage_canonical = toStage
+  lead.stage_entered_at = enteredAt
+  lead.sla_due_at = deadlines.sla_due_at
+  lead.next_action_at = deadlines.next_action_at
+  lead.handoff_required = toStage === "won" || toStage === "post_sale"
+  if (toStage === "post_sale") lead.handoff_completed_at = enteredAt
+  if (syncLegacy) lead.status = LEAD_CANONICAL_TO_STATUS[toStage] || lead.status
+  lead.updated_at = enteredAt
+  const event = createStageEvent(state, {
+    entity_type: "lead",
+    entity_id: String(lead.id),
+    from_stage: fromStage,
+    to_stage: toStage,
+    reason,
+    source,
+    metadata: { sync_legacy: syncLegacy },
+  })
+  return event
+}
+
+const transitionOpportunityState = (
+  state: any,
+  opportunity: any,
+  toStageRaw: unknown,
+  reason: string | null,
+  source: string,
+) => {
+  const toStage = normalizeCanonicalStage(toStageRaw)
+  const fromStage = normalizeCanonicalStage(opportunity.stage_canonical || canonicalFromOpportunityStage(opportunity.stage))
+  const enteredAt = nowIso()
+  const deadlines = makeStageDeadlines(toStage, enteredAt)
+  opportunity.stage_canonical = toStage
+  opportunity.stage = opportunityStageFromCanonical(toStage)
+  opportunity.status = opportunityStatusFromCanonical(toStage)
+  opportunity.stage_entered_at = enteredAt
+  opportunity.sla_due_at = deadlines.sla_due_at
+  opportunity.next_action_at = deadlines.next_action_at
+  opportunity.handoff_required = toStage === "won" || toStage === "post_sale"
+  if (toStage === "post_sale") opportunity.handoff_completed_at = enteredAt
+  opportunity.updated_at = enteredAt
+  const event = createStageEvent(state, {
+    entity_type: "opportunity",
+    entity_id: String(opportunity.id),
+    from_stage: fromStage,
+    to_stage: toStage,
+    reason,
+    source,
+    metadata: {
+      opportunity_stage: opportunity.stage,
+      opportunity_status: opportunity.status,
+    },
+  })
+  return event
+}
+
 const parseBool = (raw: string | null): boolean | null => {
   if (raw === null || raw === "") return null
   const v = raw.toLowerCase()
@@ -789,6 +1278,484 @@ function handleJson(path: string, init?: RequestInit): unknown {
     row.display_name = body.display_name ? String(body.display_name) : row.display_name
     return clone(row)
   }
+  if (pathname === "/api/v1/admin/funnel/config") {
+    const current = funnelConfigForState(state)
+    if (method === "GET") return clone(current)
+    if (method === "PUT") {
+      if (Array.isArray(body.stages)) current.stages = (body.stages as unknown[]).map((item) => String(item).trim().toLowerCase()).filter(Boolean)
+      if (Array.isArray(body.terminal_stages)) current.terminal_stages = (body.terminal_stages as unknown[]).map((item) => String(item).trim().toLowerCase()).filter(Boolean)
+      if (body.stage_sla_hours && typeof body.stage_sla_hours === "object") {
+        const next: Record<string, number> = {}
+        for (const [key, value] of Object.entries(body.stage_sla_hours as Record<string, unknown>)) {
+          next[String(key)] = Math.max(0, Number(value || 0))
+        }
+        current.stage_sla_hours = next
+      }
+      if (body.next_action_hours && typeof body.next_action_hours === "object") {
+        const next: Record<string, number> = {}
+        for (const [key, value] of Object.entries(body.next_action_hours as Record<string, unknown>)) {
+          next[String(key)] = Math.max(0, Number(value || 0))
+        }
+        current.next_action_hours = next
+      }
+      if (body.model != null) current.model = String(body.model || "canonical_v1")
+      state.funnel_config = current
+      return clone(current)
+    }
+  }
+  if (pathname === "/api/v1/admin/workload/owners" && method === "GET") {
+    return workloadOwnersPayload(state)
+  }
+  if (pathname === "/api/v1/admin/conversion/funnel" && method === "GET") {
+    return conversionFunnelPayload(state, url.searchParams.get("days"))
+  }
+  if (pathname === "/api/v1/admin/recommendations" && method === "GET") {
+    const statusFilter = String(url.searchParams.get("status") || "pending").trim().toLowerCase()
+    const limit = Math.max(1, Math.min(200, Number(url.searchParams.get("limit") || 50)))
+    const offset = Math.max(0, Number(url.searchParams.get("offset") || 0))
+    const all = ensureRecommendations(state)
+      .slice()
+      .sort((a, b) => (Number(b.priority || 0) - Number(a.priority || 0)) || cmp(String(b.created_at || ""), String(a.created_at || "")))
+    const filtered = statusFilter ? all.filter((item) => String(item.status || "").toLowerCase() === statusFilter) : all
+    return { total: filtered.length, items: clone(filtered.slice(offset, offset + limit)) }
+  }
+  if (pathname.match(/^\/api\/v1\/admin\/recommendations\/[^/]+\/apply$/) && method === "POST") {
+    const recommendationId = pathname.split("/")[5]
+    const recommendation = ensureRecommendations(state).find((item) => String(item.id) === recommendationId)
+    if (!recommendation) throw new Error("Recommendation introuvable")
+    if (String(recommendation.status) !== "pending") return { recommendation: clone(recommendation), result: { applied: false, reason: `already_${recommendation.status}` } }
+
+    const now = nowIso()
+    let result: JsonObj = { applied: false }
+    if (recommendation.recommendation_type === "assign_owner") {
+      const lead = (state.leads as any[]).find((item) => String(item.id) === String(recommendation.entity_id))
+      const owner = (state.users as any[]).find((item) => String(item.status) === "active") || (state.users as any[])[0]
+      if (lead && owner) {
+        lead.lead_owner_user_id = owner.id
+        lead.updated_at = now
+        result = { applied: true, owner_user_id: owner.id, owner_email: owner.email }
+      }
+    } else if (recommendation.recommendation_type === "sla_followup") {
+      const lead = (state.leads as any[]).find((item) => String(item.id) === String(recommendation.entity_id))
+      if (lead) {
+        lead.next_action_at = now
+        const ownerUser = lead.lead_owner_user_id ? (state.users as any[]).find((item) => String(item.id) === String(lead.lead_owner_user_id)) : null
+        const assignedLabel = ownerUser ? String((ownerUser.display_name || "").trim() || ownerUser.email) : "Vous"
+        const task = {
+          id: nextId("task"),
+          title: `Relance SLA - ${lead.email}`,
+          description: "Tache creee depuis recommandation mock.",
+          status: "To Do",
+          priority: "High",
+          due_date: daysFromNow(1),
+          assigned_to: assignedLabel,
+          lead_id: lead.id,
+          project_id: null,
+          project_name: null,
+          channel: "email",
+          sequence_step: 1,
+          source: "auto-rule",
+          rule_id: "reco-sla-followup",
+          related_score_snapshot: { total_score: Number(lead.total_score || 0), tier: String(lead.score?.tier || "Tier C") },
+          subtasks: [],
+          comments: [],
+          attachments: [],
+          timeline: [],
+          created_at: now,
+          updated_at: now,
+          closed_at: null,
+        }
+        ;(state.tasks as any[]).unshift(task)
+        result = { applied: true, task_id: task.id }
+      }
+    } else if (recommendation.recommendation_type === "create_handoff") {
+      const lead = (state.leads as any[]).find((item) => String(item.id) === String(recommendation.entity_id))
+      if (lead) {
+        lead.handoff_required = true
+        lead.updated_at = now
+        result = { applied: true, handoff_required: true }
+      }
+    }
+
+    recommendation.status = "applied"
+    recommendation.resolved_at = now
+    recommendation.payload = { ...(recommendation.payload || {}), result, applied_by: "admin" }
+    return { recommendation: clone(recommendation), result }
+  }
+  if (pathname.match(/^\/api\/v1\/admin\/recommendations\/[^/]+\/dismiss$/) && method === "POST") {
+    const recommendationId = pathname.split("/")[5]
+    const recommendation = ensureRecommendations(state).find((item) => String(item.id) === recommendationId)
+    if (!recommendation) throw new Error("Recommendation introuvable")
+    if (String(recommendation.status) !== "pending") return { recommendation: clone(recommendation) }
+    recommendation.status = "dismissed"
+    recommendation.resolved_at = nowIso()
+    recommendation.payload = { ...(recommendation.payload || {}), dismissed_by: "admin" }
+    return { recommendation: clone(recommendation) }
+  }
+  if (pathname === "/api/v1/admin/tasks/bulk-assign" && method === "POST") {
+    const taskIds = Array.isArray(body.task_ids) ? (body.task_ids as unknown[]).map((item) => String(item).trim()).filter(Boolean) : []
+    const assignedTo = String(body.assigned_to || "").trim()
+    if (!assignedTo) throw new Error("assigned_to est requis")
+    let updated = 0
+    for (const task of state.tasks as any[]) {
+      if (!taskIds.includes(String(task.id))) continue
+      task.assigned_to = assignedTo
+      task.updated_at = nowIso()
+      updated += 1
+    }
+    return { updated, requested: taskIds.length, assigned_to: assignedTo, actor: "admin", reason: body.reason ? String(body.reason) : null }
+  }
+
+  if (pathname === "/api/v1/admin/opportunities" && method === "GET") {
+    const rows = filterOpportunities(state, url)
+    const total = rows.length
+    const pageRows = rows.slice((page - 1) * pageSize, page * pageSize)
+    return { page, page_size: pageSize, total, items: pageRows.map((row) => buildOpportunityItem(state, row)) }
+  }
+  if (pathname === "/api/v1/admin/opportunities/summary" && method === "GET") {
+    const rows = filterOpportunities(state, url)
+    return opportunitiesSummaryPayload(state, rows)
+  }
+  if (pathname === "/api/v1/admin/opportunities" && method === "POST") {
+    const leadId = String(body.prospect_id || "").trim()
+    const lead = (state.leads as any[]).find((item) => String(item.id) === leadId)
+    if (!lead) throw new Error("Lead introuvable")
+    const stage = normalizeOpportunityStage(body.stage)
+    const canonicalStage = canonicalFromOpportunityStage(stage)
+    const createdAt = nowIso()
+    const deadlines = makeStageDeadlines(canonicalStage, createdAt)
+    const amount = Number(body.amount || 0)
+    const probability = Math.max(0, Math.min(100, Number(body.probability || 0)))
+    const created = {
+      id: nextId("opp"),
+      lead_id: lead.id,
+      name: String(body.name || `Opportunite - ${opportunityProspectName(lead)}`),
+      stage,
+      amount: Number.isFinite(amount) ? amount : 0,
+      probability: Number.isFinite(probability) ? probability : OPPORTUNITY_PROBABILITIES[stage],
+      assigned_to: String(body.assigned_to || "Vous"),
+      expected_close_date: body.close_date ? toIsoDate(body.close_date) : null,
+      status: stageStatus(stage),
+      owner_user_id: lead.lead_owner_user_id || "user-1",
+      stage_canonical: canonicalStage,
+      stage_entered_at: createdAt,
+      sla_due_at: deadlines.sla_due_at,
+      next_action_at: deadlines.next_action_at,
+      handoff_required: canonicalStage === "won",
+      handoff_completed_at: null,
+      created_at: createdAt,
+      updated_at: createdAt,
+    }
+    ensureOpportunities(state).unshift(created)
+    return buildOpportunityItem(state, created)
+  }
+  if (pathname === "/api/v1/admin/opportunities/quick-lead" && method === "POST") {
+    const email = String(body.email || "").trim().toLowerCase()
+    const firstName = String(body.first_name || "").trim()
+    const lastName = String(body.last_name || "").trim()
+    const companyName = String(body.company_name || "").trim()
+    if (!email || !firstName || !lastName || !companyName) throw new Error("Champs prospect requis.")
+    const existing = (state.leads as any[]).find((item) => String(item.email || "").toLowerCase() === email)
+    if (existing) {
+      const name = `${existing.first_name || ""} ${existing.last_name || ""}`.trim() || existing.email
+      return { created: false, lead: { id: existing.id, name } }
+    }
+    const createdAt = nowIso()
+    const canonicalStage = "new"
+    const deadlines = makeStageDeadlines(canonicalStage, createdAt)
+    const leadId = nextId("lead")
+    const createdLead = {
+      id: leadId,
+      first_name: firstName,
+      last_name: lastName,
+      email,
+      phone: null,
+      linkedin_url: null,
+      company: {
+        name: companyName,
+        domain: `${companyName.toLowerCase().replace(/[^a-z0-9]+/g, "") || "company"}.com`,
+        industry: "SaaS",
+        location: "Paris, FR",
+      },
+      status: "NEW",
+      segment: "General",
+      tags: ["manual"],
+      total_score: 42,
+      score: {
+        icp_score: 21,
+        heat_score: 20,
+        tier: "Tier C",
+        heat_status: "Cold",
+        next_best_action: "Qualification initiale",
+        icp_breakdown: {},
+        heat_breakdown: {},
+        last_scored_at: createdAt,
+      },
+      created_at: createdAt,
+      updated_at: createdAt,
+      stage_canonical: canonicalStage,
+      lead_owner_user_id: null,
+      stage_entered_at: createdAt,
+      sla_due_at: deadlines.sla_due_at,
+      next_action_at: deadlines.next_action_at,
+      handoff_required: false,
+      handoff_completed_at: null,
+    }
+    ;(state.leads as any[]).unshift(createdLead)
+    return { created: true, lead: { id: createdLead.id, name: `${firstName} ${lastName}`.trim() } }
+  }
+  if (pathname.match(/^\/api\/v1\/admin\/opportunities\/[^/]+$/) && method === "PATCH") {
+    const opportunityId = pathname.split("/")[5]
+    const row = ensureOpportunities(state).find((item) => String(item.id) === opportunityId)
+    if (!row) throw new Error("Opportunity introuvable")
+    if (body.prospect_id) {
+      const lead = (state.leads as any[]).find((item) => String(item.id) === String(body.prospect_id))
+      if (!lead) throw new Error("Lead introuvable")
+      row.lead_id = lead.id
+      row.owner_user_id = lead.lead_owner_user_id || row.owner_user_id
+    }
+    if (body.name != null) row.name = String(body.name || row.name)
+    if (body.stage != null) {
+      const stage = normalizeOpportunityStage(body.stage)
+      row.stage = stage
+      row.stage_canonical = canonicalFromOpportunityStage(stage)
+      row.status = stageStatus(stage)
+      row.stage_entered_at = nowIso()
+      const deadlines = makeStageDeadlines(row.stage_canonical, row.stage_entered_at)
+      row.sla_due_at = deadlines.sla_due_at
+      row.next_action_at = deadlines.next_action_at
+    }
+    if (body.amount != null) row.amount = Math.max(0, Number(body.amount || 0))
+    if (body.probability != null) row.probability = Math.max(0, Math.min(100, Number(body.probability || 0)))
+    if (body.assigned_to != null) row.assigned_to = String(body.assigned_to || "Vous")
+    if (body.close_date !== undefined) row.expected_close_date = body.close_date ? toIsoDate(body.close_date) : null
+    row.updated_at = nowIso()
+    return buildOpportunityItem(state, row)
+  }
+  if (pathname.match(/^\/api\/v1\/admin\/opportunities\/[^/]+$/) && method === "DELETE") {
+    const opportunityId = pathname.split("/")[5]
+    state.opportunities = ensureOpportunities(state).filter((item) => String(item.id) !== opportunityId)
+    return { deleted: true, id: opportunityId }
+  }
+  if (pathname.match(/^\/api\/v1\/admin\/opportunities\/[^/]+\/stage-transition$/) && method === "POST") {
+    const opportunityId = pathname.split("/")[5]
+    const row = ensureOpportunities(state).find((item) => String(item.id) === opportunityId)
+    if (!row) throw new Error("Opportunity introuvable")
+    const event = transitionOpportunityState(
+      state,
+      row,
+      body.to_stage,
+      body.reason ? String(body.reason) : null,
+      body.source ? String(body.source) : "manual",
+    )
+    let leadEvent: any = null
+    const toStage = String(event.to_stage || "").toLowerCase()
+    if (toStage === "won" || toStage === "post_sale" || toStage === "lost" || toStage === "disqualified") {
+      const lead = (state.leads as any[]).find((item) => String(item.id) === String(row.lead_id))
+      if (lead) {
+        leadEvent = transitionLeadState(
+          state,
+          lead,
+          toStage,
+          `Synced from opportunity ${opportunityId}`,
+          "opportunity_sync",
+          true,
+        )
+      }
+    }
+    return { opportunity: buildOpportunityItem(state, row), event, lead_event: leadEvent }
+  }
+
+  if (pathname.match(/^\/api\/v1\/admin\/leads\/[^/]+\/interactions$/) && method === "GET") {
+    const leadId = pathname.split("/")[5]
+    const lead = (state.leads as any[]).find((item) => String(item.id) === leadId)
+    if (!lead) throw new Error("Lead introuvable")
+    return interactionsForLead(state, leadId)
+  }
+  if (pathname.match(/^\/api\/v1\/admin\/leads\/[^/]+\/opportunities$/) && method === "GET") {
+    const leadId = pathname.split("/")[5]
+    const lead = (state.leads as any[]).find((item) => String(item.id) === leadId)
+    if (!lead) throw new Error("Lead introuvable")
+    const rows = ensureOpportunities(state).filter((item) => String(item.lead_id) === leadId)
+    return rows.map((row) => ({
+      id: String(row.id),
+      name: String(row.name || `Opportunite - ${opportunityProspectName(lead)}`),
+      stage: String(row.stage || "Prospect"),
+      status: String(row.status || "open"),
+      amount: Number(row.amount || 0),
+      probability: Math.max(0, Math.min(100, Number(row.probability || 0))),
+      updated_at: String(row.updated_at || row.created_at || nowIso()),
+    }))
+  }
+  if (pathname.match(/^\/api\/v1\/admin\/leads\/[^/]+\/opportunities$/) && method === "POST") {
+    const leadId = pathname.split("/")[5]
+    const lead = (state.leads as any[]).find((item) => String(item.id) === leadId)
+    if (!lead) throw new Error("Lead introuvable")
+    const stage = normalizeOpportunityStage(body.stage)
+    const canonicalStage = canonicalFromOpportunityStage(stage)
+    const createdAt = nowIso()
+    const deadlines = makeStageDeadlines(canonicalStage, createdAt)
+    const created = {
+      id: nextId("opp"),
+      lead_id: leadId,
+      name: String(body.name || `Opportunite - ${opportunityProspectName(lead)}`),
+      stage,
+      amount: Math.max(0, Number(body.amount || 0)),
+      probability: Math.max(0, Math.min(100, Number(body.probability || OPPORTUNITY_PROBABILITIES[stage]))),
+      assigned_to: "Vous",
+      expected_close_date: body.expected_close_date ? toIsoDate(body.expected_close_date) : null,
+      status: stageStatus(stage),
+      owner_user_id: lead.lead_owner_user_id || "user-1",
+      stage_canonical: canonicalStage,
+      stage_entered_at: createdAt,
+      sla_due_at: deadlines.sla_due_at,
+      next_action_at: deadlines.next_action_at,
+      handoff_required: canonicalStage === "won",
+      handoff_completed_at: null,
+      created_at: createdAt,
+      updated_at: createdAt,
+    }
+    ensureOpportunities(state).unshift(created)
+    return {
+      id: created.id,
+      name: created.name,
+      stage: created.stage,
+      status: created.status,
+      amount: created.amount,
+      probability: created.probability,
+      updated_at: created.updated_at,
+    }
+  }
+  if (pathname.match(/^\/api\/v1\/admin\/leads\/[^/]+\/notes$/) && method === "GET") {
+    const leadId = pathname.split("/")[5]
+    const lead = (state.leads as any[]).find((item) => String(item.id) === leadId)
+    if (!lead) throw new Error("Lead introuvable")
+    return { items: clone(notesForLead(state, leadId)) }
+  }
+  if (pathname.match(/^\/api\/v1\/admin\/leads\/[^/]+\/notes$/) && method === "PUT") {
+    const leadId = pathname.split("/")[5]
+    const lead = (state.leads as any[]).find((item) => String(item.id) === leadId)
+    if (!lead) throw new Error("Lead introuvable")
+    const items = Array.isArray(body.items)
+      ? (body.items as unknown[]).map((item, index) => {
+        const row = item as Record<string, unknown>
+        const content = String(row.content || "").trim()
+        return {
+          id: row.id ? String(row.id) : `note-${leadId}-${index + 1}`,
+          content,
+          author: row.author ? String(row.author) : "admin",
+          created_at: row.created_at ? toIsoDate(row.created_at) : nowIso(),
+          updated_at: nowIso(),
+        }
+      }).filter((item) => item.content)
+      : []
+    ensureLeadNotes(state)[leadId] = items
+    return { items: clone(items) }
+  }
+  if (pathname.match(/^\/api\/v1\/admin\/leads\/[^/]+\/add-to-campaign$/) && method === "POST") {
+    const leadId = pathname.split("/")[5]
+    const campaignId = String(body.campaign_id || "").trim()
+    if (!campaignId) throw new Error("campaign_id est requis")
+    return { ok: true, lead_id: leadId, campaign_id: campaignId }
+  }
+  if (pathname.match(/^\/api\/v1\/admin\/leads\/[^/]+\/stage-transition$/) && method === "POST") {
+    const leadId = pathname.split("/")[5]
+    const lead = (state.leads as any[]).find((item) => String(item.id) === leadId)
+    if (!lead) throw new Error("Lead introuvable")
+    const event = transitionLeadState(
+      state,
+      lead,
+      body.to_stage,
+      body.reason ? String(body.reason) : null,
+      body.source ? String(body.source) : "manual",
+      body.sync_legacy !== false,
+    )
+    return { lead: clone(lead), event }
+  }
+  if (pathname.match(/^\/api\/v1\/admin\/leads\/[^/]+\/reassign$/) && method === "POST") {
+    const leadId = pathname.split("/")[5]
+    const lead = (state.leads as any[]).find((item) => String(item.id) === leadId)
+    if (!lead) throw new Error("Lead introuvable")
+    const user = findUser(state, {
+      id: body.owner_user_id,
+      email: body.owner_email,
+      display_name: body.owner_display_name,
+    })
+    if (!user) throw new Error("Owner user not found")
+    const previousOwner = lead.lead_owner_user_id || null
+    lead.lead_owner_user_id = user.id
+    lead.updated_at = nowIso()
+    const event = createStageEvent(state, {
+      entity_type: "lead",
+      entity_id: leadId,
+      from_stage: leadCanonicalStage(lead),
+      to_stage: leadCanonicalStage(lead),
+      reason: body.reason ? String(body.reason) : "owner_reassigned",
+      source: "assignment",
+      metadata: { from_owner_user_id: previousOwner, to_owner_user_id: user.id },
+    })
+    return {
+      lead_id: leadId,
+      owner_user_id: user.id,
+      owner_email: user.email,
+      previous_owner_user_id: previousOwner,
+      event,
+    }
+  }
+  if (pathname === "/api/v1/admin/handoffs" && method === "POST") {
+    const leadId = body.lead_id ? String(body.lead_id) : ""
+    const opportunityId = body.opportunity_id ? String(body.opportunity_id) : ""
+    if (!leadId && !opportunityId) throw new Error("lead_id ou opportunity_id requis")
+    const toUser = findUser(state, {
+      id: body.to_user_id,
+      email: body.to_user_email,
+      display_name: body.to_user_display_name,
+    })
+    const note = body.note ? String(body.note) : null
+    let entityType: "lead" | "opportunity" = "lead"
+    let entityId = ""
+
+    if (leadId) {
+      const lead = (state.leads as any[]).find((item) => String(item.id) === leadId)
+      if (!lead) throw new Error("Lead introuvable")
+      lead.handoff_required = true
+      lead.handoff_completed_at = nowIso()
+      if (toUser) lead.lead_owner_user_id = toUser.id
+      lead.updated_at = nowIso()
+      entityType = "lead"
+      entityId = lead.id
+    }
+    if (opportunityId) {
+      const opportunity = ensureOpportunities(state).find((item) => String(item.id) === opportunityId)
+      if (!opportunity) throw new Error("Opportunity introuvable")
+      opportunity.handoff_required = true
+      opportunity.handoff_completed_at = nowIso()
+      if (toUser) opportunity.owner_user_id = toUser.id
+      opportunity.updated_at = nowIso()
+      entityType = "opportunity"
+      entityId = opportunity.id
+    }
+    const event = createStageEvent(state, {
+      entity_type: entityType,
+      entity_id: entityId,
+      from_stage: "won",
+      to_stage: "post_sale",
+      reason: "handoff_completed",
+      source: "handoff",
+      metadata: {
+        note,
+        to_user_id: toUser ? toUser.id : null,
+        to_user_email: toUser ? toUser.email : null,
+      },
+    })
+    return {
+      entity_type: entityType,
+      entity_id: entityId,
+      to_user: toUser ? { id: toUser.id, email: toUser.email, display_name: toUser.display_name || null } : null,
+      event,
+    }
+  }
+
   if (pathname === "/api/v1/admin/help" && method === "GET") return { support_email: state.settings.support_email, faqs: [{ question: "Comment lancer ?", answer: "Allez dans Leads." }], links: [{ label: "Parametres", href: "/settings" }] }
   if (pathname === "/api/v1/admin/diagnostics/latest" && method === "GET") return { available: false, artifact: "artifacts/qa/latest_diagnostics.json", detail: "No diagnostics artifact available yet.", status: "warning", finished_at: null }
   if (pathname === "/api/v1/admin/autofix/latest" && method === "GET") return { available: false, artifact: "artifacts/qa/latest_autofix.json", detail: "No autofix artifact available yet.", status: "warning", finished_at: null }

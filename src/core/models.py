@@ -90,7 +90,16 @@ class Lead(BaseModel):
     # Follow-up Engine Fields
     stage: LeadStage = LeadStage.NEW
     next_action_date: Optional[datetime] = None
-    
+    stage_canonical: Optional[str] = None
+    lead_owner_user_id: Optional[str] = None
+    stage_entered_at: Optional[datetime] = None
+    sla_due_at: Optional[datetime] = None
+    next_action_at: Optional[datetime] = None
+    confidence_score: float = 0.0
+    playbook_id: Optional[str] = None
+    handoff_required: bool = False
+    handoff_completed_at: Optional[datetime] = None
+
     details: Dict[str, Any] = Field(default_factory=dict)
     
     tags: List[str] = Field(default_factory=list)

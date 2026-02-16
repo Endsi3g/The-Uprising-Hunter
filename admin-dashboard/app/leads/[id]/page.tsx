@@ -31,6 +31,13 @@ type Lead = {
   segment?: string | null
   tags: string[]
   total_score: number
+  stage_canonical?: string | null
+  lead_owner_user_id?: string | null
+  stage_entered_at?: string | null
+  sla_due_at?: string | null
+  next_action_at?: string | null
+  handoff_required?: boolean
+  handoff_completed_at?: string | null
   score: { tier: string; heat_status: string }
   updated_at: string
   company: { name: string; domain?: string | null; industry?: string | null; location?: string | null }
@@ -58,9 +65,24 @@ type Opportunity = { id: string; name: string; stage: string; status: string; am
 type Note = { id: string; content: string; author?: string; created_at?: string; updated_at?: string }
 type Campaign = { id: string; name: string; status: string }
 type HistoryItem = { id: string; event_type: string; timestamp: string; title: string; description?: string }
+type User = { id: string; email: string; display_name?: string | null; status: "active" | "invited" | "disabled"; roles: string[] }
+type UsersResponse = { items: User[] }
+type Recommendation = {
+  id: string
+  entity_type: string
+  entity_id: string
+  recommendation_type: string
+  priority: number
+  payload: Record<string, unknown>
+  status: string
+  requires_confirm: boolean
+  created_at?: string | null
+}
+type RecommendationsResponse = { total: number; items: Recommendation[] }
 
 const STATUS_OPTIONS = ["NEW", "ENRICHED", "SCORED", "CONTACTED", "INTERESTED", "CONVERTED", "LOST", "DISQUALIFIED"]
 const STAGE_OPTIONS = ["qualification", "discovery", "proposal", "negotiation", "won", "lost"]
+const CANONICAL_STAGE_OPTIONS = ["new", "enriched", "qualified", "contacted", "engaged", "opportunity", "won", "post_sale", "lost", "disqualified"]
 const fetcher = <T,>(path: string) => requestApi<T>(path)
 
 function toDraft(lead: Lead): LeadDraft {
@@ -85,6 +107,22 @@ function newNoteId() {
   return `note-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 }
 
+function normalizeCanonical(value?: string | null): string {
+  return String(value || "new").trim().toLowerCase() || "new"
+}
+
+function inferNextCanonicalStage(current?: string | null): string {
+  const normalized = normalizeCanonical(current)
+  const index = CANONICAL_STAGE_OPTIONS.indexOf(normalized)
+  if (index < 0 || index >= CANONICAL_STAGE_OPTIONS.length - 1) return "qualified"
+  return CANONICAL_STAGE_OPTIONS[index + 1]
+}
+
+function recommendationLabel(item: Recommendation): string {
+  if (typeof item.payload?.title === "string" && item.payload.title.trim()) return item.payload.title
+  return item.recommendation_type.replace(/_/g, " ")
+}
+
 export default function LeadDetailPage() {
   const params = useParams()
   const router = useRouter()
@@ -97,6 +135,11 @@ export default function LeadDetailPage() {
   const { data: notesData, isLoading: notesLoading, mutate: mutateNotes } = useSWR<{ items: Note[] }>(id ? `/api/v1/admin/leads/${id}/notes` : null, fetcher)
   const { data: history, isLoading: historyLoading, mutate: mutateHistory } = useSWR<{ items: HistoryItem[] }>(id ? `/api/v1/admin/leads/${id}/history?window=30d` : null, fetcher)
   const { data: campaigns } = useSWR<{ items: Campaign[] }>(`/api/v1/admin/campaigns?limit=50&offset=0`, fetcher)
+  const { data: usersData, mutate: mutateUsers } = useSWR<UsersResponse>("/api/v1/admin/users", fetcher)
+  const { data: recommendationsData, isLoading: recommendationsLoading, mutate: mutateRecommendations } = useSWR<RecommendationsResponse>(
+    id ? "/api/v1/admin/recommendations?status=pending&limit=150&offset=0&seed=true" : null,
+    fetcher,
+  )
 
   const [draft, setDraft] = React.useState<LeadDraft | null>(null)
   const dirtyRef = React.useRef<Set<keyof LeadDraft>>(new Set())
@@ -110,15 +153,50 @@ export default function LeadDetailPage() {
   const [campaignId, setCampaignId] = React.useState("")
   const [busy, setBusy] = React.useState(false)
 
+  const [stageTarget, setStageTarget] = React.useState("qualified")
+  const [stageReason, setStageReason] = React.useState("")
+  const [ownerUserId, setOwnerUserId] = React.useState("")
+  const [handoffNote, setHandoffNote] = React.useState("")
+  const [workflowBusy, setWorkflowBusy] = React.useState(false)
+  const [recommendationBusyId, setRecommendationBusyId] = React.useState<string | null>(null)
+
   const [notes, setNotes] = React.useState<Note[]>([])
   const [notesDirty, setNotesDirty] = React.useState(false)
   const notesTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  React.useEffect(() => { if (lead && dirtyRef.current.size === 0) setDraft(toDraft(lead)) }, [lead])
-  React.useEffect(() => { if (!notesDirty) setNotes(notesData?.items || []) }, [notesData, notesDirty])
+  const users = React.useMemo(() => usersData?.items || [], [usersData])
+  const activeUsers = React.useMemo(() => users.filter((user) => user.status === "active"), [users])
+  const ownerMap = React.useMemo(() => {
+    const map = new Map<string, string>()
+    for (const user of users) map.set(user.id, (user.display_name || "").trim() || user.email)
+    return map
+  }, [users])
+
+  const leadRecommendations = React.useMemo(
+    () => (recommendationsData?.items || []).filter((item) => item.entity_type === "lead" && item.entity_id === id),
+    [recommendationsData, id],
+  )
+
   React.useEffect(() => {
-    if (!campaignId && campaigns?.items?.length) setCampaignId(campaigns.items.find((item) => item.status === "active")?.id || campaigns.items[0].id)
+    if (lead && dirtyRef.current.size === 0) setDraft(toDraft(lead))
+  }, [lead])
+
+  React.useEffect(() => {
+    if (!notesDirty) setNotes(notesData?.items || [])
+  }, [notesData, notesDirty])
+
+  React.useEffect(() => {
+    if (!campaignId && campaigns?.items?.length) {
+      const next = campaigns.items.find((item) => item.status === "active")?.id || campaigns.items[0].id
+      setCampaignId(next)
+    }
   }, [campaigns, campaignId])
+
+  React.useEffect(() => {
+    if (!lead) return
+    if (!stageTarget) setStageTarget(inferNextCanonicalStage(lead.stage_canonical))
+    if (!ownerUserId) setOwnerUserId(lead.lead_owner_user_id || activeUsers[0]?.id || users[0]?.id || "")
+  }, [lead, stageTarget, ownerUserId, activeUsers, users])
 
   const saveLead = React.useCallback(async () => {
     if (!draft || !id || dirtyRef.current.size === 0) return
@@ -205,9 +283,93 @@ export default function LeadDetailPage() {
     } catch (error) { toast.error(error instanceof Error ? error.message : "Ajout campagne impossible.") } finally { setBusy(false) }
   }
 
-  if (leadLoading || !draft) return <div className="p-8"><Skeleton className="h-48 w-full" /></div>
-  if (leadError || !lead) return <div className="p-8"><Button onClick={() => router.push("/leads")}>Retour</Button></div>
+  const transitionLeadStage = async () => {
+    if (!id || !stageTarget) return
+    setWorkflowBusy(true)
+    try {
+      const response = await requestApi<{ lead: Lead }>(`/api/v1/admin/leads/${id}/stage-transition`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to_stage: stageTarget, reason: stageReason.trim() || null, source: "manual_ui", sync_legacy: true }),
+      })
+      if (response.lead) await mutateLead(response.lead, false)
+      else await mutateLead()
+      await Promise.all([mutateHistory(), mutateRecommendations(), mutateTasks()])
+      toast.success("Etape mise a jour.")
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Transition impossible.")
+    } finally {
+      setWorkflowBusy(false)
+    }
+  }
 
+  const reassignLeadOwner = async () => {
+    if (!id || !ownerUserId) return
+    setWorkflowBusy(true)
+    try {
+      const result = await requestApi<{ owner_user_id: string }>(`/api/v1/admin/leads/${id}/reassign`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ owner_user_id: ownerUserId, reason: "manual_reassign_ui" }),
+      })
+      await mutateLead((current) => current ? { ...current, lead_owner_user_id: result.owner_user_id } : current, false)
+      await Promise.all([mutateHistory(), mutateRecommendations(), mutateUsers()])
+      toast.success("Owner mis a jour.")
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Reassignation impossible.")
+    } finally {
+      setWorkflowBusy(false)
+    }
+  }
+
+  const createHandoff = async () => {
+    if (!id) return
+    setWorkflowBusy(true)
+    try {
+      await requestApi("/api/v1/admin/handoffs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lead_id: id, to_user_id: ownerUserId || null, note: handoffNote.trim() || null }),
+      })
+      await Promise.all([mutateLead(), mutateHistory(), mutateRecommendations()])
+      toast.success("Handoff cree.")
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Handoff impossible.")
+    } finally {
+      setWorkflowBusy(false)
+    }
+  }
+
+  const applyRecommendation = async (recommendationId: string) => {
+    setRecommendationBusyId(recommendationId)
+    try {
+      await requestApi(`/api/v1/admin/recommendations/${recommendationId}/apply`, { method: "POST" })
+      await Promise.all([mutateRecommendations(), mutateLead(), mutateTasks(), mutateHistory()])
+      toast.success("Recommandation appliquee.")
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Application impossible.")
+    } finally {
+      setRecommendationBusyId(null)
+    }
+  }
+
+  const dismissRecommendation = async (recommendationId: string) => {
+    setRecommendationBusyId(recommendationId)
+    try {
+      await requestApi(`/api/v1/admin/recommendations/${recommendationId}/dismiss`, { method: "POST" })
+      await Promise.all([mutateRecommendations(), mutateHistory()])
+      toast.success("Recommandation ignoree.")
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Action impossible.")
+    } finally {
+      setRecommendationBusyId(null)
+    }
+  }
+
+  if (leadLoading || !draft) return <div className="p-4 sm:p-6"><Skeleton className="h-48 w-full" /></div>
+  if (leadError || !lead) return <div className="p-4 sm:p-6"><Button onClick={() => router.push("/leads")}>Retour</Button></div>
+
+  const ownerDisplayName = ownerMap.get(lead.lead_owner_user_id || "") || "Non assigne"
   const changeHistory = (history?.items || []).filter((item) => item.id.startsWith("audit-")).slice(0, 12)
 
   return (
@@ -215,10 +377,10 @@ export default function LeadDetailPage() {
       <AppSidebar variant="inset" />
       <SidebarInset>
         <SiteHeader />
-        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+        <div className="flex flex-1 flex-col gap-4 p-3 pt-0 sm:p-4 sm:pt-0 lg:p-6">
           <nav className="mt-2 flex items-center text-sm text-muted-foreground"><Link href="/leads">Leads</Link><span className="mx-2">/</span><span>{lead.first_name} {lead.last_name}</span></nav>
-          <div className="flex items-center gap-3"><Button variant="ghost" size="icon" onClick={() => router.push("/leads")}><IconArrowLeft className="h-5 w-5" /></Button><h1 className="text-2xl font-bold">{lead.first_name} {lead.last_name}</h1><div className="ml-auto flex gap-2"><Badge variant="outline">{lead.status}</Badge><Badge>{lead.score.tier}</Badge><Badge variant="secondary">Score {Math.round(lead.total_score)}</Badge></div></div>
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+          <div className="flex flex-wrap items-center gap-3"><Button variant="ghost" size="icon" onClick={() => router.push("/leads")}><IconArrowLeft className="h-5 w-5" /></Button><h1 className="text-2xl font-bold">{lead.first_name} {lead.last_name}</h1><div className="ml-auto flex flex-wrap gap-2"><Badge variant="outline">{lead.status}</Badge><Badge>{lead.score.tier}</Badge><Badge variant="secondary">Score {Math.round(lead.total_score)}</Badge><Badge variant="outline">Stage {normalizeCanonical(lead.stage_canonical)}</Badge><Badge variant="secondary">Owner {ownerDisplayName}</Badge></div></div>
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
             <div className="space-y-4">
               <Tabs defaultValue="infos" className="space-y-4">
                 <TabsList className="flex w-full flex-wrap justify-start"><TabsTrigger value="infos">Infos</TabsTrigger><TabsTrigger value="interactions">Interactions timeline</TabsTrigger><TabsTrigger value="tasks">Taches</TabsTrigger><TabsTrigger value="opportunities">Opportunites</TabsTrigger><TabsTrigger value="notes">Notes</TabsTrigger></TabsList>
@@ -230,6 +392,8 @@ export default function LeadDetailPage() {
               </Tabs>
             </div>
             <div className="space-y-4">
+              <Card><CardHeader><CardTitle>Workflow funnel</CardTitle><CardDescription>Transition, owner, handoff et SLA.</CardDescription></CardHeader><CardContent className="space-y-3"><div className="rounded-lg border p-3 text-xs text-muted-foreground"><p>Stage courant: <span className="font-medium text-foreground">{normalizeCanonical(lead.stage_canonical)}</span></p><p>Owner: <span className="font-medium text-foreground">{ownerDisplayName}</span></p><p>SLA due: <span className="font-medium text-foreground">{formatDateTimeFr(lead.sla_due_at || null)}</span></p><p>Next action: <span className="font-medium text-foreground">{formatDateTimeFr(lead.next_action_at || null)}</span></p><p>Handoff: <span className="font-medium text-foreground">{lead.handoff_required ? "requis" : "non requis"}</span></p></div><div className="space-y-2"><p className="text-sm font-medium">Transition d&apos;etape</p><select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={stageTarget} onChange={(e) => setStageTarget(e.target.value)}>{CANONICAL_STAGE_OPTIONS.map((item) => <option key={item} value={item}>{item}</option>)}</select><Input placeholder="Raison (optionnel)" value={stageReason} onChange={(e) => setStageReason(e.target.value)} /><Button className="w-full" disabled={workflowBusy} onClick={() => void transitionLeadStage()}>{workflowBusy ? "Transition..." : "Transitionner"}</Button></div><div className="space-y-2"><p className="text-sm font-medium">Reassigner owner</p><select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={ownerUserId} onChange={(e) => setOwnerUserId(e.target.value)}><option value="">Selectionner un utilisateur</option>{activeUsers.map((user) => <option key={user.id} value={user.id}>{(user.display_name || "").trim() || user.email}</option>)}</select><Button className="w-full" variant="outline" disabled={workflowBusy || !ownerUserId} onClick={() => void reassignLeadOwner()}>{workflowBusy ? "Mise a jour..." : "Mettre a jour owner"}</Button></div><div className="space-y-2"><p className="text-sm font-medium">Handoff post-sale</p><Input placeholder="Note handoff (optionnel)" value={handoffNote} onChange={(e) => setHandoffNote(e.target.value)} /><Button className="w-full" variant="secondary" disabled={workflowBusy} onClick={() => void createHandoff()}>{workflowBusy ? "Creation..." : "Creer handoff"}</Button></div></CardContent></Card>
+              <Card><CardHeader><CardTitle>Recommandations IA</CardTitle><CardDescription>Actions suggerees pour ce lead.</CardDescription></CardHeader><CardContent className="space-y-2">{recommendationsLoading ? <Skeleton className="h-24 w-full" /> : null}{!recommendationsLoading && leadRecommendations.length === 0 ? <p className="text-sm text-muted-foreground">Aucune recommandation en attente.</p> : null}{leadRecommendations.map((item) => <div key={item.id} className="rounded-lg border p-3"><div className="flex items-center justify-between gap-2"><p className="text-sm font-medium">{recommendationLabel(item)}</p><Badge variant="outline">P{item.priority}</Badge></div><p className="mt-1 text-xs text-muted-foreground">{formatDateTimeFr(item.created_at || null)}</p><div className="mt-2 flex gap-2"><Button size="sm" onClick={() => void applyRecommendation(item.id)} disabled={recommendationBusyId === item.id}>{recommendationBusyId === item.id ? "..." : "Appliquer"}</Button><Button size="sm" variant="outline" onClick={() => void dismissRecommendation(item.id)} disabled={recommendationBusyId === item.id}>Ignorer</Button></div></div>)}</CardContent></Card>
               <Card><CardHeader><CardTitle>Actions rapides</CardTitle></CardHeader><CardContent className="space-y-2"><Button className="w-full justify-start" onClick={() => void createTask()} disabled={busy}><IconChecklist className="h-4 w-4" />Creer tache</Button><Button className="w-full justify-start" onClick={() => void createOpportunity(`Conversion - ${lead.first_name} ${lead.last_name}`)} disabled={busy}><IconTargetArrow className="h-4 w-4" />Convertir en opportunite</Button><select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={campaignId} onChange={(e) => setCampaignId(e.target.value)}><option value="">Choisir campagne</option>{(campaigns?.items || []).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select><Button className="w-full justify-start" onClick={() => void addToCampaign()} disabled={busy}><IconRocket className="h-4 w-4" />Ajouter a campagne</Button></CardContent></Card>
               <Card><CardHeader><CardTitle>Sauvegarde</CardTitle></CardHeader><CardContent><p className="text-sm">Infos: <span className="font-medium">{saveState === "saving" ? "Sauvegarde..." : saveState === "saved" ? "Enregistre" : saveState === "error" ? "Erreur" : "En attente"}</span></p><p className="text-sm">Notes: <span className="font-medium">{notesDirty ? "Sauvegarde..." : "Enregistre"}</span></p></CardContent></Card>
               <Card><CardHeader><CardTitle>Historique des changements</CardTitle><CardDescription>Trace sur 30 jours</CardDescription></CardHeader><CardContent className="space-y-2">{historyLoading ? <Skeleton className="h-24 w-full" /> : null}{changeHistory.length === 0 ? <p className="text-sm text-muted-foreground">Aucun changement trace.</p> : null}{changeHistory.map((item) => <div key={item.id} className="rounded-lg border p-2"><p className="text-sm font-medium">{item.title}</p><p className="text-xs text-muted-foreground">{formatDateTimeFr(item.timestamp)}</p>{item.description ? <p className="mt-1 text-xs text-muted-foreground">{item.description}</p> : null}</div>)}</CardContent></Card>
@@ -240,3 +404,4 @@ export default function LeadDetailPage() {
     </SidebarProvider>
   )
 }
+

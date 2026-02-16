@@ -3,21 +3,16 @@
 import * as React from "react"
 import useSWR from "swr"
 
-import { AppSidebar } from "@/components/app-sidebar"
 import { ExportCsvButton } from "@/components/export-csv-button"
 import { ImportCsvSheet } from "@/components/import-csv-sheet"
+import { AppShell } from "@/components/layout/app-shell"
 import { Lead, LeadsTable } from "@/components/leads-table"
-import { SiteHeader } from "@/components/site-header"
 import { SyncStatus } from "@/components/sync-status"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useLoadingTimeout } from "@/hooks/use-loading-timeout"
 import { fetchApi } from "@/lib/api"
-import {
-  SidebarInset,
-  SidebarProvider,
-} from "@/components/ui/sidebar"
 
 type ApiLead = {
   id: string
@@ -172,98 +167,136 @@ export default function LeadsPage() {
     : []
 
   return (
-    <SidebarProvider
-      style={
-        {
-          "--sidebar-width": "calc(var(--spacing) * 72)",
-          "--header-height": "calc(var(--spacing) * 12)",
-        } as React.CSSProperties
-      }
-    >
-      <AppSidebar variant="inset" />
-      <SidebarInset>
-        <SiteHeader />
-        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-          <div className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <h2 className="text-3xl font-bold tracking-tight">Leads</h2>
-            <div className="flex flex-wrap items-center gap-2">
-              <ExportCsvButton entity="leads" />
-              <ImportCsvSheet onImported={() => void mutate()} />
-            </div>
-          </div>
-          <SyncStatus updatedAt={updatedAt} onRefresh={() => void mutate()} />
-          {isLoading && !loadingTimedOut ? (
-            <div className="space-y-3">
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
-            </div>
-          ) : error || loadingTimedOut ? (
-            <ErrorState
-              title="Impossible de charger les leads."
-              description={
-                loadingTimedOut
-                  ? "Le chargement prend trop de temps. Verifiez la connectivite API et reessayez."
-                  : error instanceof Error
-                    ? error.message
-                    : "La liste des leads est indisponible pour le moment."
-              }
-              secondaryLabel="Ouvrir Parametres"
-              secondaryHref="/settings"
-              onRetry={() => void mutate()}
-            />
-          ) : (data?.total || 0) === 0 ? (
-            <EmptyState
-              title="Aucun lead disponible"
-              description="Utilisez 'Creation rapide de lead' dans la sidebar ou importez un CSV pour demarrer."
-            />
-          ) : (
-            <LeadsTable
-              data={leads}
-              total={data?.total || 0}
-              page={page}
-              pageSize={pageSize}
-              search={search}
-              status={status}
-              segment={segment}
-              tier={tier}
-              heatStatus={heatStatus}
-              company={company}
-              industry={industry}
-              location={location}
-              tag={tag}
-              minScore={minScore}
-              maxScore={maxScore}
-              createdFrom={createdFrom}
-              createdTo={createdTo}
-              hasEmail={hasEmail}
-              hasPhone={hasPhone}
-              hasLinkedin={hasLinkedin}
-              sort={sort}
-              order={order}
-              onSearchChange={(val) => { setSearch(val); setPage(1); }}
-              onStatusChange={(val) => { setStatus(val); setPage(1); }}
-              onSegmentChange={(val) => { setSegment(val); setPage(1); }}
-              onTierChange={(val) => { setTier(val); setPage(1); }}
-              onHeatStatusChange={(val) => { setHeatStatus(val); setPage(1); }}
-              onCompanyChange={(val) => { setCompany(val); setPage(1); }}
-              onIndustryChange={(val) => { setIndustry(val); setPage(1); }}
-              onLocationChange={(val) => { setLocation(val); setPage(1); }}
-              onTagChange={(val) => { setTag(val); setPage(1); }}
-              onMinScoreChange={(val) => { setMinScore(val); setPage(1); }}
-              onMaxScoreChange={(val) => { setMaxScore(val); setPage(1); }}
-              onCreatedFromChange={(val) => { setCreatedFrom(val); setPage(1); }}
-              onCreatedToChange={(val) => { setCreatedTo(val); setPage(1); }}
-              onHasEmailChange={(val) => { setHasEmail(val as TriStateFilter); setPage(1); }}
-              onHasPhoneChange={(val) => { setHasPhone(val as TriStateFilter); setPage(1); }}
-              onHasLinkedinChange={(val) => { setHasLinkedin(val as TriStateFilter); setPage(1); }}
-              onPageChange={setPage}
-              onSortChange={(s, o) => { setSort(s); setOrder(o); }}
-              onDataChanged={() => void mutate()}
-            />
-          )}
+    <AppShell>
+      <div className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <h2 className="text-3xl font-bold tracking-tight">Leads</h2>
+        <div className="flex flex-wrap items-center gap-2">
+          <ExportCsvButton entity="leads" />
+          <ImportCsvSheet onImported={() => void mutate()} />
         </div>
-      </SidebarInset>
-    </SidebarProvider>
+      </div>
+      <SyncStatus updatedAt={updatedAt} onRefresh={() => void mutate()} />
+      {isLoading && !loadingTimedOut ? (
+        <div className="space-y-3">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+      ) : error || loadingTimedOut ? (
+        <ErrorState
+          title="Impossible de charger les leads."
+          description={
+            loadingTimedOut
+              ? "Le chargement prend trop de temps. Verifiez la connectivite API et reessayez."
+              : error instanceof Error
+                ? error.message
+                : "La liste des leads est indisponible pour le moment."
+          }
+          secondaryLabel="Ouvrir Parametres"
+          secondaryHref="/settings"
+          onRetry={() => void mutate()}
+        />
+      ) : (data?.total || 0) === 0 ? (
+        <EmptyState
+          title="Aucun lead disponible"
+          description="Utilisez 'Creation rapide de lead' dans la sidebar ou importez un CSV pour demarrer."
+        />
+      ) : (
+        <LeadsTable
+          data={leads}
+          total={data?.total || 0}
+          page={page}
+          pageSize={pageSize}
+          search={search}
+          status={status}
+          segment={segment}
+          tier={tier}
+          heatStatus={heatStatus}
+          company={company}
+          industry={industry}
+          location={location}
+          tag={tag}
+          minScore={minScore}
+          maxScore={maxScore}
+          createdFrom={createdFrom}
+          createdTo={createdTo}
+          hasEmail={hasEmail}
+          hasPhone={hasPhone}
+          hasLinkedin={hasLinkedin}
+          sort={sort}
+          order={order}
+          onSearchChange={(val) => {
+            setSearch(val)
+            setPage(1)
+          }}
+          onStatusChange={(val) => {
+            setStatus(val)
+            setPage(1)
+          }}
+          onSegmentChange={(val) => {
+            setSegment(val)
+            setPage(1)
+          }}
+          onTierChange={(val) => {
+            setTier(val)
+            setPage(1)
+          }}
+          onHeatStatusChange={(val) => {
+            setHeatStatus(val)
+            setPage(1)
+          }}
+          onCompanyChange={(val) => {
+            setCompany(val)
+            setPage(1)
+          }}
+          onIndustryChange={(val) => {
+            setIndustry(val)
+            setPage(1)
+          }}
+          onLocationChange={(val) => {
+            setLocation(val)
+            setPage(1)
+          }}
+          onTagChange={(val) => {
+            setTag(val)
+            setPage(1)
+          }}
+          onMinScoreChange={(val) => {
+            setMinScore(val)
+            setPage(1)
+          }}
+          onMaxScoreChange={(val) => {
+            setMaxScore(val)
+            setPage(1)
+          }}
+          onCreatedFromChange={(val) => {
+            setCreatedFrom(val)
+            setPage(1)
+          }}
+          onCreatedToChange={(val) => {
+            setCreatedTo(val)
+            setPage(1)
+          }}
+          onHasEmailChange={(val) => {
+            setHasEmail(val as TriStateFilter)
+            setPage(1)
+          }}
+          onHasPhoneChange={(val) => {
+            setHasPhone(val as TriStateFilter)
+            setPage(1)
+          }}
+          onHasLinkedinChange={(val) => {
+            setHasLinkedin(val as TriStateFilter)
+            setPage(1)
+          }}
+          onPageChange={setPage}
+          onSortChange={(s, o) => {
+            setSort(s)
+            setOrder(o)
+          }}
+          onDataChanged={() => void mutate()}
+        />
+      )}
+    </AppShell>
   )
 }

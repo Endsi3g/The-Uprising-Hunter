@@ -5,9 +5,8 @@ import Link from "next/link"
 import useSWR from "swr"
 import { toast } from "sonner"
 
-import { AppSidebar } from "@/components/app-sidebar"
 import { ExportCsvButton } from "@/components/export-csv-button"
-import { SiteHeader } from "@/components/site-header"
+import { AppShell } from "@/components/layout/app-shell"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ErrorState } from "@/components/ui/error-state"
@@ -21,10 +20,6 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
-import {
-  SidebarInset,
-  SidebarProvider,
-} from "@/components/ui/sidebar"
 import { requestApi } from "@/lib/api"
 
 type SettingsPayload = {
@@ -104,6 +99,15 @@ export default function SettingsPage() {
     firecrawlApiKey: "",
     firecrawlCountry: "us",
     firecrawlLang: "en",
+    ollamaEnabled: false,
+    ollamaBaseUrl: "",
+    ollamaApiKey: "",
+    ollamaModelResearch: "llama3.1:8b-instruct",
+    ollamaModelContent: "llama3.1:8b-instruct",
+    ollamaModelAssistant: "llama3.1:8b-instruct",
+    ollamaTemperature: "0.2",
+    ollamaMaxTokens: "700",
+    ollamaTimeoutSeconds: "25",
   })
   const [webhookForm, setWebhookForm] = React.useState({
     name: "",
@@ -123,6 +127,7 @@ export default function SettingsPage() {
     const duckduckgo = integrations.providers.duckduckgo
     const perplexity = integrations.providers.perplexity
     const firecrawl = integrations.providers.firecrawl
+    const ollama = integrations.providers.ollama
     setIntegrationForm({
       slackEnabled: Boolean(slack?.enabled),
       slackWebhook: String(slack?.config?.webhook || ""),
@@ -136,6 +141,15 @@ export default function SettingsPage() {
       firecrawlApiKey: String(firecrawl?.config?.api_key || ""),
       firecrawlCountry: String(firecrawl?.config?.country || "us"),
       firecrawlLang: String(firecrawl?.config?.lang || "en"),
+      ollamaEnabled: Boolean(ollama?.enabled),
+      ollamaBaseUrl: String(ollama?.config?.api_base_url || ""),
+      ollamaApiKey: String(ollama?.config?.api_key || ""),
+      ollamaModelResearch: String(ollama?.config?.model_research || "llama3.1:8b-instruct"),
+      ollamaModelContent: String(ollama?.config?.model_content || "llama3.1:8b-instruct"),
+      ollamaModelAssistant: String(ollama?.config?.model_assistant || "llama3.1:8b-instruct"),
+      ollamaTemperature: String(ollama?.config?.temperature ?? "0.2"),
+      ollamaMaxTokens: String(ollama?.config?.max_tokens ?? "700"),
+      ollamaTimeoutSeconds: String(ollama?.config?.timeout_seconds ?? "25"),
     })
   }, [integrations])
 
@@ -194,6 +208,20 @@ export default function SettingsPage() {
                 api_key_env: "FIRECRAWL_API_KEY",
               },
             },
+            ollama: {
+              enabled: integrationForm.ollamaEnabled,
+              config: {
+                api_base_url: integrationForm.ollamaBaseUrl,
+                api_key: integrationForm.ollamaApiKey,
+                api_key_env: "OLLAMA_API_KEY",
+                model_research: integrationForm.ollamaModelResearch,
+                model_content: integrationForm.ollamaModelContent,
+                model_assistant: integrationForm.ollamaModelAssistant,
+                temperature: Number(integrationForm.ollamaTemperature || "0.2"),
+                max_tokens: Number(integrationForm.ollamaMaxTokens || "700"),
+                timeout_seconds: Number(integrationForm.ollamaTimeoutSeconds || "25"),
+              },
+            },
           },
         }),
       })
@@ -248,21 +276,11 @@ export default function SettingsPage() {
   }
 
   return (
-    <SidebarProvider
-      style={
-        {
-          "--sidebar-width": "calc(var(--spacing) * 72)",
-          "--header-height": "calc(var(--spacing) * 12)",
-        } as React.CSSProperties
-      }
-    >
-      <AppSidebar variant="inset" />
-      <SidebarInset>
-        <SiteHeader />
-        <div className="flex flex-1 flex-col gap-6 p-4 pt-0 md:p-8">
+    <AppShell contentClassName="gap-6">
+      <div className="flex flex-1 flex-col gap-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-3xl font-bold tracking-tight">Parametres</h2>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <ExportCsvButton entity="systems" label="Export systemes" />
               <Button asChild variant="outline">
                 <Link href="/systems">Console systemes</Link>
@@ -607,6 +625,124 @@ export default function SettingsPage() {
                   <p className="text-xs text-muted-foreground">Activez Firecrawl pour editer ces champs.</p>
                 ) : null}
               </div>
+              <div className="space-y-3 rounded-lg border p-3 sm:col-span-2">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="ollama-enabled"
+                    checked={integrationForm.ollamaEnabled}
+                    onCheckedChange={(checked) =>
+                      setIntegrationForm((current) => ({
+                        ...current,
+                        ollamaEnabled: Boolean(checked),
+                      }))
+                    }
+                  />
+                  <Label htmlFor="ollama-enabled">Ollama heberge (open source AI)</Label>
+                </div>
+                <Input
+                  placeholder="Base URL privee (ex: http://ollama.internal:11434)"
+                  value={integrationForm.ollamaBaseUrl}
+                  disabled={!integrationForm.ollamaEnabled}
+                  className={!integrationForm.ollamaEnabled ? "opacity-60" : ""}
+                  onChange={(event) =>
+                    setIntegrationForm((current) => ({
+                      ...current,
+                      ollamaBaseUrl: event.target.value,
+                    }))
+                  }
+                />
+                <Input
+                  placeholder="API key Ollama (optionnel)"
+                  value={integrationForm.ollamaApiKey}
+                  disabled={!integrationForm.ollamaEnabled}
+                  className={!integrationForm.ollamaEnabled ? "opacity-60" : ""}
+                  onChange={(event) =>
+                    setIntegrationForm((current) => ({
+                      ...current,
+                      ollamaApiKey: event.target.value,
+                    }))
+                  }
+                />
+                <div className="grid gap-2 sm:grid-cols-3">
+                  <Input
+                    placeholder="Modele research"
+                    value={integrationForm.ollamaModelResearch}
+                    disabled={!integrationForm.ollamaEnabled}
+                    className={!integrationForm.ollamaEnabled ? "opacity-60" : ""}
+                    onChange={(event) =>
+                      setIntegrationForm((current) => ({
+                        ...current,
+                        ollamaModelResearch: event.target.value,
+                      }))
+                    }
+                  />
+                  <Input
+                    placeholder="Modele content"
+                    value={integrationForm.ollamaModelContent}
+                    disabled={!integrationForm.ollamaEnabled}
+                    className={!integrationForm.ollamaEnabled ? "opacity-60" : ""}
+                    onChange={(event) =>
+                      setIntegrationForm((current) => ({
+                        ...current,
+                        ollamaModelContent: event.target.value,
+                      }))
+                    }
+                  />
+                  <Input
+                    placeholder="Modele assistant"
+                    value={integrationForm.ollamaModelAssistant}
+                    disabled={!integrationForm.ollamaEnabled}
+                    className={!integrationForm.ollamaEnabled ? "opacity-60" : ""}
+                    onChange={(event) =>
+                      setIntegrationForm((current) => ({
+                        ...current,
+                        ollamaModelAssistant: event.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div className="grid gap-2 sm:grid-cols-3">
+                  <Input
+                    placeholder="Temperature (0.2)"
+                    value={integrationForm.ollamaTemperature}
+                    disabled={!integrationForm.ollamaEnabled}
+                    className={!integrationForm.ollamaEnabled ? "opacity-60" : ""}
+                    onChange={(event) =>
+                      setIntegrationForm((current) => ({
+                        ...current,
+                        ollamaTemperature: event.target.value,
+                      }))
+                    }
+                  />
+                  <Input
+                    placeholder="Max tokens (700)"
+                    value={integrationForm.ollamaMaxTokens}
+                    disabled={!integrationForm.ollamaEnabled}
+                    className={!integrationForm.ollamaEnabled ? "opacity-60" : ""}
+                    onChange={(event) =>
+                      setIntegrationForm((current) => ({
+                        ...current,
+                        ollamaMaxTokens: event.target.value,
+                      }))
+                    }
+                  />
+                  <Input
+                    placeholder="Timeout sec (25)"
+                    value={integrationForm.ollamaTimeoutSeconds}
+                    disabled={!integrationForm.ollamaEnabled}
+                    className={!integrationForm.ollamaEnabled ? "opacity-60" : ""}
+                    onChange={(event) =>
+                      setIntegrationForm((current) => ({
+                        ...current,
+                        ollamaTimeoutSeconds: event.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                {!integrationForm.ollamaEnabled ? (
+                  <p className="text-xs text-muted-foreground">Activez Ollama pour editer ces champs.</p>
+                ) : null}
+              </div>
             </div>
             <Button variant="outline" onClick={saveIntegrations} disabled={savingIntegrations}>
               {savingIntegrations ? "Sauvegarde..." : "Sauvegarder integrations"}
@@ -669,9 +805,8 @@ export default function SettingsPage() {
               ) : null}
             </div>
           </div>
-        </div>
-      </SidebarInset>
-    </SidebarProvider>
+      </div>
+    </AppShell>
   )
 }
 

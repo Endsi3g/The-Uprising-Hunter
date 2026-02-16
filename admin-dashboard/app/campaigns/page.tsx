@@ -4,8 +4,7 @@ import * as React from "react"
 import useSWR from "swr"
 import { toast } from "sonner"
 
-import { AppSidebar } from "@/components/app-sidebar"
-import { SiteHeader } from "@/components/site-header"
+import { AppShell } from "@/components/layout/app-shell"
 import { SyncStatus } from "@/components/sync-status"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -15,7 +14,6 @@ import { ErrorState } from "@/components/ui/error-state"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { requestApi } from "@/lib/api"
 
@@ -432,18 +430,8 @@ export default function CampaignsPage() {
   }
 
   return (
-    <SidebarProvider
-      style={
-        {
-          "--sidebar-width": "calc(var(--spacing) * 72)",
-          "--header-height": "calc(var(--spacing) * 12)",
-        } as React.CSSProperties
-      }
-    >
-      <AppSidebar variant="inset" />
-      <SidebarInset>
-        <SiteHeader />
-        <div className="flex flex-1 flex-col gap-4 p-4 pt-0 md:p-8">
+    <AppShell>
+      <div className="flex flex-1 flex-col gap-4">
           <div className="rounded-2xl border bg-gradient-to-r from-slate-900 via-slate-800 to-slate-700 p-5 text-slate-50">
             <h2 className="text-3xl font-bold tracking-tight">Growth Automation Studio</h2>
             <p className="mt-2 text-sm text-slate-200">
@@ -1008,8 +996,7 @@ export default function CampaignsPage() {
               </div>
             </TabsContent>
           </Tabs>
-        </div>
-      </SidebarInset>
-    </SidebarProvider>
+      </div>
+    </AppShell>
   )
 }

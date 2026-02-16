@@ -30,15 +30,32 @@ def test_integrations_include_research_providers_with_free_tier_metadata(client)
     assert "duckduckgo" in providers
     assert "perplexity" in providers
     assert "firecrawl" in providers
+    assert "ollama" in providers
     assert providers["duckduckgo"]["enabled"] is True
     assert "free_tier" in providers["perplexity"]["meta"]
+    assert providers["ollama"]["enabled"] is False
+    assert providers["ollama"]["config"]["model_research"] == "llama3.1:8b-instruct"
+    assert providers["ollama"]["meta"]["category"] == "ai"
 
 
-def test_integrations_can_persist_perplexity_and_firecrawl_config(client):
+def test_integrations_can_persist_perplexity_firecrawl_and_ollama_config(client):
     payload = {
         "providers": {
             "perplexity": {"enabled": True, "config": {"model": "sonar", "max_tokens": 500}},
             "firecrawl": {"enabled": True, "config": {"country": "us", "lang": "en"}},
+            "ollama": {
+                "enabled": True,
+                "config": {
+                    "api_base_url": "https://ollama.example.internal",
+                    "api_key_env": "OLLAMA_API_KEY",
+                    "model_research": "llama3.1:8b-instruct",
+                    "model_content": "mistral:7b-instruct",
+                    "model_assistant": "qwen2.5:7b-instruct",
+                    "temperature": 0.3,
+                    "max_tokens": 900,
+                    "timeout_seconds": 35,
+                },
+            },
         }
     }
     put_response = client.put(
@@ -52,6 +69,9 @@ def test_integrations_can_persist_perplexity_and_firecrawl_config(client):
     assert providers["perplexity"]["config"]["model"] == "sonar"
     assert providers["firecrawl"]["enabled"] is True
     assert providers["firecrawl"]["config"]["country"] == "us"
+    assert providers["ollama"]["enabled"] is True
+    assert providers["ollama"]["config"]["api_base_url"] == "https://ollama.example.internal"
+    assert providers["ollama"]["config"]["model_content"] == "mistral:7b-instruct"
 
 
 def test_webhooks_crud(client):

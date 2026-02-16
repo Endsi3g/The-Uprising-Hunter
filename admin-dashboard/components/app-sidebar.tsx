@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { usePathname } from "next/navigation"
 import {
   IconChartBar,
   IconDashboard,
@@ -31,6 +32,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from "@/components/ui/sidebar"
 
 const data = {
@@ -118,7 +120,15 @@ const data = {
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const pathname = usePathname()
   const { openHelp, openSearch } = useModalSystem()
+  const { isMobile, setOpenMobile } = useSidebar()
+
+  React.useEffect(() => {
+    if (!isMobile) return
+    setOpenMobile(false)
+  }, [isMobile, pathname, setOpenMobile])
+
   const navSecondary = [
     {
       title: messages.sidebar.settings,

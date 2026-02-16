@@ -42,6 +42,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { ResponsiveDataView } from "@/components/responsive/responsive-data-view"
 import { requestApi } from "@/lib/api"
 
 export type Lead = {
@@ -277,12 +278,13 @@ export function LeadsTable({
   return (
     <div className="space-y-4">
       {selectedLeads.size > 0 && (
-        <div className="bg-muted/50 p-2 rounded-md flex items-center justify-between border border-blue-200">
-          <span className="text-sm font-medium ml-2">{selectedLeads.size} selectionne(s)</span>
-          <div className="flex gap-2">
+        <div className="bg-muted/50 rounded-md border border-blue-200 p-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <span className="ml-2 text-sm font-medium">{selectedLeads.size} selectionne(s)</span>
             <Button
               size="sm"
               variant="destructive"
+              className="w-full sm:w-auto"
               onClick={() => setDeleteDialogOpen(true)}
             >
               <IconTrash className="size-4 mr-2" />
@@ -293,12 +295,12 @@ export function LeadsTable({
       )}
 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2 flex-1">
+        <div className="grid flex-1 gap-2 sm:flex sm:items-center">
           <Input
             placeholder="Rechercher..."
             value={search}
             onChange={(event) => onSearchChange(event.target.value)}
-            className="sm:max-w-xs"
+            className="w-full sm:max-w-xs"
           />
           <Select
             value={status}
@@ -307,7 +309,7 @@ export function LeadsTable({
                 toast.info(`Filtre applique: ${val === "ALL" ? "Tous" : val}`)
               }}
           >
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-full sm:w-[180px]">
               <SelectValue placeholder="Statut" />
             </SelectTrigger>
             <SelectContent>
@@ -321,7 +323,7 @@ export function LeadsTable({
             </SelectContent>
           </Select>
         </div>
-        <p className="text-sm text-muted-foreground">{total} lead(s)</p>
+        <p className="text-sm text-muted-foreground sm:text-right">{total} lead(s)</p>
       </div>
 
       <details className="rounded-lg border p-3">
@@ -434,133 +436,246 @@ export function LeadsTable({
         </div>
       </details>
 
-      <div className="rounded-lg border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[50px]">
+      <ResponsiveDataView
+        mobileCards={
+          data.length === 0 ? (
+            <div className="rounded-lg border py-8 text-center text-sm text-muted-foreground">
+              Aucun lead ne correspond a votre recherche.
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between rounded-lg border px-3 py-2">
+                <span className="text-sm font-medium">Selection</span>
                 <Checkbox
                   checked={data.length > 0 && selectedLeads.size === data.length}
                   onCheckedChange={toggleSelectAll}
                   aria-label="Tout selectionner"
                 />
-              </TableHead>
-              <TableHead
-                className="cursor-pointer hover:bg-muted/50"
-                onClick={() => handleSort("first_name")}
-              >
-                Lead <SortIcon column="first_name" sort={sort} order={order} />
-              </TableHead>
-              <TableHead>Entreprise</TableHead>
-              <TableHead
-                className="cursor-pointer hover:bg-muted/50"
-                onClick={() => handleSort("status")}
-              >
-                Statut <SortIcon column="status" sort={sort} order={order} />
-              </TableHead>
-              <TableHead
-                className="cursor-pointer hover:bg-muted/50"
-                onClick={() => handleSort("total_score")}
-              >
-                Score <SortIcon column="total_score" sort={sort} order={order} />
-              </TableHead>
-              <TableHead>Segment</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.map((lead) => (
-              <TableRow key={lead.id} data-state={selectedLeads.has(lead.id) && "selected"}>
-                <TableCell>
-                  <Checkbox
-                    checked={selectedLeads.has(lead.id)}
-                    onCheckedChange={() => toggleSelectRow(lead.id)}
-                    aria-label="Selectionner le lead"
-                  />
-                </TableCell>
-                <TableCell>
-                  <Link href={`/leads/${encodeURIComponent(lead.id)}`} className="block hover:underline font-medium text-primary">
-                    {lead.name}
-                  </Link>
-                  <div className="text-xs text-muted-foreground">{lead.email}</div>
-                </TableCell>
-                <TableCell>{lead.company.name}</TableCell>
-                <TableCell>
-                  <Badge
-                    variant="outline"
-                    className={statusColors[lead.status] || "bg-gray-500 text-white border-none"}
+              </div>
+              {data.map((lead) => (
+                <div key={lead.id} className="rounded-lg border p-3">
+                  <div className="flex items-start gap-2">
+                    <Checkbox
+                      checked={selectedLeads.has(lead.id)}
+                      onCheckedChange={() => toggleSelectRow(lead.id)}
+                      aria-label="Selectionner le lead"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <Link
+                        href={`/leads/${encodeURIComponent(lead.id)}`}
+                        className="block truncate font-medium text-primary hover:underline"
+                      >
+                        {lead.name}
+                      </Link>
+                      <p className="truncate text-xs text-muted-foreground">{lead.email}</p>
+                      <p className="truncate text-xs text-muted-foreground">{lead.company.name}</p>
+                    </div>
+                    <Badge
+                      variant="outline"
+                      className={statusColors[lead.status] || "bg-gray-500 border-none text-white"}
+                    >
+                      {lead.status}
+                    </Badge>
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <p className="text-muted-foreground">Score</p>
+                      <p className={`font-semibold ${scoreClass(lead.score)}`}>{lead.score}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Segment</p>
+                      <p className="truncate">{lead.segment}</p>
+                    </div>
+                  </div>
+                  <div className="mt-2 flex justify-end">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="size-9">
+                          <IconDotsVertical className="size-4" />
+                          <span className="sr-only">Actions du lead</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-56">
+                        <DropdownMenuItem asChild>
+                          <Link
+                            href={`/leads/${encodeURIComponent(lead.id)}`}
+                            className="flex cursor-pointer items-center"
+                          >
+                            <IconEye className="size-4 mr-2" />
+                            Voir details
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => createProjectFromLead(lead)}>
+                          <IconFolderPlus className="size-4 mr-2" />
+                          Creer un projet
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => createTaskFromLead(lead)}>
+                          <IconPlus className="size-4 mr-2" />
+                          Creer une tache
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={() => confirmDelete(lead.id)}
+                          className="text-red-600 focus:text-red-600"
+                        >
+                          <IconTrash className="size-4 mr-2" />
+                          Supprimer
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => toast.info("Flow audit disponible prochainement")}>
+                          <IconRocket className="size-4 mr-2" />
+                          Generer un audit
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </div>
+              ))}
+            </>
+          )
+        }
+        desktopTable={
+          <div className="rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[50px]">
+                    <Checkbox
+                      checked={data.length > 0 && selectedLeads.size === data.length}
+                      onCheckedChange={toggleSelectAll}
+                      aria-label="Tout selectionner"
+                    />
+                  </TableHead>
+                  <TableHead
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => handleSort("first_name")}
                   >
-                    {lead.status}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <span className={`font-semibold ${scoreClass(lead.score)}`}>{lead.score}</span>
-                </TableCell>
-                <TableCell>{lead.segment}</TableCell>
-                <TableCell className="text-right">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="size-8">
-                        <IconDotsVertical className="size-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-56">
-                      <DropdownMenuItem asChild>
-                        <Link href={`/leads/${encodeURIComponent(lead.id)}`} className="flex items-center cursor-pointer">
-                          <IconEye className="size-4 mr-2" />
-                          Voir details
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => createProjectFromLead(lead)}>
-                        <IconFolderPlus className="size-4 mr-2" />
-                        Creer un projet
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => createTaskFromLead(lead)}>
-                        <IconPlus className="size-4 mr-2" />
-                        Creer une tache
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => confirmDelete(lead.id)} className="text-red-600 focus:text-red-600">
-                        <IconTrash className="size-4 mr-2" />
-                        Supprimer
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => toast.info("Flow audit disponible prochainement")}>
-                        <IconRocket className="size-4 mr-2" />
-                        Generer un audit
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-              </TableRow>
-            ))}
-            {data.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} className="py-8 text-center text-sm text-muted-foreground">
-                  Aucun lead ne correspond a votre recherche.
-                </TableCell>
-              </TableRow>
-            ) : null}
-          </TableBody>
-        </Table>
-      </div>
+                    Lead <SortIcon column="first_name" sort={sort} order={order} />
+                  </TableHead>
+                  <TableHead>Entreprise</TableHead>
+                  <TableHead
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => handleSort("status")}
+                  >
+                    Statut <SortIcon column="status" sort={sort} order={order} />
+                  </TableHead>
+                  <TableHead
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => handleSort("total_score")}
+                  >
+                    Score <SortIcon column="total_score" sort={sort} order={order} />
+                  </TableHead>
+                  <TableHead>Segment</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.map((lead) => (
+                  <TableRow key={lead.id} data-state={selectedLeads.has(lead.id) && "selected"}>
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedLeads.has(lead.id)}
+                        onCheckedChange={() => toggleSelectRow(lead.id)}
+                        aria-label="Selectionner le lead"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Link
+                        href={`/leads/${encodeURIComponent(lead.id)}`}
+                        className="block font-medium text-primary hover:underline"
+                      >
+                        {lead.name}
+                      </Link>
+                      <div className="text-xs text-muted-foreground">{lead.email}</div>
+                    </TableCell>
+                    <TableCell>{lead.company.name}</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="outline"
+                        className={statusColors[lead.status] || "bg-gray-500 border-none text-white"}
+                      >
+                        {lead.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <span className={`font-semibold ${scoreClass(lead.score)}`}>{lead.score}</span>
+                    </TableCell>
+                    <TableCell>{lead.segment}</TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="size-8">
+                            <IconDotsVertical className="size-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-56">
+                          <DropdownMenuItem asChild>
+                            <Link
+                              href={`/leads/${encodeURIComponent(lead.id)}`}
+                              className="flex cursor-pointer items-center"
+                            >
+                              <IconEye className="size-4 mr-2" />
+                              Voir details
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => createProjectFromLead(lead)}>
+                            <IconFolderPlus className="size-4 mr-2" />
+                            Creer un projet
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => createTaskFromLead(lead)}>
+                            <IconPlus className="size-4 mr-2" />
+                            Creer une tache
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => confirmDelete(lead.id)}
+                            className="text-red-600 focus:text-red-600"
+                          >
+                            <IconTrash className="size-4 mr-2" />
+                            Supprimer
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => toast.info("Flow audit disponible prochainement")}>
+                            <IconRocket className="size-4 mr-2" />
+                            Generer un audit
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {data.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="py-8 text-center text-sm text-muted-foreground">
+                      Aucun lead ne correspond a votre recherche.
+                    </TableCell>
+                  </TableRow>
+                ) : null}
+              </TableBody>
+            </Table>
+          </div>
+        }
+      />
 
-      <div className="flex items-center justify-end space-x-2 py-2">
+      <div className="flex flex-col gap-2 py-2 sm:flex-row sm:items-center sm:justify-end sm:space-x-2">
         <Button
           variant="outline"
           size="sm"
+          className="w-full sm:w-auto"
           onClick={() => onPageChange(page - 1)}
           disabled={page <= 1}
         >
           Precedent
         </Button>
-        <div className="flex-1 text-center text-sm text-muted-foreground">
+        <div className="text-center text-sm text-muted-foreground sm:flex-1">
           Page {page} sur {maxPage}
         </div>
         <Button
           variant="outline"
           size="sm"
+          className="w-full sm:w-auto"
           onClick={() => onPageChange(page + 1)}
           disabled={page >= maxPage}
         >

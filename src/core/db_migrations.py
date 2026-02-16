@@ -20,6 +20,15 @@ def ensure_sqlite_schema_compatibility(engine) -> None:
         "segment": "TEXT",
         "stage": "TEXT DEFAULT 'NEW'",
         "outcome": "TEXT",
+        "lead_owner_user_id": "TEXT",
+        "stage_canonical": "TEXT NOT NULL DEFAULT 'new'",
+        "stage_entered_at": "TIMESTAMP",
+        "sla_due_at": "TIMESTAMP",
+        "next_action_at": "TIMESTAMP",
+        "confidence_score": "REAL NOT NULL DEFAULT 0.0",
+        "playbook_id": "TEXT",
+        "handoff_required": "INTEGER NOT NULL DEFAULT 0",
+        "handoff_completed_at": "TIMESTAMP",
         "icp_score": "REAL DEFAULT 0.0",
         "heat_score": "REAL DEFAULT 0.0",
         "tier": "TEXT DEFAULT 'Tier D'",
@@ -65,6 +74,15 @@ def ensure_sqlite_schema_compatibility(engine) -> None:
         "name": "TEXT NOT NULL DEFAULT 'Opportunity'",
         "stage": "TEXT NOT NULL DEFAULT 'qualification'",
         "status": "TEXT NOT NULL DEFAULT 'open'",
+        "owner_user_id": "TEXT",
+        "stage_canonical": "TEXT NOT NULL DEFAULT 'opportunity'",
+        "stage_entered_at": "TIMESTAMP",
+        "sla_due_at": "TIMESTAMP",
+        "next_action_at": "TIMESTAMP",
+        "confidence_score": "REAL NOT NULL DEFAULT 0.0",
+        "playbook_id": "TEXT",
+        "handoff_required": "INTEGER NOT NULL DEFAULT 0",
+        "handoff_completed_at": "TIMESTAMP",
         "amount": "REAL",
         "probability": "INTEGER NOT NULL DEFAULT 10",
         "assigned_to": "TEXT NOT NULL DEFAULT 'Vous'",
@@ -146,6 +164,27 @@ def ensure_sqlite_schema_compatibility(engine) -> None:
                     connection.execute(
                         text(f"ALTER TABLE opportunities ADD COLUMN {column_name} {column_type}")
                     )
+            connection.execute(
+                text(
+                    """
+                    UPDATE opportunities
+                    SET stage_canonical = CASE
+                        WHEN lower(COALESCE(stage_canonical, '')) <> '' THEN lower(stage_canonical)
+                        WHEN lower(COALESCE(stage, '')) IN ('prospect') THEN 'contacted'
+                        WHEN lower(COALESCE(stage, '')) IN ('qualification', 'qualified') THEN 'qualified'
+                        WHEN lower(COALESCE(stage, '')) IN ('discovery') THEN 'engaged'
+                        WHEN lower(COALESCE(stage, '')) IN ('proposal', 'proposed', 'negotiation') THEN 'opportunity'
+                        WHEN lower(COALESCE(stage, '')) = 'won' THEN 'won'
+                        WHEN lower(COALESCE(stage, '')) = 'lost' THEN 'lost'
+                        ELSE 'opportunity'
+                    END,
+                    stage_entered_at = COALESCE(stage_entered_at, updated_at, created_at),
+                    confidence_score = COALESCE(confidence_score, 0.0),
+                    handoff_required = COALESCE(handoff_required, 0)
+                    WHERE stage_canonical IS NULL OR trim(stage_canonical) = ''
+                    """
+                )
+            )
         else:
             connection.execute(
                 text(
@@ -156,6 +195,15 @@ def ensure_sqlite_schema_compatibility(engine) -> None:
                         name TEXT NOT NULL,
                         stage TEXT NOT NULL DEFAULT 'qualification',
                         status TEXT NOT NULL DEFAULT 'open',
+                        owner_user_id TEXT,
+                        stage_canonical TEXT NOT NULL DEFAULT 'opportunity',
+                        stage_entered_at TIMESTAMP,
+                        sla_due_at TIMESTAMP,
+                        next_action_at TIMESTAMP,
+                        confidence_score REAL NOT NULL DEFAULT 0.0,
+                        playbook_id TEXT,
+                        handoff_required INTEGER NOT NULL DEFAULT 0,
+                        handoff_completed_at TIMESTAMP,
                         amount REAL,
                         probability INTEGER NOT NULL DEFAULT 10,
                         assigned_to TEXT NOT NULL DEFAULT 'Vous',
@@ -167,6 +215,36 @@ def ensure_sqlite_schema_compatibility(engine) -> None:
                     """
                 )
             )
+            connection.execute(
+                text(
+                    """
+                    UPDATE leads
+                    SET stage_canonical = CASE
+                        WHEN lower(COALESCE(stage_canonical, '')) <> '' THEN lower(stage_canonical)
+                        WHEN status = 'NEW' THEN 'new'
+                        WHEN status = 'ENRICHED' THEN 'enriched'
+                        WHEN status = 'SCORED' THEN 'qualified'
+                        WHEN status = 'CONTACTED' THEN 'contacted'
+                        WHEN status = 'INTERESTED' THEN 'engaged'
+                        WHEN status = 'CONVERTED' THEN 'won'
+                        WHEN status IN ('LOST', 'DISQUALIFIED') THEN 'lost'
+                        ELSE 'new'
+                    END,
+                    stage_entered_at = COALESCE(stage_entered_at, updated_at, created_at),
+                    confidence_score = COALESCE(confidence_score, 0.0),
+                    handoff_required = COALESCE(handoff_required, 0)
+                    WHERE stage_canonical IS NULL OR trim(stage_canonical) = ''
+                    """
+                )
+            )
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_leads_lead_owner_user_id ON leads (lead_owner_user_id)"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_leads_stage_canonical ON leads (stage_canonical)"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_leads_stage_entered_at ON leads (stage_entered_at)"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_leads_sla_due_at ON leads (sla_due_at)"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_leads_next_action_at ON leads (next_action_at)"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_leads_playbook_id ON leads (playbook_id)"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_leads_handoff_required ON leads (handoff_required)"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_leads_handoff_completed_at ON leads (handoff_completed_at)"))
         connection.execute(
             text("CREATE INDEX IF NOT EXISTS ix_opportunities_lead_id ON opportunities (lead_id)")
         )
@@ -184,6 +262,30 @@ def ensure_sqlite_schema_compatibility(engine) -> None:
         )
         connection.execute(
             text("CREATE INDEX IF NOT EXISTS ix_opportunities_assigned_to ON opportunities (assigned_to)")
+        )
+        connection.execute(
+            text("CREATE INDEX IF NOT EXISTS ix_opportunities_owner_user_id ON opportunities (owner_user_id)")
+        )
+        connection.execute(
+            text("CREATE INDEX IF NOT EXISTS ix_opportunities_stage_canonical ON opportunities (stage_canonical)")
+        )
+        connection.execute(
+            text("CREATE INDEX IF NOT EXISTS ix_opportunities_stage_entered_at ON opportunities (stage_entered_at)")
+        )
+        connection.execute(
+            text("CREATE INDEX IF NOT EXISTS ix_opportunities_sla_due_at ON opportunities (sla_due_at)")
+        )
+        connection.execute(
+            text("CREATE INDEX IF NOT EXISTS ix_opportunities_next_action_at ON opportunities (next_action_at)")
+        )
+        connection.execute(
+            text("CREATE INDEX IF NOT EXISTS ix_opportunities_playbook_id ON opportunities (playbook_id)")
+        )
+        connection.execute(
+            text("CREATE INDEX IF NOT EXISTS ix_opportunities_handoff_required ON opportunities (handoff_required)")
+        )
+        connection.execute(
+            text("CREATE INDEX IF NOT EXISTS ix_opportunities_handoff_completed_at ON opportunities (handoff_completed_at)")
         )
 
         settings_columns = _get_table_columns(connection, "admin_settings")
@@ -526,6 +628,94 @@ def ensure_sqlite_schema_compatibility(engine) -> None:
         connection.execute(
             text("CREATE INDEX IF NOT EXISTS ix_admin_auth_sessions_revoked_at ON admin_auth_sessions (revoked_at)")
         )
+
+        # ── Funnel intelligence tables ──────────────────────────
+        connection.execute(
+            text(
+                """
+                CREATE TABLE IF NOT EXISTS stage_events (
+                    id TEXT PRIMARY KEY,
+                    entity_type TEXT NOT NULL,
+                    entity_id TEXT NOT NULL,
+                    from_stage TEXT,
+                    to_stage TEXT NOT NULL,
+                    reason TEXT,
+                    actor TEXT NOT NULL DEFAULT 'system',
+                    source TEXT NOT NULL DEFAULT 'manual',
+                    metadata_json TEXT NOT NULL DEFAULT '{}',
+                    created_at TIMESTAMP NOT NULL
+                )
+                """
+            )
+        )
+        connection.execute(
+            text(
+                """
+                CREATE TABLE IF NOT EXISTS smart_recommendations (
+                    id TEXT PRIMARY KEY,
+                    entity_type TEXT NOT NULL,
+                    entity_id TEXT NOT NULL,
+                    recommendation_type TEXT NOT NULL,
+                    priority INTEGER NOT NULL DEFAULT 50,
+                    payload_json TEXT NOT NULL DEFAULT '{}',
+                    status TEXT NOT NULL DEFAULT 'pending',
+                    requires_confirm INTEGER NOT NULL DEFAULT 1,
+                    created_at TIMESTAMP NOT NULL,
+                    resolved_at TIMESTAMP
+                )
+                """
+            )
+        )
+        connection.execute(
+            text(
+                """
+                CREATE TABLE IF NOT EXISTS team_queues (
+                    id TEXT PRIMARY KEY,
+                    name TEXT UNIQUE NOT NULL,
+                    routing_rule_json TEXT NOT NULL DEFAULT '{}',
+                    sla_policy_json TEXT NOT NULL DEFAULT '{}',
+                    active INTEGER NOT NULL DEFAULT 1,
+                    created_at TIMESTAMP NOT NULL,
+                    updated_at TIMESTAMP
+                )
+                """
+            )
+        )
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_stage_events_entity_type ON stage_events (entity_type)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_stage_events_entity_id ON stage_events (entity_id)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_stage_events_from_stage ON stage_events (from_stage)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_stage_events_to_stage ON stage_events (to_stage)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_stage_events_actor ON stage_events (actor)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_stage_events_source ON stage_events (source)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_stage_events_created_at ON stage_events (created_at)"))
+        connection.execute(
+            text("CREATE INDEX IF NOT EXISTS ix_smart_recommendations_entity_type ON smart_recommendations (entity_type)")
+        )
+        connection.execute(
+            text("CREATE INDEX IF NOT EXISTS ix_smart_recommendations_entity_id ON smart_recommendations (entity_id)")
+        )
+        connection.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_smart_recommendations_recommendation_type ON smart_recommendations (recommendation_type)"
+            )
+        )
+        connection.execute(
+            text("CREATE INDEX IF NOT EXISTS ix_smart_recommendations_priority ON smart_recommendations (priority)")
+        )
+        connection.execute(
+            text("CREATE INDEX IF NOT EXISTS ix_smart_recommendations_status ON smart_recommendations (status)")
+        )
+        connection.execute(
+            text("CREATE INDEX IF NOT EXISTS ix_smart_recommendations_requires_confirm ON smart_recommendations (requires_confirm)")
+        )
+        connection.execute(
+            text("CREATE INDEX IF NOT EXISTS ix_smart_recommendations_created_at ON smart_recommendations (created_at)")
+        )
+        connection.execute(
+            text("CREATE INDEX IF NOT EXISTS ix_smart_recommendations_resolved_at ON smart_recommendations (resolved_at)")
+        )
+        connection.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_team_queues_name ON team_queues (name)"))
+        connection.execute(text("CREATE INDEX IF NOT EXISTS ix_team_queues_active ON team_queues (active)"))
 
         # ── Assistant Prospect tables ────────────────────────────
         connection.execute(

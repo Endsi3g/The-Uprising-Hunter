@@ -44,11 +44,20 @@ class DBLead(Base):
     
     company_id = Column(Integer, ForeignKey("companies.id"))
     company = relationship("DBCompany", back_populates="leads")
-    
+
     status = Column(SqlEnum(LeadStatus), default=LeadStatus.NEW)
     segment = Column(String, nullable=True)
     stage = Column(SqlEnum(LeadStage), default=LeadStage.NEW)
     outcome = Column(SqlEnum(LeadOutcome), nullable=True)
+    lead_owner_user_id = Column(String, ForeignKey("admin_users.id"), nullable=True, index=True)
+    stage_canonical = Column(String, nullable=False, default="new", index=True)
+    stage_entered_at = Column(DateTime, nullable=True, index=True)
+    sla_due_at = Column(DateTime, nullable=True, index=True)
+    next_action_at = Column(DateTime, nullable=True, index=True)
+    confidence_score = Column(Float, nullable=False, default=0.0)
+    playbook_id = Column(String, nullable=True, index=True)
+    handoff_required = Column(Boolean, nullable=False, default=False, index=True)
+    handoff_completed_at = Column(DateTime, nullable=True, index=True)
     
     # Legacy scoring columns (kept for compatibility with existing DBs)
     demographic_score = Column(Float, default=0.0)
@@ -138,12 +147,63 @@ class DBOpportunity(Base):
     name = Column(String, nullable=False, index=True)
     stage = Column(String, nullable=False, default="qualification", index=True)
     status = Column(String, nullable=False, default="open", index=True)
+    owner_user_id = Column(String, ForeignKey("admin_users.id"), nullable=True, index=True)
+    stage_canonical = Column(String, nullable=False, default="opportunity", index=True)
+    stage_entered_at = Column(DateTime, nullable=True, index=True)
+    sla_due_at = Column(DateTime, nullable=True, index=True)
+    next_action_at = Column(DateTime, nullable=True, index=True)
+    confidence_score = Column(Float, nullable=False, default=0.0)
+    playbook_id = Column(String, nullable=True, index=True)
+    handoff_required = Column(Boolean, nullable=False, default=False, index=True)
+    handoff_completed_at = Column(DateTime, nullable=True, index=True)
     amount = Column(Float, nullable=True)
     probability = Column(Integer, nullable=False, default=10)
     assigned_to = Column(String, nullable=False, default="Vous", index=True)
     expected_close_date = Column(DateTime, nullable=True, index=True)
     details_json = Column(JSON, default=dict, nullable=False)
     created_at = Column(DateTime, default=datetime.now, nullable=False, index=True)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+
+class DBStageEvent(Base):
+    __tablename__ = "stage_events"
+
+    id = Column(String, primary_key=True, index=True)
+    entity_type = Column(String, nullable=False, index=True)
+    entity_id = Column(String, nullable=False, index=True)
+    from_stage = Column(String, nullable=True, index=True)
+    to_stage = Column(String, nullable=False, index=True)
+    reason = Column(String, nullable=True)
+    actor = Column(String, nullable=False, default="system", index=True)
+    source = Column(String, nullable=False, default="manual", index=True)
+    metadata_json = Column(JSON, default=dict, nullable=False)
+    created_at = Column(DateTime, default=datetime.now, nullable=False, index=True)
+
+
+class DBSmartRecommendation(Base):
+    __tablename__ = "smart_recommendations"
+
+    id = Column(String, primary_key=True, index=True)
+    entity_type = Column(String, nullable=False, index=True)
+    entity_id = Column(String, nullable=False, index=True)
+    recommendation_type = Column(String, nullable=False, index=True)
+    priority = Column(Integer, nullable=False, default=50, index=True)
+    payload_json = Column(JSON, default=dict, nullable=False)
+    status = Column(String, nullable=False, default="pending", index=True)
+    requires_confirm = Column(Boolean, nullable=False, default=True, index=True)
+    created_at = Column(DateTime, default=datetime.now, nullable=False, index=True)
+    resolved_at = Column(DateTime, nullable=True, index=True)
+
+
+class DBTeamQueue(Base):
+    __tablename__ = "team_queues"
+
+    id = Column(String, primary_key=True, index=True)
+    name = Column(String, nullable=False, unique=True, index=True)
+    routing_rule_json = Column(JSON, default=dict, nullable=False)
+    sla_policy_json = Column(JSON, default=dict, nullable=False)
+    active = Column(Boolean, nullable=False, default=True, index=True)
+    created_at = Column(DateTime, default=datetime.now, nullable=False)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 

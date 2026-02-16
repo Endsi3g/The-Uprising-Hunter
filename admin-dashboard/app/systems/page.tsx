@@ -237,7 +237,7 @@ export default function SystemsPage() {
       <AppSidebar variant="inset" />
       <SidebarInset>
         <SiteHeader />
-        <div className="flex flex-1 flex-col gap-4 p-4 pt-0 md:p-8">
+        <div className="flex flex-1 flex-col gap-4 p-3 pt-0 sm:p-4 sm:pt-0 lg:p-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <h2 className="text-3xl font-bold tracking-tight">Systemes</h2>
             <div className="flex flex-wrap items-center gap-2">
@@ -531,3 +531,4 @@ export default function SystemsPage() {
     </SidebarProvider>
   )
 }
+

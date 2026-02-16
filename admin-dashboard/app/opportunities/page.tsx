@@ -8,8 +8,7 @@ import { Area, AreaChart, CartesianGrid, XAxis } from "recharts"
 import { IconGripVertical, IconLayoutKanban, IconListDetails, IconPlus } from "@tabler/icons-react"
 import { toast } from "sonner"
 
-import { AppSidebar } from "@/components/app-sidebar"
-import { SiteHeader } from "@/components/site-header"
+import { AppShell } from "@/components/layout/app-shell"
 import { SyncStatus } from "@/components/sync-status"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -21,9 +20,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet"
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { ResponsiveDataView } from "@/components/responsive/responsive-data-view"
 import { useLoadingTimeout } from "@/hooks/use-loading-timeout"
 import { fetchApi, requestApi } from "@/lib/api"
 import { formatCurrencyFr, formatDateFr, formatNumberFr } from "@/lib/format"
@@ -38,10 +37,15 @@ type Opportunity = {
   prospect_name: string
   amount: number
   stage: Stage
+  stage_canonical?: string | null
   probability: number
   assigned_to: string
+  owner_user_id?: string | null
   close_date: string | null
+  next_action_at?: string | null
+  sla_due_at?: string | null
   created_at: string | null
+  is_overdue?: boolean
 }
 type OpportunitiesResponse = { page: number; page_size: number; total: number; items: Opportunity[] }
 type Summary = {
@@ -54,8 +58,16 @@ type Summary = {
 type LeadsResponse = { items: Array<{ id: string; first_name?: string; last_name?: string; email: string }> }
 type UsersResponse = { items: Array<{ id: string; email: string; display_name?: string | null }> }
 type QuickLeadResponse = { created: boolean; lead: { id: string; name: string } }
+type OpportunityStageTransitionResponse = { opportunity: Opportunity; event: { id: string; from_stage?: string | null; to_stage: string }; lead_event?: { id: string; from_stage?: string | null; to_stage: string } | null }
 
 const STAGES: Stage[] = ["Prospect", "Qualified", "Proposed", "Won", "Lost"]
+const STAGE_TO_CANONICAL: Record<Stage, string> = {
+  Prospect: "contacted",
+  Qualified: "qualified",
+  Proposed: "opportunity",
+  Won: "won",
+  Lost: "lost",
+}
 const fetcher = <T,>(path: string) => fetchApi<T>(path)
 const chartConfig = {
   weighted_revenue: { label: "Pondere", color: "var(--primary)" },
@@ -85,9 +97,9 @@ function DropCol({ stage, children }: { stage: Stage; children: React.ReactNode 
   return <div ref={setNodeRef} className={`min-h-[12rem] rounded-xl border p-3 ${isOver ? "border-primary" : "border-border"}`}>{children}</div>
 }
 function DragCard({ item, children }: { item: Opportunity; children: React.ReactNode }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useDraggable({ id: item.id })
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: item.id })
   return (
-    <div ref={setNodeRef} style={{ transform: CSS.Translate.toString(transform), transition }} className={`rounded-lg border bg-background p-3 ${isDragging ? "opacity-60" : ""}`}>
+    <div ref={setNodeRef} style={{ transform: CSS.Translate.toString(transform) }} className={`rounded-lg border bg-background p-3 ${isDragging ? "opacity-60" : ""}`}>
       <div className="mb-2 flex items-center justify-between"><span className="truncate font-medium">{item.prospect_name}</span><button type="button" {...attributes} {...listeners}><IconGripVertical className="size-4 text-muted-foreground" /></button></div>
       {children}
     </div>
@@ -111,6 +123,10 @@ export default function OpportunitiesPage() {
 
   const [form, setForm] = React.useState({ prospect_id: "", amount: "", stage: "Prospect" as Stage, probability: "30", close_date: "", assigned_to: "Vous" })
   const [quickLead, setQuickLead] = React.useState({ first_name: "", last_name: "", email: "", company_name: "" })
+  const [handoffOpportunityId, setHandoffOpportunityId] = React.useState("")
+  const [handoffUserId, setHandoffUserId] = React.useState("")
+  const [handoffNote, setHandoffNote] = React.useState("")
+  const [handoffBusy, setHandoffBusy] = React.useState(false)
 
   React.useEffect(() => { const t = window.setTimeout(() => setFDebounced(filters), 300); return () => window.clearTimeout(t) }, [filters])
   React.useEffect(() => { const t = window.setTimeout(() => setSearchLeadDebounced(searchLead.trim()), 250); return () => window.clearTimeout(t) }, [searchLead])
@@ -172,6 +188,14 @@ export default function OpportunitiesPage() {
     for (const u of usersData?.items || []) s.add((u.display_name || "").trim() || u.email)
     return Array.from(s).filter(Boolean).sort((a, b) => a.localeCompare(b, "fr"))
   }, [rows, usersData?.items])
+  const wonRows = React.useMemo(() => rows.filter((row) => row.stage === "Won"), [rows])
+
+  React.useEffect(() => {
+    if (!handoffOpportunityId && wonRows.length > 0) setHandoffOpportunityId(wonRows[0].id)
+  }, [handoffOpportunityId, wonRows])
+  React.useEffect(() => {
+    if (!handoffUserId && usersData?.items?.length) setHandoffUserId(usersData.items[0].id)
+  }, [handoffUserId, usersData?.items])
 
   const sensors = useSensors(useSensor(MouseSensor), useSensor(TouchSensor))
 
@@ -188,13 +212,30 @@ export default function OpportunitiesPage() {
     }
   }
 
+  async function transitionStage(id: string, next: Stage) {
+    const snap = data
+    mutate((cur) => cur ? { ...cur, items: cur.items.map((r) => r.id === id ? { ...r, stage: next, stage_canonical: STAGE_TO_CANONICAL[next] } : r) } : cur, false)
+    try {
+      const result = await requestApi<OpportunityStageTransitionResponse>(`/api/v1/admin/opportunities/${id}/stage-transition`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to_stage: STAGE_TO_CANONICAL[next], reason: "kanban_drag_drop", source: "manual_ui" }),
+      })
+      mutate((cur) => cur ? { ...cur, items: cur.items.map((r) => r.id === id ? result.opportunity : r) } : cur, false)
+      await mutateSummary()
+    } catch (e) {
+      mutate(snap, false)
+      toast.error(e instanceof Error ? e.message : "Transition impossible")
+    }
+  }
+
   async function drop(event: DragEndEvent) {
     if (!event.over) return
     const active = rows.find((r) => r.id === String(event.active.id)); if (!active) return
     const overId = String(event.over.id)
     const next = overId.startsWith("stage:") ? (overId.slice(6) as Stage) : rows.find((r) => r.id === overId)?.stage
     if (!next || next === active.stage) return
-    await patch(active.id, { stage: next }, { stage: next })
+    await transitionStage(active.id, next)
   }
 
   function startInline(row: Opportunity, field: EditField) {
@@ -258,12 +299,32 @@ export default function OpportunitiesPage() {
     } finally { setSavingLead(false) }
   }
 
+  async function createOpportunityHandoff() {
+    if (!handoffOpportunityId) return toast.error("Selectionnez une opportunite gagnee.")
+    try {
+      setHandoffBusy(true)
+      await requestApi("/api/v1/admin/handoffs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          opportunity_id: handoffOpportunityId,
+          to_user_id: handoffUserId || null,
+          note: handoffNote.trim() || null,
+        }),
+      })
+      toast.success("Handoff cree.")
+      setHandoffNote("")
+      await mutate()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Handoff impossible")
+    } finally {
+      setHandoffBusy(false)
+    }
+  }
+
   return (
-    <SidebarProvider style={{ "--sidebar-width": "calc(var(--spacing) * 72)", "--header-height": "calc(var(--spacing) * 12)" } as React.CSSProperties}>
-      <AppSidebar variant="inset" />
-      <SidebarInset>
-        <SiteHeader />
-        <div className="flex flex-1 flex-col gap-4 p-4 pt-0 md:p-8">
+    <AppShell contentClassName="p-3 pt-0 sm:p-4 sm:pt-0 lg:p-6">
+      <div className="flex flex-1 flex-col gap-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-3xl font-bold tracking-tight">Opportunites</h2>
             <div className="flex flex-wrap gap-2">
@@ -332,6 +393,43 @@ export default function OpportunitiesPage() {
             </CardContent>
           </Card>
 
+          <Card>
+            <CardHeader>
+              <CardTitle>Handoff post-sale</CardTitle>
+              <CardDescription>Creation de handoff pour les opportunites gagnees.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-3 lg:grid-cols-3">
+              <div className="space-y-1">
+                <Label>Opportunite</Label>
+                <Select value={handoffOpportunityId} onValueChange={setHandoffOpportunityId}>
+                  <SelectTrigger><SelectValue placeholder="Selectionner" /></SelectTrigger>
+                  <SelectContent>
+                    {wonRows.length === 0 ? <SelectItem value="none" disabled>Aucune opportunite Won</SelectItem> : null}
+                    {wonRows.map((row) => <SelectItem key={row.id} value={row.id}>{row.prospect_name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label>Transfert vers</Label>
+                <Select value={handoffUserId} onValueChange={setHandoffUserId}>
+                  <SelectTrigger><SelectValue placeholder="Selectionner un utilisateur" /></SelectTrigger>
+                  <SelectContent>
+                    {(usersData?.items || []).map((user) => <SelectItem key={user.id} value={user.id}>{(user.display_name || "").trim() || user.email}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label>Note</Label>
+                <Input value={handoffNote} onChange={(e) => setHandoffNote(e.target.value)} placeholder="Contexte de passation (optionnel)" />
+              </div>
+              <div className="lg:col-span-3">
+                <Button disabled={handoffBusy || wonRows.length === 0 || !handoffOpportunityId} onClick={() => void createOpportunityHandoff()}>
+                  {handoffBusy ? "Creation..." : "Creer handoff"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
           {isLoading && !timeout ? <div className="space-y-3"><Skeleton className="h-24 w-full" /><Skeleton className="h-24 w-full" /></div> : null}
           {!isLoading && (error || summaryError || timeout) ? (
             <ErrorState title="Impossible de charger les opportunites." description={timeout ? "Le chargement est trop long." : error instanceof Error ? error.message : summaryError instanceof Error ? summaryError.message : "Erreur inconnue."} onRetry={() => { void mutate(); void mutateSummary() }} />
@@ -341,9 +439,9 @@ export default function OpportunitiesPage() {
           {!isLoading && !error && !timeout && filtered.length > 0 ? (
             view === "kanban" ? (
               <DndContext sensors={sensors} onDragEnd={(event) => void drop(event)}>
-                <div className="grid gap-4 xl:grid-cols-5">
+                <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1 md:grid md:gap-4 md:overflow-visible xl:grid-cols-5">
                   {STAGES.map((stage) => (
-                    <div key={stage} className="space-y-2">
+                    <div key={stage} className="min-w-[280px] snap-start space-y-2 md:min-w-0">
                       <div className="flex items-center justify-between"><h3 className="font-semibold">{stage}</h3><Badge variant="outline">{byStage[stage].length}</Badge></div>
                       <DropCol stage={stage}>
                         <div className="space-y-3">
@@ -365,28 +463,88 @@ export default function OpportunitiesPage() {
                 </div>
               </DndContext>
             ) : (
-              <div className="rounded-xl border">
-                <Table>
-                  <TableHeader><TableRow><TableHead>Prospect</TableHead><TableHead>Stage</TableHead><TableHead>Deal value</TableHead><TableHead>Probability</TableHead><TableHead>Close date</TableHead><TableHead>Assigned to</TableHead><TableHead>Alerte</TableHead></TableRow></TableHeader>
-                  <TableBody>
-                    {filtered.map((row) => (
-                      <TableRow key={row.id}>
-                        <TableCell className="font-medium">{row.prospect_name}</TableCell>
-                        <TableCell><Badge variant="outline">{row.stage}</Badge></TableCell>
-                        <TableCell>{inline(row, "amount")}</TableCell>
-                        <TableCell>{inline(row, "probability")}</TableCell>
-                        <TableCell>{inline(row, "close_date")}</TableCell>
-                        <TableCell>{row.assigned_to}</TableCell>
-                        <TableCell>{overdue(row) ? <span className="rounded border border-red-300 bg-red-50 px-2 py-1 text-xs text-red-700">Retard</span> : <span className="text-xs text-muted-foreground">OK</span>}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+              <ResponsiveDataView
+                mobileCards={
+                  filtered.map((row) => (
+                    <div key={row.id} className="rounded-lg border p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="line-clamp-2 font-medium">{row.prospect_name}</p>
+                        <Badge variant="outline">{row.stage}</Badge>
+                      </div>
+                      <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <p className="text-muted-foreground">Deal value</p>
+                          <div>{inline(row, "amount")}</div>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Probability</p>
+                          <div>{inline(row, "probability")}</div>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Close date</p>
+                          <div>{inline(row, "close_date")}</div>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Assigned to</p>
+                          <p className="truncate">{row.assigned_to}</p>
+                        </div>
+                      </div>
+                      <div className="mt-3">
+                        {overdue(row) ? (
+                          <span className="rounded border border-red-300 bg-red-50 px-2 py-1 text-xs text-red-700">
+                            Retard
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">OK</span>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                }
+                desktopTable={
+                  <div className="rounded-xl border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Prospect</TableHead>
+                          <TableHead>Stage</TableHead>
+                          <TableHead>Deal value</TableHead>
+                          <TableHead>Probability</TableHead>
+                          <TableHead>Close date</TableHead>
+                          <TableHead>Assigned to</TableHead>
+                          <TableHead>Alerte</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filtered.map((row) => (
+                          <TableRow key={row.id}>
+                            <TableCell className="font-medium">{row.prospect_name}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline">{row.stage}</Badge>
+                            </TableCell>
+                            <TableCell>{inline(row, "amount")}</TableCell>
+                            <TableCell>{inline(row, "probability")}</TableCell>
+                            <TableCell>{inline(row, "close_date")}</TableCell>
+                            <TableCell>{row.assigned_to}</TableCell>
+                            <TableCell>
+                              {overdue(row) ? (
+                                <span className="rounded border border-red-300 bg-red-50 px-2 py-1 text-xs text-red-700">
+                                  Retard
+                                </span>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">OK</span>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                }
+              />
             )
           ) : null}
-        </div>
-      </SidebarInset>
+      </div>
 
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent className="sm:max-w-xl">
@@ -431,6 +589,6 @@ export default function OpportunitiesPage() {
           </SheetFooter>
         </SheetContent>
       </Sheet>
-    </SidebarProvider>
+    </AppShell>
   )
 }

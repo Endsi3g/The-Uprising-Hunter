@@ -159,7 +159,7 @@ export default function BillingPage() {
       <AppSidebar variant="inset" />
       <SidebarInset>
         <SiteHeader />
-        <div className="flex flex-1 flex-col gap-6 p-4 pt-0 md:p-8">
+        <div className="flex flex-1 flex-col gap-6 p-3 pt-0 sm:p-4 sm:pt-0 lg:p-6">
           <h2 className="text-3xl font-bold tracking-tight">Facturation</h2>
           {error ? (
             <ErrorState title="Impossible de charger la facturation." onRetry={() => void mutate()} />
@@ -412,3 +412,4 @@ export default function BillingPage() {
     </SidebarProvider>
   )
 }
+

@@ -39,6 +39,24 @@ def _enum_value(value: Any) -> str:
     return str(value)
 
 
+def _canonical_stage_for_lead(lead: DBLead) -> str:
+    raw = str(getattr(lead, "stage_canonical", "") or "").strip().lower()
+    if raw:
+        return raw
+    status_value = _enum_value(lead.status).upper()
+    mapping = {
+        "NEW": "new",
+        "ENRICHED": "enriched",
+        "SCORED": "qualified",
+        "CONTACTED": "contacted",
+        "INTERESTED": "engaged",
+        "CONVERTED": "won",
+        "LOST": "lost",
+        "DISQUALIFIED": "disqualified",
+    }
+    return mapping.get(status_value, "new")
+
+
 def _build_daily_trend(db: Session, days: int = 30) -> List[Dict[str, Any]]:
     start_day = date.today() - timedelta(days=days - 1)
     buckets = {}
@@ -330,6 +348,8 @@ def list_leads(
                 "company_industry": company_industry,
                 "company_location": company_location,
                 "status": _enum_value(lead.status),
+                "stage_canonical": _canonical_stage_for_lead(lead),
+                "lead_owner_user_id": getattr(lead, "lead_owner_user_id", None),
                 "segment": lead.segment,
                 "icp_score": lead.icp_score,
                 "heat_score": lead.heat_score,
@@ -339,6 +359,11 @@ def list_leads(
                 "next_best_action": lead.next_best_action,
                 "tags": lead.tags or [],
                 "last_scored_at": lead.last_scored_at.isoformat() if lead.last_scored_at else None,
+                "stage_entered_at": lead.stage_entered_at.isoformat() if getattr(lead, "stage_entered_at", None) else None,
+                "sla_due_at": lead.sla_due_at.isoformat() if getattr(lead, "sla_due_at", None) else None,
+                "next_action_at": lead.next_action_at.isoformat() if getattr(lead, "next_action_at", None) else None,
+                "handoff_required": bool(getattr(lead, "handoff_required", False)),
+                "handoff_completed_at": lead.handoff_completed_at.isoformat() if getattr(lead, "handoff_completed_at", None) else None,
                 "created_at": lead.created_at.isoformat() if lead.created_at else None,
                 "updated_at": lead.updated_at.isoformat() if lead.updated_at else None,
             }

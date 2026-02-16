@@ -65,3 +65,4 @@ def test_web_research_endpoint_passes_integration_provider_config(client, monkey
     assert "duckduckgo" in providers
     assert "perplexity" in providers
     assert "firecrawl" in providers
+    assert "ollama" in providers

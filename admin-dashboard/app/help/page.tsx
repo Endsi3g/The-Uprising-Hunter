@@ -36,7 +36,7 @@ export default function HelpPage() {
       <AppSidebar variant="inset" />
       <SidebarInset>
         <SiteHeader />
-        <div className="flex flex-1 flex-col gap-4 p-4 pt-0 md:p-8">
+        <div className="flex flex-1 flex-col gap-4 p-3 pt-0 sm:p-4 sm:pt-0 lg:p-6">
           <h2 className="text-3xl font-bold tracking-tight">Centre aide</h2>
           {isLoading ? (
             <div className="grid gap-4 lg:grid-cols-2">
@@ -98,4 +98,5 @@ export default function HelpPage() {
     </SidebarProvider>
   )
 }
+
 

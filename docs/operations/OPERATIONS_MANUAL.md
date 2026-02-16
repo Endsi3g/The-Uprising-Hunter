@@ -42,7 +42,7 @@ Optional:
 
 - `ADMIN_RATE_LIMIT_PER_MINUTE`
 - `ADMIN_RATE_LIMIT_WINDOW_SECONDS`
-- provider keys (`OPENAI_API_KEY`, `APIFY_API_TOKEN`, etc.)
+- provider keys (`OPENAI_API_KEY`, `APIFY_API_TOKEN`, `OLLAMA_API_KEY`, etc.)
 
 ## 4. Deployment flow
 
@@ -111,3 +111,24 @@ If login/API failures occur:
 - Rotate secrets after any leak suspicion.
 - Prefer least-privilege service accounts.
 - Keep audit logging enabled for admin actions.
+
+## 9. Hosted Ollama (private connectivity)
+
+When running Ollama online for open-source AI inference:
+
+1. Expose Ollama on a private endpoint reachable by backend only (VPC/internal network/private reverse proxy).
+2. Configure backend environment:
+   - `OLLAMA_API_BASE_URL`
+   - `OLLAMA_API_KEY` (if your Ollama gateway enforces auth)
+   - `OLLAMA_MODEL_RESEARCH`
+   - `OLLAMA_MODEL_CONTENT`
+   - `OLLAMA_MODEL_ASSISTANT`
+3. Enable the `ollama` provider from `Settings > Integrations` in admin dashboard.
+4. Validate end-to-end:
+   - `GET /api/v1/admin/research/web?q=test&provider=ollama&limit=3`
+   - `POST /api/v1/admin/content/generate` with `"provider":"ollama"`
+   - `POST /api/v1/admin/assistant/prospect/execute` with Khoj unavailable (fallback path).
+
+Operational notes:
+- Keep Ollama private; do not expose it directly to frontend clients.
+- If Ollama is down, research/content/assistant gracefully fall back according to current provider logic.

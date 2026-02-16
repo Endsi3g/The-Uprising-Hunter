@@ -1,4 +1,5 @@
 const DEFAULT_BASE_URL = "/api/proxy"
+const FORCE_MOCK_STORAGE_KEY = "prospect:forceMock"
 
 type RequestApiOptions = {
   skipAuthRetry?: boolean
@@ -14,8 +15,18 @@ type ErrorPayload = {
   }
 }
 
+function isRuntimeMockEnabled(): boolean {
+  if (typeof window === "undefined") return false
+  try {
+    return window.localStorage.getItem(FORCE_MOCK_STORAGE_KEY) === "true"
+  } catch {
+    return false
+  }
+}
+
 function isMockEnabled(): boolean {
-  return process.env.NEXT_PUBLIC_USE_MOCK === "true"
+  if (process.env.NEXT_PUBLIC_USE_MOCK === "true") return true
+  return isRuntimeMockEnabled()
 }
 
 function isLocalhostRuntime(): boolean {

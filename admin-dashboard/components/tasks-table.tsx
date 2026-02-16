@@ -40,6 +40,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { ResponsiveDataView } from "@/components/responsive/responsive-data-view"
 import { formatDateFr } from "@/lib/format"
 import { requestApi } from "@/lib/api"
 
@@ -244,15 +245,15 @@ export function TasksTable({
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-1 items-center gap-2">
+        <div className="grid flex-1 gap-2 sm:flex sm:items-center">
           <Input
             placeholder="Rechercher une tache..."
             value={search}
             onChange={(event) => onSearchChange(event.target.value)}
-            className="sm:max-w-xs"
+            className="w-full sm:max-w-xs"
           />
           <Select value={status} onValueChange={onStatusChange}>
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-full sm:w-[180px]">
               <SelectValue placeholder="Statut" />
             </SelectTrigger>
             <SelectContent>
@@ -264,7 +265,7 @@ export function TasksTable({
             </SelectContent>
           </Select>
           <Select value={channel} onValueChange={onChannelChange}>
-            <SelectTrigger className="w-[160px]">
+            <SelectTrigger className="w-full sm:w-[160px]">
               <SelectValue placeholder="Canal" />
             </SelectTrigger>
             <SelectContent>
@@ -276,7 +277,7 @@ export function TasksTable({
             </SelectContent>
           </Select>
           <Select value={source} onValueChange={onSourceChange}>
-            <SelectTrigger className="w-[160px]">
+            <SelectTrigger className="w-full sm:w-[160px]">
               <SelectValue placeholder="Source" />
             </SelectTrigger>
             <SelectContent>
@@ -288,80 +289,68 @@ export function TasksTable({
             </SelectContent>
           </Select>
         </div>
-        <p className="text-sm text-muted-foreground">{total} tache(s)</p>
+        <p className="text-sm text-muted-foreground sm:text-right">{total} tache(s)</p>
       </div>
 
-      <div className="rounded-lg border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("title")}>
-                Tache <SortIcon column="title" sort={sort} order={order} />
-              </TableHead>
-              <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("status")}>
-                Statut <SortIcon column="status" sort={sort} order={order} />
-              </TableHead>
-              <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("priority")}>
-                Priorite <SortIcon column="priority" sort={sort} order={order} />
-              </TableHead>
-              <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("due_date")}>
-                Echeance <SortIcon column="due_date" sort={sort} order={order} />
-              </TableHead>
-              <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("assigned_to")}>
-                Assigne a <SortIcon column="assigned_to" sort={sort} order={order} />
-              </TableHead>
-              <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("channel")}>
-                Canal <SortIcon column="channel" sort={sort} order={order} />
-              </TableHead>
-              <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("source")}>
-                Source <SortIcon column="source" sort={sort} order={order} />
-              </TableHead>
-              <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("sequence_step")}>
-                Etape <SortIcon column="sequence_step" sort={sort} order={order} />
-              </TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.map((task) => (
-              <TableRow key={task.id}>
-                <TableCell>
-                  <Link
-                    href={`/tasks/${encodeURIComponent(task.id)}`}
-                    className="font-medium text-foreground underline-offset-2 hover:underline"
-                  >
-                    {task.title}
-                  </Link>
-                  <div className="text-xs text-muted-foreground">#{task.id}</div>
-                </TableCell>
-                <TableCell>
+      <ResponsiveDataView
+        mobileCards={
+          data.length === 0 ? (
+            <div className="rounded-lg border py-8 text-center text-sm text-muted-foreground">
+              Aucune tache ne correspond a votre recherche.
+            </div>
+          ) : (
+            data.map((task) => (
+              <div key={task.id} className="rounded-lg border p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <Link
+                      href={`/tasks/${encodeURIComponent(task.id)}`}
+                      className="line-clamp-2 font-medium text-foreground underline-offset-2 hover:underline"
+                    >
+                      {task.title}
+                    </Link>
+                    <div className="text-xs text-muted-foreground">#{task.id}</div>
+                  </div>
                   <Badge variant={task.status === "Done" ? "default" : "secondary"}>
                     {task.status}
                   </Badge>
-                </TableCell>
-                <TableCell>
-                  <Badge variant="outline" className={priorityClass(task.priority)}>
-                    {task.priority}
-                  </Badge>
-                </TableCell>
-                <TableCell>{formatDateFr(task.due_date || null)}</TableCell>
-                <TableCell>{task.assigned_to}</TableCell>
-                <TableCell>
-                  <Badge variant="outline">{channelLabel(task.channel)}</Badge>
-                </TableCell>
-                <TableCell>
-                  <Badge variant={task.source === "auto-rule" ? "default" : "secondary"}>
-                    {sourceLabel(task.source)}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <span className="text-sm">{task.sequence_step || 1}</span>
-                </TableCell>
-                <TableCell className="text-right">
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <p className="text-muted-foreground">Priorite</p>
+                    <Badge variant="outline" className={priorityClass(task.priority)}>
+                      {task.priority}
+                    </Badge>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Echeance</p>
+                    <p>{formatDateFr(task.due_date || null)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Assigne a</p>
+                    <p className="truncate">{task.assigned_to}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Canal</p>
+                    <Badge variant="outline">{channelLabel(task.channel)}</Badge>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Source</p>
+                    <Badge variant={task.source === "auto-rule" ? "default" : "secondary"}>
+                      {sourceLabel(task.source)}
+                    </Badge>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Etape</p>
+                    <p>{task.sequence_step || 1}</p>
+                  </div>
+                </div>
+                <div className="mt-2 flex justify-end">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="size-8">
+                      <Button variant="ghost" size="icon" className="size-9">
                         <IconDotsVertical className="size-4" />
+                        <span className="sr-only">Actions de la tache</span>
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-56">
@@ -380,35 +369,134 @@ export function TasksTable({
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
-                </TableCell>
-              </TableRow>
-            ))}
-            {data.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={9} className="py-8 text-center text-sm text-muted-foreground">
-                  Aucune tache ne correspond a votre recherche.
-                </TableCell>
-              </TableRow>
-            ) : null}
-          </TableBody>
-        </Table>
-      </div>
+                </div>
+              </div>
+            ))
+          )
+        }
+        desktopTable={
+          <div className="rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("title")}>
+                    Tache <SortIcon column="title" sort={sort} order={order} />
+                  </TableHead>
+                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("status")}>
+                    Statut <SortIcon column="status" sort={sort} order={order} />
+                  </TableHead>
+                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("priority")}>
+                    Priorite <SortIcon column="priority" sort={sort} order={order} />
+                  </TableHead>
+                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("due_date")}>
+                    Echeance <SortIcon column="due_date" sort={sort} order={order} />
+                  </TableHead>
+                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("assigned_to")}>
+                    Assigne a <SortIcon column="assigned_to" sort={sort} order={order} />
+                  </TableHead>
+                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("channel")}>
+                    Canal <SortIcon column="channel" sort={sort} order={order} />
+                  </TableHead>
+                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("source")}>
+                    Source <SortIcon column="source" sort={sort} order={order} />
+                  </TableHead>
+                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("sequence_step")}>
+                    Etape <SortIcon column="sequence_step" sort={sort} order={order} />
+                  </TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.map((task) => (
+                  <TableRow key={task.id}>
+                    <TableCell>
+                      <Link
+                        href={`/tasks/${encodeURIComponent(task.id)}`}
+                        className="font-medium text-foreground underline-offset-2 hover:underline"
+                      >
+                        {task.title}
+                      </Link>
+                      <div className="text-xs text-muted-foreground">#{task.id}</div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={task.status === "Done" ? "default" : "secondary"}>
+                        {task.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={priorityClass(task.priority)}>
+                        {task.priority}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{formatDateFr(task.due_date || null)}</TableCell>
+                    <TableCell>{task.assigned_to}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{channelLabel(task.channel)}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={task.source === "auto-rule" ? "default" : "secondary"}>
+                        {sourceLabel(task.source)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm">{task.sequence_step || 1}</span>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="size-8">
+                            <IconDotsVertical className="size-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-56">
+                          <DropdownMenuItem onClick={() => convertTaskToProject(task)}>
+                            <IconFolderUp className="size-4" />
+                            Convertir en projet
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => openEdit(task)}>
+                            <IconPencil className="size-4" />
+                            Modifier
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => deleteTask(task)}>
+                            <IconTrash className="size-4" />
+                            Supprimer
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {data.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={9} className="py-8 text-center text-sm text-muted-foreground">
+                      Aucune tache ne correspond a votre recherche.
+                    </TableCell>
+                  </TableRow>
+                ) : null}
+              </TableBody>
+            </Table>
+          </div>
+        }
+      />
 
-      <div className="flex items-center justify-end space-x-2 py-2">
+      <div className="flex flex-col gap-2 py-2 sm:flex-row sm:items-center sm:justify-end sm:space-x-2">
         <Button
           variant="outline"
           size="sm"
+          className="w-full sm:w-auto"
           onClick={() => onPageChange(page - 1)}
           disabled={page <= 1}
         >
           Precedent
         </Button>
-        <div className="flex-1 text-center text-sm text-muted-foreground">
+        <div className="text-center text-sm text-muted-foreground sm:flex-1">
           Page {page} sur {maxPage}
         </div>
         <Button
           variant="outline"
           size="sm"
+          className="w-full sm:w-auto"
           onClick={() => onPageChange(page + 1)}
           disabled={page >= maxPage}
         >

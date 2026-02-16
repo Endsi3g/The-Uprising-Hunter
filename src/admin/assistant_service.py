@@ -6,7 +6,6 @@ and pauses on dangerous ones pending user confirmation.
 
 from __future__ import annotations
 
-import json
 import os
 import uuid
 from datetime import datetime
@@ -19,6 +18,7 @@ from ..core.db_models import DBLead, DBNotification, DBTask
 from ..core.logging import get_logger
 from ..scoring.engine import ScoringEngine
 from ..core.models import Company, Lead, LeadStatus
+from .ollama_service import chat_completion, parse_json_from_text
 
 from . import assistant_store as store
 from . import campaign_service
@@ -54,60 +54,105 @@ def _khoj_token() -> str:
     return os.getenv("KHOJ_API_BEARER_TOKEN", "")
 
 
+def _ollama_fallback_enabled() -> bool:
+    raw = str(os.getenv("OLLAMA_ASSISTANT_FALLBACK_ENABLED", "true")).strip().lower()
+    return raw not in {"0", "false", "off", "no"}
+
+
+def _call_ollama_planner(prompt: str, config: dict[str, Any] | None = None) -> AssistantPlan:
+    cfg = config or {}
+    ollama_cfg = cfg.get("ollama_config") if isinstance(cfg.get("ollama_config"), dict) else {}
+    source = cfg.get("source", "apify")
+    max_leads = cfg.get("max_leads", 20)
+    auto_confirm = cfg.get("auto_confirm", True)
+
+    system_prompt = (
+        "Tu es un assistant de prospection B2B. "
+        "Reponds UNIQUEMENT en JSON valide avec ce schema: "
+        '{"actions":[{"action_type":"...","entity_type":"...","payload":{},"requires_confirm":false}],"summary":"..."}'
+    )
+    user_prompt = (
+        f"Instruction: {prompt}\n"
+        f"Contrainte source: {source}\n"
+        f"Contrainte max_leads: {max_leads}\n"
+        f"Contrainte auto_confirm: {auto_confirm}\n"
+        "Action types autorises: source_leads, create_lead, create_task, nurture, rescore, delete_lead, research.\n"
+        "Entity types: lead, task, project.\n"
+        "Regles: requires_confirm=true pour delete_lead ou actions destructives."
+    )
+    content = chat_completion(
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        config=ollama_cfg,
+        config_model_key="model_assistant",
+        env_model_key="OLLAMA_MODEL_ASSISTANT",
+        temperature=0.15,
+        max_tokens=900,
+    )
+    parsed = parse_json_from_text(content)
+    if not isinstance(parsed, dict):
+        raise RuntimeError("Ollama planner returned non-JSON payload.")
+    return AssistantPlan(**parsed)
+
+
 def call_khoj(prompt: str, config: dict[str, Any] | None = None) -> AssistantPlan:
     """Send a natural-language prompt to Khoj and parse the structured plan.
 
     Falls back to a deterministic mock plan when Khoj is not configured.
     """
     base_url = _khoj_base_url()
-    if not base_url:
-        logger.info("Khoj not configured – returning mock plan")
-        return _mock_plan(prompt, config)
+    if base_url:
+        try:
+            system_prompt = (
+                "Tu es un assistant de prospection B2B. "
+                "Réponds UNIQUEMENT en JSON valide avec la structure: "
+                '{"actions": [{"action_type": "...", "entity_type": "...", "payload": {...}, "requires_confirm": false}], '
+                '"summary": "..."}\n'
+                "action_type possibles: source_leads, create_lead, create_task, nurture, rescore, delete_lead, research.\n"
+                "entity_type possibles: lead, task, project.\n"
+                "Marque requires_confirm=true pour les suppressions et actions bulk."
+            )
+            payload = {
+                "q": prompt,
+                "create_new": True,
+                "system_prompt": system_prompt,
+            }
+            headers = {"Content-Type": "application/json"}
+            token = _khoj_token()
+            if token:
+                headers["Authorization"] = f"Bearer {token}"
 
-    try:
-        system_prompt = (
-            "Tu es un assistant de prospection B2B. "
-            "Réponds UNIQUEMENT en JSON valide avec la structure: "
-            '{"actions": [{"action_type": "...", "entity_type": "...", "payload": {...}, "requires_confirm": false}], '
-            '"summary": "..."}\n'
-            "action_type possibles: source_leads, create_lead, create_task, nurture, rescore, delete_lead, research.\n"
-            "entity_type possibles: lead, task, project.\n"
-            "Marque requires_confirm=true pour les suppressions et actions bulk."
-        )
-        payload = {
-            "q": prompt,
-            "create_new": True,
-            "system_prompt": system_prompt,
-        }
-        headers = {"Content-Type": "application/json"}
-        token = _khoj_token()
-        if token:
-            headers["Authorization"] = f"Bearer {token}"
+            resp = requests.post(
+                f"{base_url.rstrip('/')}/api/chat",
+                json=payload,
+                headers=headers,
+                timeout=60,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            raw_text = data.get("response", "") if isinstance(data, dict) else str(data)
+            parsed = parse_json_from_text(raw_text)
+            if not isinstance(parsed, dict):
+                raise RuntimeError("Khoj returned invalid JSON payload.")
+            logger.info("Assistant planner source selected.", extra={"planner_source": "khoj"})
+            return AssistantPlan(**parsed)
+        except Exception as exc:
+            logger.warning("Khoj call failed. Trying Ollama fallback.", extra={"error": str(exc)})
+    else:
+        logger.info("Khoj not configured. Trying Ollama fallback.")
 
-        resp = requests.post(
-            f"{base_url.rstrip('/')}/api/chat",
-            json=payload,
-            headers=headers,
-            timeout=60,
-        )
-        resp.raise_for_status()
-        data = resp.json()
+    if _ollama_fallback_enabled():
+        try:
+            plan = _call_ollama_planner(prompt, config)
+            logger.info("Assistant planner source selected.", extra={"planner_source": "ollama"})
+            return plan
+        except Exception as exc:
+            logger.warning("Ollama fallback planner failed. Using mock planner.", extra={"error": str(exc)})
 
-        # Khoj returns {"response": "..."} – parse the inner JSON
-        raw_text = data.get("response", "") if isinstance(data, dict) else str(data)
-        # Strip markdown fences if present
-        cleaned = raw_text.strip()
-        if cleaned.startswith("```"):
-            cleaned = cleaned.split("\n", 1)[-1]
-            if cleaned.endswith("```"):
-                cleaned = cleaned[:-3]
-            cleaned = cleaned.strip()
-
-        plan_data = json.loads(cleaned)
-        return AssistantPlan(**plan_data)
-    except Exception as exc:
-        logger.error("Khoj call failed: %s", exc)
-        raise RuntimeError(f"Khoj indisponible: {exc}") from exc
+    logger.info("Assistant planner source selected.", extra={"planner_source": "mock"})
+    return _mock_plan(prompt, config)
 
 
 def _mock_plan(prompt: str, config: dict[str, Any] | None = None) -> AssistantPlan:
@@ -142,13 +187,25 @@ def execute_plan(
     run_id: str,
     plan: AssistantPlan,
     auto_confirm: bool = True,
+    runtime_config: dict[str, Any] | None = None,
 ) -> None:
     """Persist actions from the plan, then execute safe ones immediately."""
     store.start_run(db, run_id)
 
+    runtime_cfg = runtime_config if isinstance(runtime_config, dict) else {}
+    runtime_ollama_config = (
+        runtime_cfg.get("ollama_config")
+        if isinstance(runtime_cfg.get("ollama_config"), dict)
+        else {}
+    )
+
     # Tag dangerous actions
     specs: list[AssistantActionSpec] = []
     for action in plan.actions:
+        if action.action_type == "research" and runtime_ollama_config:
+            merged_payload = dict(action.payload or {})
+            merged_payload.setdefault("ollama_config", runtime_ollama_config)
+            action.payload = merged_payload
         if action.action_type in DANGEROUS_ACTION_TYPES:
             action.requires_confirm = True
         elif not auto_confirm:
@@ -365,11 +422,21 @@ def _handle_research(db: Session, payload: dict[str, Any]) -> dict[str, Any]:
 
     query = payload.get("query", "")
     limit = payload.get("limit", 3)
-    provider = payload.get("provider", "perplexity")
+    provider = str(payload.get("provider", "perplexity") or "perplexity").strip().lower()
+    raw_ollama_config = payload.get("ollama_config")
+    ollama_config = raw_ollama_config if isinstance(raw_ollama_config, dict) else {}
+    if not ollama_config:
+        ollama_config = {
+            "api_base_url": os.getenv("OLLAMA_API_BASE_URL", ""),
+            "api_key_env": "OLLAMA_API_KEY",
+            "model_research": os.getenv("OLLAMA_MODEL_RESEARCH", "llama3.1:8b-instruct"),
+            "timeout_seconds": os.getenv("OLLAMA_TIMEOUT_SECONDS", "25"),
+        }
 
     if not query:
         return {"skipped": True, "reason": "No query provided"}
 
+    ollama_enabled = bool(str(ollama_config.get("api_base_url") or "").strip()) or provider == "ollama"
     results = run_web_research(
         query=query,
         limit=limit,
@@ -378,6 +445,7 @@ def _handle_research(db: Session, payload: dict[str, Any]) -> dict[str, Any]:
             "perplexity": {"enabled": True},
             "duckduckgo": {"enabled": True},
             "firecrawl": {"enabled": True},
+            "ollama": {"enabled": ollama_enabled, "config": ollama_config},
         },
     )
     return {

@@ -42,12 +42,35 @@ Error envelope (all admin/API v1 errors):
   - `has_email`, `has_phone`, `has_linkedin`
   - `created_from`, `created_to`, `last_scored_from`, `last_scored_to` (ISO datetime)
 - `POST /api/v1/admin/leads`
+- `POST /api/v1/admin/leads/{lead_id}/stage-transition`
+- `POST /api/v1/admin/leads/{lead_id}/reassign`
 
 ## Tasks
 - `GET /api/v1/admin/tasks`
 - `POST /api/v1/admin/tasks`
 - `PATCH /api/v1/admin/tasks/{task_id}`
 - `DELETE /api/v1/admin/tasks/{task_id}`
+- `POST /api/v1/admin/tasks/bulk-assign`
+
+## Funnel / Workload / Handoffs
+- `GET /api/v1/admin/funnel/config`
+- `PUT /api/v1/admin/funnel/config`
+- `GET /api/v1/admin/workload/owners`
+- `GET /api/v1/admin/conversion/funnel?days=30`
+- `POST /api/v1/admin/handoffs`
+
+## Recommendations
+- `GET /api/v1/admin/recommendations?status=pending&limit=50&offset=0`
+- `POST /api/v1/admin/recommendations/{recommendation_id}/apply`
+- `POST /api/v1/admin/recommendations/{recommendation_id}/dismiss`
+
+## Opportunities
+- `GET /api/v1/admin/opportunities`
+- `GET /api/v1/admin/opportunities/summary`
+- `POST /api/v1/admin/opportunities`
+- `POST /api/v1/admin/opportunities/{opportunity_id}/stage-transition`
+- `PATCH /api/v1/admin/opportunities/{opportunity_id}`
+- `DELETE /api/v1/admin/opportunities/{opportunity_id}`
 
 ## Sequences
 - `POST /api/v1/admin/sequences`
@@ -68,6 +91,7 @@ Error envelope (all admin/API v1 errors):
 
 ## Content generation
 - `POST /api/v1/admin/content/generate`
+  - `provider`: `deterministic` or `ollama`
 
 ## Enrichment
 - `POST /api/v1/admin/enrichment/run`
@@ -85,6 +109,7 @@ Error envelope (all admin/API v1 errors):
 - `PUT /api/v1/admin/settings`
 - `GET /api/v1/admin/search?q=...&limit=...`
 - `GET /api/v1/admin/research/web?q=...&provider=auto&limit=8`
+  - research providers: `auto`, `duckduckgo`, `perplexity`, `firecrawl`, `ollama`
 - `GET /api/v1/admin/help`
 
 ## Import CSV

@@ -24,6 +24,7 @@ import {
 type MockScenario = "balanced" | "empty" | "ops_overload" | "conversion_peak"
 
 const STORAGE_KEY = "prospect:mockScenario"
+const FORCE_MOCK_STORAGE_KEY = "prospect:forceMock"
 const SCENARIOS: Array<{ value: MockScenario; label: string; description: string }> = [
   { value: "balanced", label: "Balanced", description: "Jeu de donnees standard pour navigation complete." },
   { value: "empty", label: "Empty", description: "Scenario vide pour valider les etats sans donnees." },
@@ -41,6 +42,7 @@ function normalizeScenario(raw: string | null | undefined): MockScenario {
 
 export default function DevSettingsPage() {
   const [scenario, setScenario] = React.useState<MockScenario>("balanced")
+  const [forceMock, setForceMock] = React.useState(false)
 
   React.useEffect(() => {
     if (typeof window === "undefined") return
@@ -48,7 +50,9 @@ export default function DevSettingsPage() {
     const fromQuery = normalizeScenario(params.get("mockScenario") || params.get("mock_scenario"))
     const fromStorage = normalizeScenario(window.localStorage.getItem(STORAGE_KEY))
     const next = fromQuery !== "balanced" ? fromQuery : fromStorage
+    const forced = window.localStorage.getItem(FORCE_MOCK_STORAGE_KEY) === "true"
     setScenario(next)
+    setForceMock(forced)
   }, [])
 
   function saveScenario() {
@@ -62,6 +66,20 @@ export default function DevSettingsPage() {
     window.localStorage.removeItem(STORAGE_KEY)
     setScenario("balanced")
     toast.success("Scenario mock reinitialise (balanced).")
+  }
+
+  function activateForceMock() {
+    if (typeof window === "undefined") return
+    window.localStorage.setItem(FORCE_MOCK_STORAGE_KEY, "true")
+    setForceMock(true)
+    toast.success("Mode fake stats active pour localhost.")
+  }
+
+  function disableForceMock() {
+    if (typeof window === "undefined") return
+    window.localStorage.removeItem(FORCE_MOCK_STORAGE_KEY)
+    setForceMock(false)
+    toast.success("Mode fake stats desactive.")
   }
 
   const selectedMeta = SCENARIOS.find((item) => item.value === scenario)
@@ -78,13 +96,33 @@ export default function DevSettingsPage() {
       <AppSidebar variant="inset" />
       <SidebarInset>
         <SiteHeader />
-        <div className="flex flex-1 flex-col gap-6 p-4 pt-0 md:p-8">
+        <div className="flex flex-1 flex-col gap-6 p-3 pt-0 sm:p-4 sm:pt-0 lg:p-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-3xl font-bold tracking-tight">Parametres Dev</h2>
             <Button asChild variant="outline">
               <Link href="/settings">Retour Parametres</Link>
             </Button>
           </div>
+
+          <Card className="max-w-3xl">
+            <CardHeader>
+              <CardTitle>Mode fake stats global</CardTitle>
+              <CardDescription>
+                Force les mocks sur toute l&apos;app locale, meme si l&apos;API backend est disponible.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="rounded-lg border p-3 text-sm">
+                Statut: <span className="font-medium">{forceMock ? "Actif" : "Inactif"}</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button onClick={activateForceMock} disabled={forceMock}>Activer fake stats</Button>
+                <Button type="button" variant="outline" onClick={disableForceMock} disabled={!forceMock}>
+                  Desactiver
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
 
           <Card className="max-w-3xl">
             <CardHeader>
@@ -145,3 +183,4 @@ export default function DevSettingsPage() {
     </SidebarProvider>
   )
 }
+

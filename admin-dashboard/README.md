@@ -49,6 +49,11 @@ NEXT_PUBLIC_AUTO_MOCK_LOCALHOST=false
 NEXT_PUBLIC_USE_MOCK=true
 ```
 
+- Forcer le mode mock sans redemarrage (runtime, localhost):
+  - Aller sur `/settings/dev`
+  - Utiliser `Activer fake stats`
+  - Le flag est stocke dans `localStorage` (`prospect:forceMock`)
+
 - Choisir le scenario mock par defaut (volume/comportement):
 
 ```dotenv

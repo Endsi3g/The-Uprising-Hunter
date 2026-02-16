@@ -66,6 +66,7 @@ from . import assistant_store as _ast_store
 from . import campaign_service as _campaign_svc
 from . import content_service as _content_svc
 from . import enrichment_service as _enrichment_svc
+from . import funnel_service as _funnel_svc
 from .assistant_types import AssistantConfirmRequest, AssistantRunRequest
 from .diagnostics_service import (
     get_latest_autofix,
@@ -147,6 +148,24 @@ DEFAULT_INTEGRATION_CATALOG: dict[str, dict[str, Any]] = {
             "description": "Structured crawl and extraction from live web pages.",
         },
     },
+    "ollama": {
+        "enabled": False,
+        "config": {
+            "api_base_url": "",
+            "api_key_env": "OLLAMA_API_KEY",
+            "model_research": "llama3.1:8b-instruct",
+            "model_content": "llama3.1:8b-instruct",
+            "model_assistant": "llama3.1:8b-instruct",
+            "temperature": 0.2,
+            "max_tokens": 700,
+            "timeout_seconds": 25,
+        },
+        "meta": {
+            "category": "ai",
+            "free_tier": "Open-source self-hosted model runtime",
+            "description": "Hosted Ollama instance for online open-source AI inference.",
+        },
+    },
     "slack": {
         "enabled": False,
         "config": {"webhook": ""},
@@ -209,6 +228,14 @@ REPORT_FORMATS = {"pdf", "csv"}
 SYNC_STALE_WARNING_SECONDS = 5 * 60
 SYNC_STALE_ERROR_SECONDS = 30 * 60
 INTEGRITY_STALE_UNSCORED_DAYS = 14
+FUNNEL_CONFIG_SETTING_KEY = "funnel_config"
+DEFAULT_FUNNEL_CONFIG: dict[str, Any] = {
+    "stages": list(_funnel_svc.CANONICAL_STAGES),
+    "terminal_stages": sorted(list(_funnel_svc.TERMINAL_STAGES)),
+    "stage_sla_hours": dict(_funnel_svc.STAGE_SLA_HOURS),
+    "next_action_hours": dict(_funnel_svc.NEXT_ACTION_HOURS),
+    "model": "canonical_v1",
+}
 
 
 class InMemoryRateLimiter:
@@ -477,6 +504,49 @@ class AdminLeadAutoTaskCreateRequest(BaseModel):
     assigned_to: str | None = None
 
 
+class AdminLeadStageTransitionRequest(BaseModel):
+    to_stage: str = Field(min_length=2)
+    reason: str | None = None
+    source: str = "manual"
+    sync_legacy: bool = True
+
+
+class AdminOpportunityStageTransitionRequest(BaseModel):
+    to_stage: str = Field(min_length=2)
+    reason: str | None = None
+    source: str = "manual"
+
+
+class AdminLeadReassignRequest(BaseModel):
+    owner_user_id: str | None = None
+    owner_email: EmailStr | None = None
+    owner_display_name: str | None = None
+    reason: str | None = None
+
+
+class AdminTaskBulkAssignRequest(BaseModel):
+    task_ids: list[str] = Field(default_factory=list)
+    assigned_to: str = Field(min_length=1)
+    reason: str | None = None
+
+
+class AdminFunnelConfigUpdatePayload(BaseModel):
+    stages: list[str] | None = None
+    terminal_stages: list[str] | None = None
+    stage_sla_hours: dict[str, int] | None = None
+    next_action_hours: dict[str, int] | None = None
+    model: str | None = None
+
+
+class AdminHandoffCreateRequest(BaseModel):
+    lead_id: str | None = None
+    opportunity_id: str | None = None
+    to_user_id: str | None = None
+    to_user_email: EmailStr | None = None
+    to_user_display_name: str | None = None
+    note: str | None = None
+
+
 class AdminProjectCreateRequest(BaseModel):
     name: str = Field(min_length=1)
     description: str | None = None
@@ -720,7 +790,7 @@ class EnrichmentRunRequest(BaseModel):
 class ResearchRequest(BaseModel):
     query: str
     limit: int = 5
-    provider: str = "perplexity"  # perplexity, duckduckgo, firecrawl
+    provider: str = "perplexity"  # perplexity, duckduckgo, firecrawl, ollama
 
 
 class AdminAuthLoginRequest(BaseModel):
@@ -1986,6 +2056,15 @@ def _db_to_lead(db_lead: DBLead) -> Lead:
         interactions=interactions,
         outcome=db_lead.outcome,
         stage=db_lead.stage or LeadStage.NEW,
+        stage_canonical=_funnel_svc.canonical_from_lead(db_lead),
+        lead_owner_user_id=db_lead.lead_owner_user_id,
+        stage_entered_at=db_lead.stage_entered_at,
+        sla_due_at=db_lead.sla_due_at,
+        next_action_at=db_lead.next_action_at,
+        confidence_score=float(db_lead.confidence_score or 0.0),
+        playbook_id=db_lead.playbook_id,
+        handoff_required=bool(db_lead.handoff_required),
+        handoff_completed_at=db_lead.handoff_completed_at,
         details=db_lead.details or {},
         tags=db_lead.tags or [],
         created_at=db_lead.created_at,
@@ -2000,6 +2079,8 @@ def _serialize_task_lead_summary(lead: DBLead) -> dict[str, Any]:
         "name": full_name,
         "email": lead.email,
         "status": lead.status.value if hasattr(lead.status, "value") else str(lead.status),
+        "stage_canonical": _funnel_svc.canonical_from_lead(lead),
+        "owner_user_id": lead.lead_owner_user_id,
         "company_name": lead.company.name if lead.company else None,
         "total_score": float(lead.total_score or 0.0),
         "tier": lead.tier or "Tier D",
@@ -2094,13 +2175,22 @@ def _serialize_opportunity(opportunity: DBOpportunity) -> dict[str, Any]:
         "prospect_id": opportunity.lead_id,
         "name": opportunity.name,
         "stage": opportunity.stage,
+        "stage_canonical": _funnel_svc.canonical_from_opportunity(opportunity),
         "status": opportunity.status,
+        "owner_user_id": opportunity.owner_user_id,
         "amount": float(opportunity.amount) if opportunity.amount is not None else None,
         "probability": int(opportunity.probability or 0),
         "assigned_to": _coerce_assigned_to(opportunity.assigned_to),
         "expected_close_date": close_date,
         "close_date": close_date,
         "details": dict(opportunity.details_json or {}),
+        "stage_entered_at": opportunity.stage_entered_at.isoformat() if opportunity.stage_entered_at else None,
+        "sla_due_at": opportunity.sla_due_at.isoformat() if opportunity.sla_due_at else None,
+        "next_action_at": opportunity.next_action_at.isoformat() if opportunity.next_action_at else None,
+        "confidence_score": float(opportunity.confidence_score or 0.0),
+        "playbook_id": opportunity.playbook_id,
+        "handoff_required": bool(opportunity.handoff_required),
+        "handoff_completed_at": opportunity.handoff_completed_at.isoformat() if opportunity.handoff_completed_at else None,
         "created_at": opportunity.created_at.isoformat() if opportunity.created_at else None,
         "updated_at": opportunity.updated_at.isoformat() if opportunity.updated_at else None,
     }
@@ -2161,7 +2251,10 @@ def _create_lead_payload(db: Session, payload: AdminLeadCreateRequest) -> dict[s
         status=_coerce_lead_status(payload.status),
         segment=(payload.segment or "General").strip(),
         stage=LeadStage.NEW,
+        stage_canonical="new",
+        stage_entered_at=datetime.utcnow(),
     )
+    _funnel_svc.ensure_lead_funnel_defaults(db, db_lead)
     db.add(db_lead)
     try:
         db.commit()
@@ -2180,6 +2273,8 @@ def _create_lead_payload(db: Session, payload: AdminLeadCreateRequest) -> dict[s
         "first_name": db_lead.first_name,
         "last_name": db_lead.last_name,
         "status": db_lead.status.value if hasattr(db_lead.status, "value") else str(db_lead.status),
+        "stage_canonical": db_lead.stage_canonical or "new",
+        "lead_owner_user_id": db_lead.lead_owner_user_id,
         "segment": db_lead.segment,
         "company_name": company.name,
         "created_at": db_lead.created_at.isoformat() if db_lead.created_at else None,
@@ -2251,6 +2346,18 @@ def _apply_lead_update_payload(
         current_status = db_lead.status.value if hasattr(db_lead.status, "value") else str(db_lead.status)
         track_change("status", current_status, next_status.value)
         db_lead.status = next_status
+        mapped_stage = _funnel_svc.LEGACY_STATUS_TO_CANONICAL.get(next_status.value)
+        if mapped_stage:
+            track_change("stage_canonical", db_lead.stage_canonical, mapped_stage)
+            db_lead.stage_canonical = mapped_stage
+            now = datetime.utcnow()
+            db_lead.stage_entered_at = now
+            db_lead.sla_due_at = now + timedelta(
+                hours=int(_funnel_svc.STAGE_SLA_HOURS.get(mapped_stage, 24))
+            )
+            db_lead.next_action_at = now + timedelta(
+                hours=int(_funnel_svc.NEXT_ACTION_HOURS.get(mapped_stage, 8))
+            )
 
     if "segment" in update_data:
         next_value = (payload.segment or "").strip() or None
@@ -2292,6 +2399,8 @@ def _apply_lead_update_payload(
             next_location = (payload.company_location or "").strip() or None
             track_change("company_location", company.location, next_location)
             company.location = next_location
+
+    _funnel_svc.ensure_lead_funnel_defaults(db, db_lead)
 
     try:
         db.commit()
@@ -2997,6 +3106,8 @@ def _create_lead_opportunity_payload(
         name=payload.name.strip(),
         stage=stage,
         status=status_value,
+        stage_canonical=_funnel_svc.LEGACY_OPPORTUNITY_STAGE_TO_CANONICAL.get(stage.lower(), "opportunity"),
+        stage_entered_at=datetime.utcnow(),
         amount=float(payload.amount) if payload.amount is not None else None,
         probability=int(payload.probability or 10),
         assigned_to="Vous",
@@ -3048,6 +3159,11 @@ def _update_lead_opportunity_payload(
         next_stage = _coerce_opportunity_stage(payload.stage)
         track_change("stage", row.stage, next_stage)
         row.stage = next_stage
+        row.stage_canonical = _funnel_svc.LEGACY_OPPORTUNITY_STAGE_TO_CANONICAL.get(
+            str(next_stage).lower(),
+            "opportunity",
+        )
+        row.stage_entered_at = datetime.utcnow()
     if "status" in update_data:
         next_status = _coerce_opportunity_status(payload.status)
         track_change("status", row.status, next_status)
@@ -3116,9 +3232,13 @@ def _serialize_opportunity_board_item(
         "prospect_name": prospect_name,
         "amount": float(opportunity.amount or 0.0),
         "stage": _coerce_pipeline_opportunity_stage(opportunity.stage),
+        "stage_canonical": _funnel_svc.canonical_from_opportunity(opportunity),
         "probability": int(opportunity.probability or 0),
         "assigned_to": _coerce_assigned_to(opportunity.assigned_to),
+        "owner_user_id": opportunity.owner_user_id,
         "close_date": close_date,
+        "next_action_at": opportunity.next_action_at.isoformat() if opportunity.next_action_at else None,
+        "sla_due_at": opportunity.sla_due_at.isoformat() if opportunity.sla_due_at else None,
         "created_at": opportunity.created_at.isoformat() if opportunity.created_at else None,
         "updated_at": opportunity.updated_at.isoformat() if opportunity.updated_at else None,
         "is_overdue": bool(opportunity.expected_close_date and opportunity.expected_close_date < datetime.utcnow()),
@@ -3368,6 +3488,12 @@ def _create_opportunity_payload(
         name=opportunity_name,
         stage=stage_value,
         status=status_value,
+        owner_user_id=lead.lead_owner_user_id,
+        stage_canonical=_funnel_svc.LEGACY_OPPORTUNITY_STAGE_TO_CANONICAL.get(
+            str(stage_value).strip().lower(),
+            "opportunity",
+        ),
+        stage_entered_at=datetime.utcnow(),
         amount=float(payload.amount),
         probability=int(payload.probability),
         assigned_to=_coerce_assigned_to(payload.assigned_to),
@@ -3407,6 +3533,11 @@ def _update_opportunity_payload(
     if "stage" in update_data and payload.stage is not None:
         row.stage = _coerce_pipeline_opportunity_stage(payload.stage)
         row.status = _infer_opportunity_status_from_stage(row.stage)
+        row.stage_canonical = _funnel_svc.LEGACY_OPPORTUNITY_STAGE_TO_CANONICAL.get(
+            str(row.stage).strip().lower(),
+            "opportunity",
+        )
+        row.stage_entered_at = datetime.utcnow()
     if "amount" in update_data:
         row.amount = float(payload.amount) if payload.amount is not None else 0.0
     if "probability" in update_data:
@@ -4089,6 +4220,95 @@ def _save_admin_settings_payload(db: Session, payload: AdminSettingsPayload) -> 
         ) from exc
 
     return _get_admin_settings_payload(db)
+
+
+def _normalize_funnel_config_payload(raw_value: Any) -> dict[str, Any]:
+    payload = dict(DEFAULT_FUNNEL_CONFIG)
+    if isinstance(raw_value, dict):
+        payload.update(raw_value)
+
+    payload["stages"] = [
+        _funnel_svc.normalize_stage(item)
+        for item in (payload.get("stages") or list(_funnel_svc.CANONICAL_STAGES))
+        if str(item).strip()
+    ]
+    if not payload["stages"]:
+        payload["stages"] = list(_funnel_svc.CANONICAL_STAGES)
+
+    payload["terminal_stages"] = [
+        _funnel_svc.normalize_stage(item)
+        for item in (payload.get("terminal_stages") or list(_funnel_svc.TERMINAL_STAGES))
+        if str(item).strip()
+    ]
+    if not payload["terminal_stages"]:
+        payload["terminal_stages"] = sorted(list(_funnel_svc.TERMINAL_STAGES))
+
+    stage_sla_hours = payload.get("stage_sla_hours")
+    if not isinstance(stage_sla_hours, dict):
+        stage_sla_hours = dict(_funnel_svc.STAGE_SLA_HOURS)
+    normalized_sla: dict[str, int] = {}
+    for stage, hours in stage_sla_hours.items():
+        stage_key = str(stage).strip().lower()
+        if not stage_key:
+            continue
+        try:
+            normalized_sla[stage_key] = max(1, min(int(hours), 24 * 30))
+        except (TypeError, ValueError) as exc:
+            raise HTTPException(
+                status_code=HTTP_422_STATUS,
+                detail=f"Invalid stage_sla_hours value for '{stage_key}': {hours}",
+            ) from exc
+    payload["stage_sla_hours"] = normalized_sla
+
+    next_action_hours = payload.get("next_action_hours")
+    if not isinstance(next_action_hours, dict):
+        next_action_hours = dict(_funnel_svc.NEXT_ACTION_HOURS)
+    normalized_next_actions: dict[str, int] = {}
+    for stage, hours in next_action_hours.items():
+        stage_key = str(stage).strip().lower()
+        if not stage_key:
+            continue
+        try:
+            normalized_next_actions[stage_key] = max(1, min(int(hours), 24 * 14))
+        except (TypeError, ValueError) as exc:
+            raise HTTPException(
+                status_code=HTTP_422_STATUS,
+                detail=f"Invalid next_action_hours value for '{stage_key}': {hours}",
+            ) from exc
+    payload["next_action_hours"] = normalized_next_actions
+
+    payload["model"] = str(payload.get("model") or DEFAULT_FUNNEL_CONFIG["model"])
+    return payload
+
+
+def _get_funnel_config_payload(db: Session) -> dict[str, Any]:
+    row = db.query(DBAdminSetting).filter(DBAdminSetting.key == FUNNEL_CONFIG_SETTING_KEY).first()
+    return _normalize_funnel_config_payload(row.value_json if row else {})
+
+
+def _save_funnel_config_payload(db: Session, payload: AdminFunnelConfigUpdatePayload) -> dict[str, Any]:
+    existing = _get_funnel_config_payload(db)
+    updates = payload.model_dump(exclude_unset=True)
+    merged = {**existing, **updates}
+    normalized = _normalize_funnel_config_payload(merged)
+
+    row = db.query(DBAdminSetting).filter(DBAdminSetting.key == FUNNEL_CONFIG_SETTING_KEY).first()
+    if not row:
+        row = DBAdminSetting(key=FUNNEL_CONFIG_SETTING_KEY, value_json=normalized)
+        db.add(row)
+    else:
+        row.value_json = normalized
+
+    try:
+        db.commit()
+    except SQLAlchemyError as exc:
+        db.rollback()
+        logger.exception("Failed to persist funnel config.", extra={"error": str(exc)})
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to save funnel configuration.",
+        ) from exc
+    return normalized
 
 
 def _get_analytics_payload(db: Session) -> dict[str, Any]:
@@ -6297,6 +6517,269 @@ def create_app() -> FastAPI:
     def get_data_integrity_v1(db: Session = Depends(get_db)) -> dict[str, Any]:
         return _build_data_integrity_payload(db)
 
+    @admin_v1.get("/funnel/config")
+    def get_funnel_config_v1(db: Session = Depends(get_db)) -> dict[str, Any]:
+        return _get_funnel_config_payload(db)
+
+    @admin_v1.put("/funnel/config")
+    def update_funnel_config_v1(
+        payload: AdminFunnelConfigUpdatePayload,
+        actor: str = "admin",
+        db: Session = Depends(get_db),
+    ) -> dict[str, Any]:
+        saved = _save_funnel_config_payload(db, payload)
+        _audit_log(
+            db,
+            actor=actor,
+            action="funnel_config_updated",
+            entity_type="funnel",
+            entity_id="config",
+            metadata={"keys": sorted(payload.model_dump(exclude_unset=True).keys())},
+        )
+        return saved
+
+    @admin_v1.post("/leads/{lead_id}/stage-transition")
+    def transition_lead_stage_v1(
+        lead_id: str,
+        payload: AdminLeadStageTransitionRequest,
+        actor: str = "admin",
+        db: Session = Depends(get_db),
+    ) -> dict[str, Any]:
+        lead = _get_lead_or_404(db, lead_id)
+        event = _funnel_svc.transition_lead_stage(
+            db,
+            lead=lead,
+            to_stage=payload.to_stage,
+            actor=actor,
+            reason=payload.reason,
+            source=payload.source,
+            sync_legacy=payload.sync_legacy,
+        )
+        _audit_log(
+            db,
+            actor=actor,
+            action="lead_stage_transitioned",
+            entity_type="lead",
+            entity_id=lead_id,
+            metadata={
+                "from_stage": event.get("from_stage"),
+                "to_stage": event.get("to_stage"),
+                "reason": payload.reason,
+                "source": payload.source,
+            },
+        )
+        return {"lead": _db_to_lead(lead).model_dump(mode="json"), "event": event}
+
+    @admin_v1.post("/opportunities/{opportunity_id}/stage-transition")
+    def transition_opportunity_stage_v1(
+        opportunity_id: str,
+        payload: AdminOpportunityStageTransitionRequest,
+        actor: str = "admin",
+        db: Session = Depends(get_db),
+    ) -> dict[str, Any]:
+        opportunity = db.query(DBOpportunity).filter(DBOpportunity.id == opportunity_id).first()
+        if not opportunity:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Opportunity not found.")
+        event = _funnel_svc.transition_opportunity_stage(
+            db,
+            opportunity=opportunity,
+            to_stage=payload.to_stage,
+            actor=actor,
+            reason=payload.reason,
+            source=payload.source,
+        )
+        lead_event = None
+        if event.get("to_stage") in {"won", "post_sale", "lost", "disqualified"}:
+            lead = _get_lead_or_404(db, opportunity.lead_id)
+            lead_event = _funnel_svc.transition_lead_stage(
+                db,
+                lead=lead,
+                to_stage=event["to_stage"],
+                actor=actor,
+                reason=f"Synced from opportunity {opportunity_id}",
+                source="opportunity_sync",
+                sync_legacy=True,
+            )
+        _audit_log(
+            db,
+            actor=actor,
+            action="opportunity_stage_transitioned",
+            entity_type="opportunity",
+            entity_id=opportunity_id,
+            metadata={
+                "from_stage": event.get("from_stage"),
+                "to_stage": event.get("to_stage"),
+                "reason": payload.reason,
+                "source": payload.source,
+            },
+        )
+        lead = _get_lead_or_404(db, opportunity.lead_id)
+        return {
+            "opportunity": _serialize_opportunity_board_item(opportunity, lead=lead),
+            "event": event,
+            "lead_event": lead_event,
+        }
+
+    @admin_v1.get("/workload/owners")
+    def get_workload_owners_v1(db: Session = Depends(get_db)) -> dict[str, Any]:
+        return _funnel_svc.workload_by_owner(db)
+
+    @admin_v1.post("/leads/{lead_id}/reassign")
+    def reassign_lead_v1(
+        lead_id: str,
+        payload: AdminLeadReassignRequest,
+        actor: str = "admin",
+        db: Session = Depends(get_db),
+    ) -> dict[str, Any]:
+        lead = _get_lead_or_404(db, lead_id)
+        owner = _funnel_svc.resolve_owner_user(
+            db,
+            user_id=payload.owner_user_id,
+            email=str(payload.owner_email) if payload.owner_email else None,
+            display_name=payload.owner_display_name,
+        )
+        result = _funnel_svc.reassign_lead_owner(
+            db,
+            lead=lead,
+            owner_user=owner,
+            actor=actor,
+            reason=payload.reason,
+        )
+        _audit_log(
+            db,
+            actor=actor,
+            action="lead_reassigned",
+            entity_type="lead",
+            entity_id=lead_id,
+            metadata={"to_user_id": owner.id, "to_email": owner.email, "reason": payload.reason},
+        )
+        return result
+
+    @admin_v1.post("/tasks/bulk-assign")
+    def bulk_assign_tasks_v1(
+        payload: AdminTaskBulkAssignRequest,
+        actor: str = "admin",
+        db: Session = Depends(get_db),
+    ) -> dict[str, Any]:
+        result = _funnel_svc.bulk_assign_tasks(
+            db,
+            task_ids=payload.task_ids,
+            assigned_to=payload.assigned_to,
+            actor=actor,
+            reason=payload.reason,
+        )
+        _audit_log(
+            db,
+            actor=actor,
+            action="tasks_bulk_assigned",
+            entity_type="task",
+            entity_id="bulk",
+            metadata={
+                "updated": result.get("updated"),
+                "requested": result.get("requested"),
+                "assigned_to": payload.assigned_to,
+                "reason": payload.reason,
+            },
+        )
+        return result
+
+    @admin_v1.get("/recommendations")
+    def list_recommendations_v1(
+        db: Session = Depends(get_db),
+        status_filter: str = Query(default="pending", alias="status"),
+        limit: int = Query(default=50, ge=1, le=200),
+        offset: int = Query(default=0, ge=0),
+        seed: bool = Query(default=True),
+    ) -> dict[str, Any]:
+        return _funnel_svc.list_recommendations(
+            db,
+            status_filter=(status_filter or "").strip().lower(),
+            limit=limit,
+            offset=offset,
+            seed=seed,
+        )
+
+    @admin_v1.post("/recommendations/{recommendation_id}/apply")
+    def apply_recommendation_v1(
+        recommendation_id: str,
+        actor: str = "admin",
+        db: Session = Depends(get_db),
+    ) -> dict[str, Any]:
+        result = _funnel_svc.apply_recommendation(db, recommendation_id=recommendation_id, actor=actor)
+        _audit_log(
+            db,
+            actor=actor,
+            action="recommendation_applied",
+            entity_type="recommendation",
+            entity_id=recommendation_id,
+            metadata={"result": result.get("result")},
+        )
+        return result
+
+    @admin_v1.post("/recommendations/{recommendation_id}/dismiss")
+    def dismiss_recommendation_v1(
+        recommendation_id: str,
+        actor: str = "admin",
+        db: Session = Depends(get_db),
+    ) -> dict[str, Any]:
+        result = _funnel_svc.dismiss_recommendation(db, recommendation_id=recommendation_id, actor=actor)
+        _audit_log(
+            db,
+            actor=actor,
+            action="recommendation_dismissed",
+            entity_type="recommendation",
+            entity_id=recommendation_id,
+        )
+        return result
+
+    @admin_v1.post("/handoffs")
+    def create_handoff_v1(
+        payload: AdminHandoffCreateRequest,
+        actor: str = "admin",
+        db: Session = Depends(get_db),
+    ) -> dict[str, Any]:
+        lead = _get_lead_or_404(db, payload.lead_id) if payload.lead_id else None
+        opportunity = (
+            db.query(DBOpportunity).filter(DBOpportunity.id == payload.opportunity_id).first()
+            if payload.opportunity_id
+            else None
+        )
+        if payload.opportunity_id and opportunity is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Opportunity not found.")
+
+        to_user = None
+        if payload.to_user_id or payload.to_user_email or payload.to_user_display_name:
+            to_user = _funnel_svc.resolve_owner_user(
+                db,
+                user_id=payload.to_user_id,
+                email=str(payload.to_user_email) if payload.to_user_email else None,
+                display_name=payload.to_user_display_name,
+            )
+        result = _funnel_svc.create_handoff(
+            db,
+            lead=lead,
+            opportunity=opportunity,
+            to_user=to_user,
+            actor=actor,
+            note=payload.note,
+        )
+        _audit_log(
+            db,
+            actor=actor,
+            action="handoff_created",
+            entity_type=result.get("entity_type") or "handoff",
+            entity_id=result.get("entity_id"),
+            metadata={"to_user_id": to_user.id if to_user else None, "note": payload.note},
+        )
+        return result
+
+    @admin_v1.get("/conversion/funnel")
+    def get_conversion_funnel_v1(
+        db: Session = Depends(get_db),
+        days: int = Query(default=30, ge=1, le=365),
+    ) -> dict[str, Any]:
+        return _funnel_svc.conversion_funnel_summary(db, days=days)
+
     @admin_v1.get("/leads")
     def get_leads_v1(
         db: Session = Depends(get_db),
@@ -7251,6 +7734,18 @@ def create_app() -> FastAPI:
         actor: str = "admin",
         db: Session = Depends(get_db),
     ) -> dict[str, Any]:
+        provider_config: dict[str, Any] | None = None
+        if (payload.provider or "").strip().lower() == "ollama":
+            integrations = _list_integrations_payload(db).get("providers", {})
+            ollama_entry = integrations.get("ollama", {}) if isinstance(integrations, dict) else {}
+            if isinstance(ollama_entry, dict) and not bool(ollama_entry.get("enabled")):
+                raise HTTPException(
+                    status_code=HTTP_422_STATUS,
+                    detail="Ollama integration is disabled in settings.",
+                )
+            config_value = ollama_entry.get("config") if isinstance(ollama_entry, dict) else {}
+            provider_config = config_value if isinstance(config_value, dict) else {}
+
         generated = _content_svc.generate_content(
             db,
             lead_id=payload.lead_id,
@@ -7259,6 +7754,7 @@ def create_app() -> FastAPI:
             template_key=payload.template_key,
             context=payload.context,
             provider=payload.provider,
+            provider_config=provider_config,
         )
         _audit_log(
             db,
@@ -7799,6 +8295,15 @@ def create_app() -> FastAPI:
                     "perplexity": {"enabled": True},
                     "duckduckgo": {"enabled": True},
                     "firecrawl": {"enabled": True},
+                    "ollama": {
+                        "enabled": True,
+                        "config": {
+                            "api_base_url": os.getenv("OLLAMA_API_BASE_URL", ""),
+                            "api_key_env": "OLLAMA_API_KEY",
+                            "model_research": os.getenv("OLLAMA_MODEL_RESEARCH", "llama3.1:8b-instruct"),
+                            "timeout_seconds": os.getenv("OLLAMA_TIMEOUT_SECONDS", "25"),
+                        },
+                    },
                 },
             )
             return JSONResponse(results)
@@ -7813,10 +8318,18 @@ def create_app() -> FastAPI:
         admin_user: str = Depends(require_admin),
     ) -> dict:
         _check_prospect_enabled(db)
+        integrations_payload = _list_integrations_payload(db).get("providers", {})
+        ollama_entry = integrations_payload.get("ollama", {}) if isinstance(integrations_payload, dict) else {}
+        ollama_config = (
+            ollama_entry.get("config")
+            if isinstance(ollama_entry, dict) and bool(ollama_entry.get("enabled"))
+            else {}
+        )
         config = {
             "max_leads": body.max_leads,
             "source": body.source,
             "auto_confirm": body.auto_confirm,
+            "ollama_config": ollama_config if isinstance(ollama_config, dict) else {},
         }
         run = _ast_store.create_run(db, prompt=body.prompt, actor=admin_user, config=config)
         _audit_log(
@@ -7829,7 +8342,13 @@ def create_app() -> FastAPI:
         )
         try:
             plan = _ast_svc.call_khoj(body.prompt, config)
-            _ast_svc.execute_plan(db, run.id, plan, auto_confirm=body.auto_confirm)
+            _ast_svc.execute_plan(
+                db,
+                run.id,
+                plan,
+                auto_confirm=body.auto_confirm,
+                runtime_config=config,
+            )
         except Exception as exc:
             _ast_store.finish_run(db, run.id, status="failed", summary=str(exc))
             logger.error("Assistant run %s failed: %s", run.id, exc)
