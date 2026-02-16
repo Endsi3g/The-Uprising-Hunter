@@ -1,6 +1,3 @@
-Voici votre fichier README.md professionnel et parfaitement structuré :
-
-```markdown
 # 🚀 ProspectionApp
 
 **Système intelligent de Sales Intelligence B2B**
