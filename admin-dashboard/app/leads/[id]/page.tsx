@@ -145,6 +145,7 @@ export default function LeadDetailPage() {
   const dirtyRef = React.useRef<Set<keyof LeadDraft>>(new Set())
   const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
   const [saveState, setSaveState] = React.useState("idle")
+  const [isDraftValid, setIsDraftValid] = React.useState(true)
 
   const [quickTaskTitle, setQuickTaskTitle] = React.useState("")
   const [oppName, setOppName] = React.useState("")
@@ -200,8 +201,17 @@ export default function LeadDetailPage() {
 
   const saveLead = React.useCallback(async () => {
     if (!draft || !id || dirtyRef.current.size === 0) return
-    if (!draft.first_name.trim() || !draft.last_name.trim() || !draft.company_name.trim()) { setSaveState("error"); return }
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(draft.email.trim())) { setSaveState("error"); return }
+    if (!draft.first_name.trim() || !draft.last_name.trim() || !draft.company_name.trim()) {
+      setIsDraftValid(false)
+      setSaveState("error")
+      return
+    }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(draft.email.trim())) {
+      setIsDraftValid(false)
+      setSaveState("error")
+      return
+    }
+    setIsDraftValid(true)
     const payload: Record<string, unknown> = {}
     for (const field of dirtyRef.current.values()) {
       if (field === "tags_text") payload.tags = draft.tags_text.split(",").map((item) => item.trim()).filter(Boolean)
@@ -220,11 +230,11 @@ export default function LeadDetailPage() {
   }, [draft, id, mutateHistory, mutateLead])
 
   React.useEffect(() => {
-    if (!draft || dirtyRef.current.size === 0) return
+    if (!draft || dirtyRef.current.size === 0 || !isDraftValid) return
     if (timerRef.current) clearTimeout(timerRef.current)
     timerRef.current = setTimeout(() => void saveLead(), 850)
     return () => { if (timerRef.current) clearTimeout(timerRef.current) }
-  }, [draft, saveLead])
+  }, [draft, isDraftValid, saveLead])
 
   React.useEffect(() => {
     if (!notesDirty || !id) return
@@ -245,6 +255,7 @@ export default function LeadDetailPage() {
   const onField = <K extends keyof LeadDraft>(key: K, value: LeadDraft[K]) => {
     setDraft((current) => (current ? { ...current, [key]: value } : current))
     dirtyRef.current.add(key)
+    setIsDraftValid(true)
     setSaveState("idle")
   }
 
@@ -384,7 +395,7 @@ export default function LeadDetailPage() {
             <div className="space-y-4">
               <Tabs defaultValue="infos" className="space-y-4">
                 <TabsList className="flex w-full flex-wrap justify-start"><TabsTrigger value="infos">Infos</TabsTrigger><TabsTrigger value="interactions">Interactions timeline</TabsTrigger><TabsTrigger value="tasks">Taches</TabsTrigger><TabsTrigger value="opportunities">Opportunites</TabsTrigger><TabsTrigger value="notes">Notes</TabsTrigger></TabsList>
-                <TabsContent value="infos"><Card><CardHeader><CardTitle>Infos lead</CardTitle><CardDescription>Edition inline + autosave</CardDescription></CardHeader><CardContent className="grid gap-3 md:grid-cols-2"><Input value={draft.first_name} onChange={(e) => onField("first_name", e.target.value)} onBlur={() => void saveLead()} /><Input value={draft.last_name} onChange={(e) => onField("last_name", e.target.value)} onBlur={() => void saveLead()} /><Input value={draft.email} onChange={(e) => onField("email", e.target.value)} onBlur={() => void saveLead()} /><Input value={draft.phone} onChange={(e) => onField("phone", e.target.value)} onBlur={() => void saveLead()} /><Input value={draft.title} onChange={(e) => onField("title", e.target.value)} onBlur={() => void saveLead()} /><Input value={draft.linkedin_url} onChange={(e) => onField("linkedin_url", e.target.value)} onBlur={() => void saveLead()} /><select className="h-10 rounded-md border border-input bg-background px-3 text-sm" value={draft.status} onChange={(e) => onField("status", e.target.value)} onBlur={() => void saveLead()}>{STATUS_OPTIONS.map((item) => <option key={item} value={item}>{item}</option>)}</select><Input value={draft.segment} onChange={(e) => onField("segment", e.target.value)} onBlur={() => void saveLead()} /><Input value={draft.company_name} onChange={(e) => onField("company_name", e.target.value)} onBlur={() => void saveLead()} /><Input value={draft.company_domain} onChange={(e) => onField("company_domain", e.target.value)} onBlur={() => void saveLead()} /><Input value={draft.company_industry} onChange={(e) => onField("company_industry", e.target.value)} onBlur={() => void saveLead()} /><Input value={draft.company_location} onChange={(e) => onField("company_location", e.target.value)} onBlur={() => void saveLead()} /><Input className="md:col-span-2" value={draft.tags_text} onChange={(e) => onField("tags_text", e.target.value)} onBlur={() => void saveLead()} /></CardContent></Card></TabsContent>
+                <TabsContent value="infos"><Card><CardHeader><CardTitle>Infos lead</CardTitle><CardDescription>Edition inline + autosave</CardDescription></CardHeader><CardContent className="grid gap-3 md:grid-cols-2"><Input id="lead-first-name" name="first_name" aria-label="Prenom" placeholder="Prenom" value={draft.first_name} onChange={(e) => onField("first_name", e.target.value)} onBlur={() => void saveLead()} /><Input id="lead-last-name" name="last_name" aria-label="Nom" placeholder="Nom" value={draft.last_name} onChange={(e) => onField("last_name", e.target.value)} onBlur={() => void saveLead()} /><Input id="lead-email" name="email" aria-label="Email" placeholder="email@entreprise.com" value={draft.email} onChange={(e) => onField("email", e.target.value)} onBlur={() => void saveLead()} /><Input id="lead-phone" name="phone" aria-label="Telephone" placeholder="+1 514 555 0100" value={draft.phone} onChange={(e) => onField("phone", e.target.value)} onBlur={() => void saveLead()} /><Input id="lead-title" name="title" aria-label="Poste" placeholder="Titre du poste" value={draft.title} onChange={(e) => onField("title", e.target.value)} onBlur={() => void saveLead()} /><Input id="lead-linkedin" name="linkedin_url" aria-label="URL LinkedIn" placeholder="https://www.linkedin.com/in/..." value={draft.linkedin_url} onChange={(e) => onField("linkedin_url", e.target.value)} onBlur={() => void saveLead()} /><select id="lead-status" name="status" aria-label="Statut du lead" className="h-10 rounded-md border border-input bg-background px-3 text-sm" value={draft.status} onChange={(e) => onField("status", e.target.value)} onBlur={() => void saveLead()}><option value="">Selectionner un statut</option>{STATUS_OPTIONS.map((item) => <option key={item} value={item}>{item}</option>)}</select><Input id="lead-segment" name="segment" aria-label="Segment" placeholder="Segment" value={draft.segment} onChange={(e) => onField("segment", e.target.value)} onBlur={() => void saveLead()} /><Input id="lead-company-name" name="company_name" aria-label="Nom de l'entreprise" placeholder="Nom de l'entreprise" value={draft.company_name} onChange={(e) => onField("company_name", e.target.value)} onBlur={() => void saveLead()} /><Input id="lead-company-domain" name="company_domain" aria-label="Domaine de l'entreprise" placeholder="entreprise.com" value={draft.company_domain} onChange={(e) => onField("company_domain", e.target.value)} onBlur={() => void saveLead()} /><Input id="lead-company-industry" name="company_industry" aria-label="Secteur d'activite" placeholder="Secteur d'activite" value={draft.company_industry} onChange={(e) => onField("company_industry", e.target.value)} onBlur={() => void saveLead()} /><Input id="lead-company-location" name="company_location" aria-label="Localisation" placeholder="Ville, region" value={draft.company_location} onChange={(e) => onField("company_location", e.target.value)} onBlur={() => void saveLead()} /><Input id="lead-tags" name="tags_text" aria-label="Tags" placeholder="tag1, tag2" className="md:col-span-2" value={draft.tags_text} onChange={(e) => onField("tags_text", e.target.value)} onBlur={() => void saveLead()} /></CardContent></Card></TabsContent>
                 <TabsContent value="interactions"><Card><CardHeader><CardTitle>Timeline interactions</CardTitle></CardHeader><CardContent className="space-y-2">{interactionsLoading ? <Skeleton className="h-24 w-full" /> : null}{(interactions || []).length === 0 ? <p className="text-sm text-muted-foreground">Aucune interaction.</p> : null}{(interactions || []).map((item) => <div key={item.id} className="rounded-lg border p-3"><div className="flex items-center justify-between"><Badge variant="outline">{item.type}</Badge><span className="text-xs text-muted-foreground">{formatDateTimeFr(item.timestamp)}</span></div><p className="mt-1 text-xs text-muted-foreground">{JSON.stringify(item.details || {})}</p></div>)}</CardContent></Card></TabsContent>
                 <TabsContent value="tasks"><Card><CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between"><CardTitle>Taches</CardTitle><div className="flex gap-2"><Input value={quickTaskTitle} onChange={(e) => setQuickTaskTitle(e.target.value)} placeholder="Titre tache" /><Button onClick={() => void createTask()} disabled={busy}><IconPlus className="h-4 w-4" />Creer</Button></div></CardHeader><CardContent className="space-y-2">{tasksLoading ? <Skeleton className="h-24 w-full" /> : null}{(tasks || []).map((item) => <div key={item.id} className="flex items-center justify-between rounded-lg border p-3"><div><p className="font-medium">{item.title}</p><p className="text-xs text-muted-foreground">{item.status} | {item.priority}</p></div><span className="text-xs text-muted-foreground">{formatDateTimeFr(item.due_date || null)}</span></div>)}</CardContent></Card></TabsContent>
                 <TabsContent value="opportunities"><Card><CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between"><CardTitle>Opportunites</CardTitle><div className="grid w-full gap-2 sm:w-auto sm:grid-cols-[1fr_110px_150px_auto]"><Input value={oppName} onChange={(e) => setOppName(e.target.value)} placeholder="Nom" /><Input type="number" min={0} value={oppAmount} onChange={(e) => setOppAmount(e.target.value)} placeholder="Montant" /><select className="h-10 rounded-md border border-input bg-background px-3 text-sm" value={oppStage} onChange={(e) => setOppStage(e.target.value)}>{STAGE_OPTIONS.map((item) => <option key={item} value={item}>{item}</option>)}</select><Button onClick={() => void createOpportunity()} disabled={busy}><IconPlus className="h-4 w-4" />Ajouter</Button></div></CardHeader><CardContent className="space-y-2">{opportunitiesLoading ? <Skeleton className="h-24 w-full" /> : null}{(opportunities || []).map((item) => <div key={item.id} className="rounded-lg border p-3"><div className="flex items-center justify-between"><p className="font-medium">{item.name}</p><div className="flex gap-2"><Badge variant="outline">{item.stage}</Badge><Badge>{item.status}</Badge></div></div><p className="text-xs text-muted-foreground">Montant: {formatCurrencyFr(item.amount)} | Probabilite: {item.probability}% | Maj: {formatDateTimeFr(item.updated_at || null)}</p></div>)}</CardContent></Card></TabsContent>

@@ -39,7 +39,8 @@ def test_lead_communication_plan_auto_create_and_history(client, db_session):
     )
     assert plan_response.status_code == 200
     plan = plan_response.json()
-    assert plan["rule"]["id"]
+    assert "id" in plan["rule"]
+    assert isinstance(plan["rule"]["id"], int)
     assert len(plan["recommended_sequence"]) >= 1
 
     dry_run_response = client.post(

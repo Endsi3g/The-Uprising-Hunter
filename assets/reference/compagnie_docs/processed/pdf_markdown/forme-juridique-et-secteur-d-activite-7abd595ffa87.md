@@ -1,10 +1,14 @@
-# Forme juridique et secteur d_activité –...pdf
+# Forme juridique et secteur d'activité –...pdf
 
 - `doc_id`: `forme-juridique-et-secteur-d-activite-7abd595ffa87`
-- `source_path`: `C:\prospect\prospect\CompagnieDocs\Forme juridique et secteur d_activité –...pdf`
+- `source_path`: `./CompagnieDocs/Forme juridique et secteur d_activité –...pdf`
 - `sha256`: `7abd595ffa87c55c937f58f27abf0e1d6cc569dc71c7a8238621909e8a6e81f1`
 - `page_count`: `2`
-- `generated_at`: `2026-02-15T02:47:41.210322+00:00`
+- `generated_at`: `2026-02-16T05:35:38.089464+00:00`
+- `warnings`:
+  - `page_1_contains_i255_artifacts`
+  - `page_2_contains_i255_artifacts`
+  - `contains_i255_artifacts`
 
 ## Page 1
 

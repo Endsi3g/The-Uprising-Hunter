@@ -2303,7 +2303,7 @@ function handleJson(path: string, init?: RequestInit): unknown {
     const stale = (state.leads as any[]).filter((lead) => Date.parse(String(lead.score?.last_scored_at || 0)) < Date.now() - 14 * 86400000).length
     const unassigned = (state.tasks as any[]).filter((task) => !task.assigned_to).length
     return {
-      window: { label: days === 7 ? "7 jours" : days === 90 ? "90 jours" : windowRaw === "ytd" ? "Annee en cours" : "30 jours", days, from: new Date(fromMs).toISOString(), to: nowIso() },
+      window: { label: days === 7 ? "7 jours" : days === 90 ? "90 jours" : windowRaw === "ytd" ? "Année en cours" : "30 jours", days, from: new Date(fromMs).toISOString(), to: nowIso() },
       kpis: {
         leads_created_total: leads.length,
         leads_scored_total: leads.filter((lead) => Number(lead.total_score || 0) > 0).length,
@@ -2793,7 +2793,8 @@ export async function getMockBlobResponse(path: string, init?: RequestInit): Pro
     return new Blob([makeCsv((state.leads as any[]).map((l) => ({ id: l.id, first_name: l.first_name, last_name: l.last_name, email: l.email, company_name: l.company?.name || "", status: l.status })))], { type: "text/csv;charset=utf-8" })
   }
   if (url.pathname === "/api/v1/admin/reports/export/pdf") {
-    return new Blob([`PROSPECT MOCK REPORT\nGenerated at: ${nowIso()}\n`], { type: "application/pdf" })
+    return new Blob([`PROSPECT MOCK REPORT\nGenerated at: ${nowIso()}\n`], { type: "text/plain;charset=utf-8" })
   }
   throw new Error(`[MOCK] No blob mock data found for ${path}`)
 }
+

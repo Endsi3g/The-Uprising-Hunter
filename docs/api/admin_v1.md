@@ -23,6 +23,8 @@ Error envelope (all admin/API v1 errors):
 }
 ```
 
+`error.message` is the canonical field clients should use; `detail` is kept for backward compatibility with generic FastAPI error handlers.
+
 `x-request-id` is echoed in response headers and payload.
 
 ## Auth

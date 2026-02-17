@@ -214,15 +214,20 @@ export default function SystemsPage() {
   }
 
   async function refreshAll() {
-    await Promise.all([
-      mutateDiagnostics(),
-      mutateAutofix(),
-      mutateIntegrations(),
-      mutateAudit(),
-      mutateSyncHealth(),
-      mutateDataIntegrity(),
-    ])
-    toast.success("Etat systeme actualise.")
+    try {
+      await Promise.all([
+        mutateDiagnostics(),
+        mutateAutofix(),
+        mutateIntegrations(),
+        mutateAudit(),
+        mutateSyncHealth(),
+        mutateDataIntegrity(),
+      ])
+      toast.success("Etat systeme actualise.")
+    } catch (error) {
+      console.error("refreshAll failed", error)
+      toast.error("Impossible d'actualiser l'etat systeme.")
+    }
   }
 
   return (
@@ -260,7 +265,7 @@ export default function SystemsPage() {
           {diagnosticsError || autofixError || integrationsError || auditError || syncHealthError || dataIntegrityError ? (
             <ErrorState
               title="Impossible de charger certains etats systeme."
-              description="Verifiez la connexion backend puis relancez le rafraichissement."
+              description="Vérifiez la connexion backend puis relancez le rafraichissement."
               onRetry={() => void refreshAll()}
             />
           ) : null}
@@ -482,7 +487,7 @@ export default function SystemsPage() {
                           {item.action} <span className="text-muted-foreground">par {item.actor}</span>
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {item.entity_type || "system"} {item.entity_id ? `#${item.entity_id}` : ""} • {formatDateTimeFr(item.created_at)}
+                          {item.entity_type || "system"} {item.entity_id ? `#${item.entity_id}` : ""} • {item.created_at ? formatDateTimeFr(item.created_at) : "Unknown"}
                         </p>
                       </div>
                     ))}
@@ -531,4 +536,5 @@ export default function SystemsPage() {
     </SidebarProvider>
   )
 }
+
 

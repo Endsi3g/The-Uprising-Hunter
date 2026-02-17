@@ -41,3 +41,4 @@ def test_error_contract_for_auth_failures(client):
     payload = response.json()
     assert payload["error"]["code"] == "UNAUTHORIZED"
     assert payload["error"]["request_id"] == "req-auth-001"
+    assert response.headers.get("x-request-id") == "req-auth-001"

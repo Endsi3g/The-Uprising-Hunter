@@ -1,8 +1,9 @@
 /** @type {import('next').NextConfig} */
 const configuredApiBaseUrl = process.env.API_BASE_URL;
+const trimmedConfiguredApiBaseUrl = configuredApiBaseUrl ? configuredApiBaseUrl.trim() : "";
 const normalizedConfiguredApiBaseUrl =
-    configuredApiBaseUrl && configuredApiBaseUrl.trim()
-        ? configuredApiBaseUrl.replace(/\/$/, "")
+    trimmedConfiguredApiBaseUrl
+        ? trimmedConfiguredApiBaseUrl.replace(/\/$/, "")
         : "";
 const apiBaseUrl = normalizedConfiguredApiBaseUrl || "http://127.0.0.1:8000";
 const isHostedProductionBuild =

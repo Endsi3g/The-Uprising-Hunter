@@ -1344,7 +1344,7 @@ def _coerce_assigned_to(raw_value: str | None) -> str:
     cleaned = (raw_value or "").strip()
     if cleaned:
         return cleaned
-    return "Vous"
+    return "You"
 
 
 def _coerce_project_status(raw_status: str | None) -> str:
@@ -2515,13 +2515,6 @@ def _get_task_payload(db: Session, task_id: str) -> dict[str, Any]:
 
     lead = db.query(DBLead).filter(DBLead.id == task.lead_id).first() if task.lead_id else None
     project = db.query(DBProject).filter(DBProject.id == task.project_id).first() if task.project_id else None
-    if project is None and task.lead_id:
-        project = (
-            db.query(DBProject)
-            .filter(DBProject.lead_id == task.lead_id)
-            .order_by(DBProject.updated_at.desc(), DBProject.created_at.desc())
-            .first()
-        )
     return _serialize_task(task, lead=lead, project=project)
 
 
@@ -2633,6 +2626,8 @@ def _update_task_payload(
             task.project_id = project_id
             if project:
                 task.project_name = project.name
+            else:
+                task.project_name = None
             _append_task_timeline_entry(
                 task,
                 event_type="project_linked",
@@ -3109,8 +3104,8 @@ def _create_lead_opportunity_payload(
         stage_canonical=_funnel_svc.LEGACY_OPPORTUNITY_STAGE_TO_CANONICAL.get(stage.lower(), "opportunity"),
         stage_entered_at=datetime.utcnow(),
         amount=float(payload.amount) if payload.amount is not None else None,
-        probability=int(payload.probability or 10),
-        assigned_to="Vous",
+        probability=int(payload.probability) if payload.probability is not None else 10,
+        assigned_to="You",
         expected_close_date=_parse_datetime_field(payload.expected_close_date, "expected_close_date"),
         details_json=payload.details or {},
     )
@@ -3230,7 +3225,7 @@ def _serialize_opportunity_board_item(
         "id": opportunity.id,
         "prospect_id": opportunity.lead_id,
         "prospect_name": prospect_name,
-        "amount": float(opportunity.amount or 0.0),
+        "amount": float(opportunity.amount) if opportunity.amount is not None else None,
         "stage": _coerce_pipeline_opportunity_stage(opportunity.stage),
         "stage_canonical": _funnel_svc.canonical_from_opportunity(opportunity),
         "probability": int(opportunity.probability or 0),
@@ -3539,7 +3534,7 @@ def _update_opportunity_payload(
         )
         row.stage_entered_at = datetime.utcnow()
     if "amount" in update_data:
-        row.amount = float(payload.amount) if payload.amount is not None else 0.0
+        row.amount = float(payload.amount) if payload.amount is not None else None
     if "probability" in update_data:
         row.probability = int(payload.probability or 0)
     if "close_date" in update_data:

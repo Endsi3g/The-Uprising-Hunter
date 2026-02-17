@@ -27,7 +27,7 @@ type TaskStatus = "To Do" | "In Progress" | "Done"
 type TaskItem = { id: string; title: string; status: TaskStatus; priority: string; due_date?: string | null; assigned_to?: string | null }
 type TaskResponse = { items: TaskItem[] }
 type ProjectMember = { id: string; name: string; role: string; contribution: number }
-type ProjectTimelineItem = { id: string; title: string; start_date: string; end_date: string; depends_on?: string[]; milestone?: boolean }
+type ProjectTimelineItem = { id: string; title: string; start_date: string | null; end_date: string | null; depends_on?: string[]; milestone?: boolean }
 type ProjectDeliverable = { id: string; title: string; owner?: string; due_date?: string; completed?: boolean; file_url?: string }
 type ProjectDetail = {
   id: string
@@ -59,6 +59,18 @@ function asDate(value?: string): Date | null {
   if (!value) return null
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? null : date
+}
+
+function sanitizeExternalUrl(raw?: string | null): string | undefined {
+  const value = (raw || "").trim()
+  if (!value) return undefined
+  try {
+    const url = new URL(value)
+    if (url.protocol === "https:" || url.protocol === "http:") return url.toString()
+  } catch {
+    return undefined
+  }
+  return undefined
 }
 
 export default function ProjectDetailPage() {
@@ -96,7 +108,7 @@ export default function ProjectDetailPage() {
     if (!project) return
     setTeam(project.team || [])
     setTimeline(project.timeline || [])
-    setDeliverables(project.deliverables || [])
+    setDeliverables((project.deliverables || []).map((item) => ({ ...item, file_url: sanitizeExternalUrl(item.file_url) })))
     setBudgetTotal(project.budget_total != null ? String(project.budget_total) : "")
     setBudgetSpent(project.budget_spent != null ? String(project.budget_spent) : "")
   }, [project])
@@ -119,7 +131,7 @@ export default function ProjectDetailPage() {
     }
     return { start: new Date(Math.min(...points.map((p) => p.getTime()))), end: new Date(Math.max(...points.map((p) => p.getTime()))) }
   }, [timeline])
-  const pct = (value?: string) => {
+  const pct = (value?: string | null) => {
     const date = asDate(value)
     if (!date) return 0
     const total = range.end.getTime() - range.start.getTime() || 1
@@ -127,35 +139,106 @@ export default function ProjectDetailPage() {
   }
 
   async function patchProject(payload: Record<string, unknown>, success: string) {
-    await requestApi(`/api/v1/admin/projects/${projectId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
-    toast.success(success)
-    await mutateProject()
-    await mutateActivity()
+    try {
+      await requestApi(`/api/v1/admin/projects/${projectId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
+      toast.success(success)
+      await mutateProject()
+      await mutateActivity()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Mise a jour projet impossible.")
+    } finally {
+      // no-op: reserved for shared cleanup if patch lifecycle grows.
+    }
   }
 
   async function createTask() {
     if (!taskTitle.trim()) return
-    await requestApi("/api/v1/admin/tasks", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: taskTitle.trim(), status: taskStatus, project_id: projectId, source: "manual", priority: "Medium" }),
-    })
-    setTaskTitle("")
-    toast.success("Tache ajoutee.")
-    await mutateTasks()
-    await mutateActivity()
+    try {
+      await requestApi("/api/v1/admin/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: taskTitle.trim(), status: taskStatus, project_id: projectId, source: "manual", priority: "Medium" }),
+      })
+      setTaskTitle("")
+      toast.success("Tache ajoutee.")
+      await mutateTasks()
+      await mutateActivity()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Creation de tache impossible.")
+    } finally {
+      // no-op: reserved for shared cleanup if task creation workflow expands.
+    }
   }
 
   async function moveTask(status: TaskStatus) {
     if (!dragTaskId) return
-    await requestApi(`/api/v1/admin/tasks/${dragTaskId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
-    })
-    setDragTaskId(null)
-    await mutateTasks()
-    await mutateActivity()
+    try {
+      await requestApi(`/api/v1/admin/tasks/${dragTaskId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      })
+      await mutateTasks()
+      await mutateActivity()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Deplacement impossible.")
+    } finally {
+      setDragTaskId(null)
+    }
+  }
+
+  function saveBudget() {
+    const totalRaw = budgetTotal.trim()
+    const spentRaw = budgetSpent.trim()
+    const totalValue = totalRaw === "" ? null : Number.parseFloat(totalRaw)
+    const spentValue = spentRaw === "" ? 0 : Number.parseFloat(spentRaw)
+    if ((totalValue !== null && Number.isNaN(totalValue)) || Number.isNaN(spentValue)) {
+      toast.error("Entrez des montants numeriques valides.")
+      return
+    }
+    void patchProject(
+      { budget_total: totalValue, budget_spent: spentValue },
+      "Budget mis a jour.",
+    )
+  }
+
+  function addTimelineMilestone() {
+    if (!newTimeline.title.trim() || !newTimeline.start) {
+      toast.error("Titre et date de debut obligatoires.")
+      return
+    }
+    const startDate = toIso(newTimeline.start) ?? null
+    const endDate = toIso(newTimeline.end) ?? toIso(newTimeline.start) ?? null
+    setTimeline((cur) => [
+      ...cur,
+      {
+        id: `m-${Date.now()}`,
+        title: newTimeline.title.trim(),
+        start_date: startDate,
+        end_date: endDate,
+        depends_on: newTimeline.deps.split(",").map((x) => x.trim()).filter(Boolean),
+        milestone: newTimeline.milestone,
+      },
+    ])
+  }
+
+  function addDeliverable() {
+    const cleanedFileUrl = sanitizeExternalUrl(newDeliverable.file_url)
+    if (newDeliverable.file_url.trim() && !cleanedFileUrl) {
+      toast.error("URL livrable invalide (http/https uniquement).")
+      return
+    }
+    setDeliverables((cur) => [
+      ...cur,
+      {
+        id: `d-${Date.now()}`,
+        title: newDeliverable.title.trim(),
+        owner: newDeliverable.owner.trim(),
+        due_date: toIso(newDeliverable.due) || undefined,
+        file_url: cleanedFileUrl,
+        completed: false,
+      },
+    ])
   }
 
   if (loadingProject) {
@@ -187,7 +270,7 @@ export default function ProjectDetailPage() {
                   <p className="text-sm font-medium">Budget tracker</p>
                   <p className="text-xs text-muted-foreground">Total: {formatNumberFr(project.budget_total || 0)} EUR | Depense: {formatNumberFr(project.budget_spent || 0)} EUR</p>
                   <div className="mt-2 grid gap-2 sm:grid-cols-2"><Input value={budgetTotal} onChange={(e) => setBudgetTotal(e.target.value)} /><Input value={budgetSpent} onChange={(e) => setBudgetSpent(e.target.value)} /></div>
-                  <Button className="mt-2" variant="outline" onClick={() => void patchProject({ budget_total: budgetTotal ? Number(budgetTotal) : null, budget_spent: budgetSpent ? Number(budgetSpent) : 0 }, "Budget mis a jour.")}>Enregistrer budget</Button>
+                  <Button className="mt-2" variant="outline" onClick={saveBudget}>Enregistrer budget</Button>
                 </div>
               ) : null}
             </CardContent>
@@ -228,7 +311,7 @@ export default function ProjectDetailPage() {
                       <Input type="date" value={newTimeline.end} onChange={(e) => setNewTimeline((c) => ({ ...c, end: e.target.value }))} />
                       <Input placeholder="Depends on (ids)" value={newTimeline.deps} onChange={(e) => setNewTimeline((c) => ({ ...c, deps: e.target.value }))} />
                     </div>
-                    <div className="flex items-center gap-2"><Button variant="outline" onClick={() => setTimeline((cur) => [...cur, { id: `m-${Date.now()}`, title: newTimeline.title.trim(), start_date: toIso(newTimeline.start) || "", end_date: toIso(newTimeline.end) || toIso(newTimeline.start) || "", depends_on: newTimeline.deps.split(",").map((x) => x.trim()).filter(Boolean), milestone: newTimeline.milestone }])}><IconPlus className="size-4" />Ajouter jalon</Button><Button onClick={() => void patchProject({ timeline }, "Timeline mise a jour.")}>Enregistrer timeline</Button></div>
+                    <div className="flex items-center gap-2"><Button variant="outline" onClick={addTimelineMilestone}><IconPlus className="size-4" />Ajouter jalon</Button><Button onClick={() => void patchProject({ timeline }, "Timeline mise a jour.")}>Enregistrer timeline</Button></div>
                   </TabsContent>
 
                   <TabsContent value="team" className="space-y-3 pt-4">
@@ -238,9 +321,9 @@ export default function ProjectDetailPage() {
                   </TabsContent>
 
                   <TabsContent value="deliverables" className="space-y-3 pt-4">
-                    {deliverables.length === 0 ? <EmptyState title="Aucun livrable" description="Ajoutez documents/fichiers avec checklist." className="min-h-24" /> : <div className="space-y-2">{deliverables.map((d) => <div key={d.id} className="rounded-lg border p-3 flex items-start justify-between gap-2"><div className="flex items-start gap-2"><Checkbox checked={Boolean(d.completed)} onCheckedChange={(checked) => setDeliverables((cur) => cur.map((x) => x.id === d.id ? { ...x, completed: Boolean(checked) } : x))} /><div><p className={`text-sm font-medium ${d.completed ? "line-through text-muted-foreground" : ""}`}>{d.title}</p><p className="text-xs text-muted-foreground">{d.owner || "-"} | {formatDateFr(d.due_date)}</p>{d.file_url ? <a href={d.file_url} target="_blank" rel="noreferrer noopener" className="text-xs text-primary underline">Ouvrir fichier</a> : null}</div></div><Button variant="ghost" size="icon" onClick={() => setDeliverables((cur) => cur.filter((x) => x.id !== d.id))}><IconTrash className="size-4 text-red-600" /></Button></div>)}</div>}
+                    {deliverables.length === 0 ? <EmptyState title="Aucun livrable" description="Ajoutez documents/fichiers avec checklist." className="min-h-24" /> : <div className="space-y-2">{deliverables.map((d) => { const safeFileUrl = sanitizeExternalUrl(d.file_url); return <div key={d.id} className="rounded-lg border p-3 flex items-start justify-between gap-2"><div className="flex items-start gap-2"><Checkbox checked={Boolean(d.completed)} onCheckedChange={(checked) => setDeliverables((cur) => cur.map((x) => x.id === d.id ? { ...x, completed: Boolean(checked) } : x))} /><div><p className={`text-sm font-medium ${d.completed ? "line-through text-muted-foreground" : ""}`}>{d.title}</p><p className="text-xs text-muted-foreground">{d.owner || "-"} | {formatDateFr(d.due_date)}</p>{safeFileUrl ? <a href={safeFileUrl} target="_blank" rel="noreferrer noopener" className="text-xs text-primary underline">Ouvrir fichier</a> : null}</div></div><Button variant="ghost" size="icon" onClick={() => setDeliverables((cur) => cur.filter((x) => x.id !== d.id))}><IconTrash className="size-4 text-red-600" /></Button></div>})}</div>}
                     <div className="grid gap-2 md:grid-cols-4"><Input placeholder="Titre livrable" value={newDeliverable.title} onChange={(e) => setNewDeliverable((c) => ({ ...c, title: e.target.value }))} /><Input placeholder="Owner" value={newDeliverable.owner} onChange={(e) => setNewDeliverable((c) => ({ ...c, owner: e.target.value }))} /><Input type="date" value={newDeliverable.due} onChange={(e) => setNewDeliverable((c) => ({ ...c, due: e.target.value }))} /><Input placeholder="URL fichier" value={newDeliverable.file_url} onChange={(e) => setNewDeliverable((c) => ({ ...c, file_url: e.target.value }))} /></div>
-                    <div className="flex items-center gap-2"><Button variant="outline" onClick={() => setDeliverables((cur) => [...cur, { id: `d-${Date.now()}`, title: newDeliverable.title.trim(), owner: newDeliverable.owner.trim(), due_date: toIso(newDeliverable.due) || undefined, file_url: newDeliverable.file_url.trim() || undefined, completed: false }])}><IconPlus className="size-4" />Ajouter livrable</Button><Button onClick={() => void patchProject({ deliverables, progress_percent: deliverables.length ? Math.round((deliverables.filter((d) => d.completed).length / deliverables.length) * 100) : project.progress_percent }, "Deliverables mis a jour.")}>Enregistrer deliverables</Button></div>
+                    <div className="flex items-center gap-2"><Button variant="outline" onClick={addDeliverable}><IconPlus className="size-4" />Ajouter livrable</Button><Button onClick={() => void patchProject({ deliverables, progress_percent: deliverables.length ? Math.round((deliverables.filter((d) => d.completed).length / deliverables.length) * 100) : project.progress_percent }, "Deliverables mis a jour.")}>Enregistrer deliverables</Button></div>
                   </TabsContent>
                 </Tabs>
               </CardContent>

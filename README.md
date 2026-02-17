@@ -66,7 +66,7 @@ Le backend FastAPI peut etre deploie sur Koyeb via Git (service Web).
 Commande de demarrage:
 
 ```text
-uvicorn src.admin.app:create_app --host 0.0.0.0 --port $PORT --factory
+uvicorn src.admin.app:app --host 0.0.0.0 --port $PORT
 ```
 
 Variables minimales backend:

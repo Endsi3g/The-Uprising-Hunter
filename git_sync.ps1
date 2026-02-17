@@ -19,7 +19,8 @@ param(
 $ErrorActionPreference = "Stop"
 
 # Verify we are in a git repo
-if (-not (Test-Path ".git")) {
+$isGitRepo = git rev-parse --is-inside-work-tree 2>$null
+if ($LASTEXITCODE -ne 0 -or "$isGitRepo".Trim().ToLower() -ne "true") {
     Write-Host "ERROR: Not a git repository." -ForegroundColor Red
     exit 1
 }
@@ -35,22 +36,34 @@ git status --short
 
 if (-not $Message) {
     Write-Host ""
-    $Message = Read-Host "No message provided. Enter commit message (or Esc to cancel)"
-    if (-not $Message) {
-        Write-Host "Aborted. Commit message is required." -ForegroundColor Red
-        exit 1
-    }
+    $Message = Read-Host "No message provided. Enter commit message (leave blank for default: Bulk update)"
+}
+
+if ($null -eq $Message -or $Message.Trim() -eq "") {
+    $Message = "Bulk update"
 }
 
 try {
     Write-Host "`n[1/3] Staging all changes..." -ForegroundColor Gray
     git add .
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "ERROR: git add failed." -ForegroundColor Red
+        exit $LASTEXITCODE
+    }
 
     Write-Host "[2/3] Committing as a single block..." -ForegroundColor Gray
     git commit -m "$Message"
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "ERROR: git commit failed." -ForegroundColor Red
+        exit $LASTEXITCODE
+    }
 
     Write-Host "[3/3] Pushing to remote..." -ForegroundColor Gray
     git push
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "ERROR: git push failed." -ForegroundColor Red
+        exit $LASTEXITCODE
+    }
 
     Write-Host "`nSUCCESS: All changes committed and pushed." -ForegroundColor Green
 }

@@ -78,7 +78,7 @@ export default function TasksPage() {
       assigned_to: task.assigned_to || "Vous",
       lead_id: task.lead_id || undefined,
       channel: task.channel || "email",
-      sequence_step: Number(task.sequence_step || 1),
+      sequence_step: Number(task.sequence_step ?? 1),
       source: task.source || "manual",
       rule_id: task.rule_id || undefined,
       related_score_snapshot: task.related_score_snapshot || {},
@@ -103,7 +103,7 @@ export default function TasksPage() {
           title="Impossible de charger les taches."
           description={
             loadingTimedOut
-              ? "Le chargement depasse le delai attendu. Verifiez la sante de l'API puis reessayez."
+              ? "Le chargement depasse le delai attendu. Vérifiez la sante de l'API puis reessayez."
               : error instanceof Error
                 ? error.message
                 : "La liste des taches est temporairement indisponible."
@@ -156,3 +156,4 @@ export default function TasksPage() {
     </AppShell>
   )
 }
+

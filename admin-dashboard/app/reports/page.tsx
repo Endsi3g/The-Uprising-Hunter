@@ -343,7 +343,7 @@ export default function ReportsPage() {
                     <SelectItem value="7d">7 jours</SelectItem>
                     <SelectItem value="30d">30 jours</SelectItem>
                     <SelectItem value="90d">90 jours</SelectItem>
-                    <SelectItem value="ytd">Annee en cours</SelectItem>
+                    <SelectItem value="ytd">Année en cours</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -591,4 +591,5 @@ export default function ReportsPage() {
     </SidebarProvider>
   )
 }
+
 

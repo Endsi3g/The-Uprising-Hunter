@@ -47,9 +47,10 @@ export default function DevSettingsPage() {
   React.useEffect(() => {
     if (typeof window === "undefined") return
     const params = new URLSearchParams(window.location.search)
-    const fromQuery = normalizeScenario(params.get("mockScenario") || params.get("mock_scenario"))
+    const rawFromQuery = params.get("mockScenario") ?? params.get("mock_scenario")
+    const fromQuery = rawFromQuery ? normalizeScenario(rawFromQuery) : null
     const fromStorage = normalizeScenario(window.localStorage.getItem(STORAGE_KEY))
-    const next = fromQuery !== "balanced" ? fromQuery : fromStorage
+    const next = fromQuery ?? fromStorage
     const forced = window.localStorage.getItem(FORCE_MOCK_STORAGE_KEY) === "true"
     setScenario(next)
     setForceMock(forced)

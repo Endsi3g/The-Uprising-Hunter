@@ -49,7 +49,7 @@ function buildWindowMeta(rawWindow: string | null) {
     result.days = 90
   } else if (windowKey === "ytd") {
     const from = new Date(now.getFullYear(), 0, 1)
-    result.label = "Annee en cours"
+    result.label = "Année en cours"
     result.days = Math.max(1, Math.ceil((now.getTime() - from.getTime()) / (24 * 3600 * 1000)))
     result.from = from.toISOString()
     return result
@@ -196,7 +196,7 @@ function getDevelopmentFallback(pathname: string, search: URLSearchParams, metho
   }
 
   if (pathname === "/api/v1/admin/metrics/overview" && method === "GET") {
-    const windowMeta = buildWindowMeta("30d")
+    const windowMeta = buildWindowMeta(search.get("window"))
     return {
       generated_at: nowIso,
       request: {

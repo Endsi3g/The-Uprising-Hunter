@@ -423,7 +423,7 @@ export default function TeamSettingsPage() {
               title="Impossible de charger les membres de l'equipe."
               description={
                 loadingTimedOut
-                  ? "Le chargement est trop long. Verifiez la disponibilite de l'API utilisateurs."
+                  ? "Le chargement est trop long. Vérifiez la disponibilite de l'API utilisateurs."
                   : usersError instanceof Error
                     ? usersError.message
                     : rolesError instanceof Error
@@ -754,3 +754,4 @@ export default function TeamSettingsPage() {
     </SidebarProvider>
   )
 }
+

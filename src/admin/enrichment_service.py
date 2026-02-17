@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import HTTPException, status
@@ -89,53 +89,61 @@ def run_enrichment(
     db.commit()
     db.refresh(row)
 
-    metadata = context or {}
-    relevance = _score_relevance(clean_query, lead)
-    summary = {
-        "company": None,
-        "owner": None,
-        "signals": [],
-        "recommendations": [],
-    }
-    if lead:
-        details = lead.details if isinstance(lead.details, dict) else {}
-        summary["company"] = {
-            "name": details.get("company_name"),
-            "industry": details.get("industry"),
-            "location": details.get("location"),
+    try:
+        metadata = context or {}
+        relevance = _score_relevance(clean_query, lead)
+        summary = {
+            "company": None,
+            "owner": None,
+            "signals": [],
+            "recommendations": [],
         }
-        summary["owner"] = {
-            "first_name": lead.first_name,
-            "last_name": lead.last_name,
-            "email": lead.email,
-            "title": lead.title,
-        }
-        summary["signals"] = [
-            {"type": "tier", "value": lead.tier},
-            {"type": "heat_status", "value": lead.heat_status},
-            {"type": "score", "value": lead.total_score},
+        if lead:
+            details = lead.details if isinstance(lead.details, dict) else {}
+            summary["company"] = {
+                "name": details.get("company_name"),
+                "industry": details.get("industry"),
+                "location": details.get("location"),
+            }
+            summary["owner"] = {
+                "first_name": lead.first_name,
+                "last_name": lead.last_name,
+                "email": lead.email,
+                "title": lead.title,
+            }
+            summary["signals"] = [
+                {"type": "tier", "value": lead.tier},
+                {"type": "heat_status", "value": lead.heat_status},
+                {"type": "score", "value": lead.total_score},
+            ]
+
+        summary["recommendations"] = [
+            "Prioriser un message court avec proposition de valeur concrete.",
+            "Adapter le canal selon le score de chaleur et la disponibilite du contact.",
+            "Declencher une sequence en 3 etapes avec suivi J+2 puis J+5.",
         ]
 
-    summary["recommendations"] = [
-        "Prioriser un message court avec proposition de valeur concrete.",
-        "Adapter le canal selon le score de chaleur et la disponibilite du contact.",
-        "Declencher une sequence en 3 etapes avec suivi J+2 puis J+5.",
-    ]
+        result_payload = {
+            "query": clean_query,
+            "provider": row.provider,
+            "summary": summary,
+            "context_used": metadata,
+        }
 
-    result_payload = {
-        "query": clean_query,
-        "provider": row.provider,
-        "summary": summary,
-        "context_used": metadata,
-    }
-
-    row.status = "completed"
-    row.relevance_score = relevance
-    row.result_json = result_payload
-    row.finished_at = datetime.now()
-    db.commit()
-    db.refresh(row)
-    return row
+        row.status = "completed"
+        row.relevance_score = relevance
+        row.result_json = result_payload
+        row.finished_at = datetime.now(timezone.utc)
+        db.commit()
+        db.refresh(row)
+        return row
+    except Exception as exc:
+        row.status = "failed"
+        row.error_message = str(exc)
+        row.finished_at = datetime.now(timezone.utc)
+        db.commit()
+        db.refresh(row)
+        raise
 
 
 def get_enrichment_or_404(db: Session, job_id: str) -> DBEnrichmentJob:

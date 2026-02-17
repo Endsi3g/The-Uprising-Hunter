@@ -1,10 +1,10 @@
 # PLAYBOOK STRATÉGIQUE _ UPRISING STUDIO.pdf
 
 - `doc_id`: `playbook-strategique-uprising-studio-7f2faa3d0ae2`
-- `source_path`: `C:\prospect\prospect\CompagnieDocs\PLAYBOOK STRATÉGIQUE _ UPRISING STUDIO.pdf`
+- `source_path`: `./CompagnieDocs/PLAYBOOK STRATÉGIQUE _ UPRISING STUDIO.pdf`
 - `sha256`: `7f2faa3d0ae276b4f51f708da579673d4ccc0ccec7cfe18eb1a99ccd95880e6e`
 - `page_count`: `8`
-- `generated_at`: `2026-02-15T02:47:44.871336+00:00`
+- `generated_at`: `2026-02-16T05:35:41.122766+00:00`
 
 ## Page 1
 

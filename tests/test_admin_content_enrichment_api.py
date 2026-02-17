@@ -1,15 +1,17 @@
 from __future__ import annotations
 
 import importlib
+import uuid
 
 from src.core.db_models import DBLead
 from src.core.models import LeadStage, LeadStatus
 
 
 def _seed_content_lead(db_session):
+    lead_id = f"content-lead-{uuid.uuid4().hex}@example.com"
     lead = DBLead(
-        id="content-lead@example.com",
-        email="content-lead@example.com",
+        id=lead_id,
+        email=lead_id,
         first_name="Claire",
         last_name="Dubois",
         status=LeadStatus.NEW,

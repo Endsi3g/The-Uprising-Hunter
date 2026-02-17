@@ -51,7 +51,7 @@ export function getApiBaseUrl(): string {
 }
 
 function friendlyProxyHint(): string {
-  return "Verifiez API_BASE_URL sur votre hebergement frontend (Vercel/Netlify) et que le backend FastAPI est en ligne."
+  return "Vérifiez API_BASE_URL sur votre hébergement frontend (Vercel/Netlify) et que le backend FastAPI est en ligne."
 }
 
 function isRecoverableProxyStatus(status: number): boolean {
@@ -221,7 +221,11 @@ export async function fetchApi<T>(path: string): Promise<T> {
   return requestApi<T>(path)
 }
 
-export async function requestApiBlob(path: string, init?: RequestInit): Promise<Blob> {
+export async function requestApiBlob(
+  path: string,
+  init?: RequestInit,
+  options?: RequestApiOptions,
+): Promise<Blob> {
   if (isMockEnabled()) {
     const { getMockBlobResponse } = await import("./mocks")
     try {
@@ -247,12 +251,24 @@ export async function requestApiBlob(path: string, init?: RequestInit): Promise<
     throw new Error(`Connexion API impossible (${normalizedPath}). ${friendlyProxyHint()}`)
   }
 
+  const isAuthEndpoint = normalizedPath.startsWith("/api/v1/admin/auth/")
+  if (response.status === 401 && !isAuthEndpoint && !options?.skipAuthRetry) {
+    const refreshed = await refreshAdminSession()
+    if (refreshed) {
+      return requestApiBlob(path, init, { skipAuthRetry: true })
+    }
+  }
+
   if (!response.ok) {
     if (isRecoverableProxyStatus(response.status)) {
       const fallback = await tryMockBlobFallback(path, init)
       if (fallback !== null) return fallback
     }
     const message = await parseErrorMessage(response, normalizedPath)
+    if (response.status === 401 && typeof window !== "undefined" && !isAuthEndpoint) {
+      window.location.href = "/login"
+      return new Blob()
+    }
     throw new Error(message)
   }
 

@@ -184,7 +184,7 @@ export default function ResearchPage() {
                   title="Recherche web indisponible."
                   description={
                     webTimedOut
-                      ? "La recherche web depasse le delai attendu. Verifiez vos integrations et relancez."
+                      ? "La recherche web depasse le delai attendu. Vérifiez vos integrations et relancez."
                       : webError instanceof Error
                         ? webError.message
                         : "Impossible de contacter les providers web."
@@ -238,4 +238,5 @@ export default function ResearchPage() {
     </SidebarProvider>
   )
 }
+
 

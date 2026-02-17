@@ -1,10 +1,47 @@
 # UPRISING STUDIO - Prompt Complet Branding Style Apple x Novara.pdf
 
 - `doc_id`: `uprising-studio-prompt-complet-branding-style-apple-x-novara-fc7dc0398fd5`
-- `source_path`: `C:\prospect\prospect\CompagnieDocs\UPRISING STUDIO - Prompt Complet Branding Style Apple x Novara.pdf`
+- `source_path`: `./CompagnieDocs/UPRISING STUDIO - Prompt Complet Branding Style Apple x Novara.pdf`
 - `sha256`: `fc7dc0398fd5235e1e1874f338fa5dd29c0b14f9f850cc2aa28cbb7b4dcab151`
 - `page_count`: `35`
-- `generated_at`: `2026-02-15T02:47:53.187273+00:00`
+- `generated_at`: `2026-02-16T05:35:52.766696+00:00`
+- `warnings`:
+  - `page_1_contains_i255_artifacts`
+  - `page_2_contains_i255_artifacts`
+  - `page_3_contains_i255_artifacts`
+  - `page_4_contains_i255_artifacts`
+  - `page_5_contains_i255_artifacts`
+  - `page_6_contains_i255_artifacts`
+  - `page_7_contains_i255_artifacts`
+  - `page_8_contains_i255_artifacts`
+  - `page_9_contains_i255_artifacts`
+  - `page_10_contains_i255_artifacts`
+  - `page_11_contains_i255_artifacts`
+  - `page_12_contains_i255_artifacts`
+  - `page_13_contains_i255_artifacts`
+  - `page_14_contains_i255_artifacts`
+  - `page_15_contains_i255_artifacts`
+  - `page_16_contains_i255_artifacts`
+  - `page_17_contains_i255_artifacts`
+  - `page_18_contains_i255_artifacts`
+  - `page_19_contains_i255_artifacts`
+  - `page_20_contains_i255_artifacts`
+  - `page_21_contains_i255_artifacts`
+  - `page_22_contains_i255_artifacts`
+  - `page_23_contains_i255_artifacts`
+  - `page_24_contains_i255_artifacts`
+  - `page_25_contains_i255_artifacts`
+  - `page_26_contains_i255_artifacts`
+  - `page_27_contains_i255_artifacts`
+  - `page_28_contains_i255_artifacts`
+  - `page_29_contains_i255_artifacts`
+  - `page_30_contains_i255_artifacts`
+  - `page_31_contains_i255_artifacts`
+  - `page_32_contains_i255_artifacts`
+  - `page_33_contains_i255_artifacts`
+  - `page_34_contains_i255_artifacts`
+  - `page_35_contains_i255_artifacts`
+  - `contains_i255_artifacts`
 
 ## Page 1
 

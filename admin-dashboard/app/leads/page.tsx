@@ -187,7 +187,7 @@ export default function LeadsPage() {
           title="Impossible de charger les leads."
           description={
             loadingTimedOut
-              ? "Le chargement prend trop de temps. Verifiez la connectivite API et reessayez."
+              ? "Le chargement prend trop de temps. Vérifiez la connectivite API et reessayez."
               : error instanceof Error
                 ? error.message
                 : "La liste des leads est indisponible pour le moment."
@@ -300,3 +300,4 @@ export default function LeadsPage() {
     </AppShell>
   )
 }
+

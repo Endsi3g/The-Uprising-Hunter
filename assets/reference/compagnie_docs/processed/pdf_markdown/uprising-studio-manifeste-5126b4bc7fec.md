@@ -1,10 +1,10 @@
 # UPRISING STUDIO  MANIFESTE.pdf
 
 - `doc_id`: `uprising-studio-manifeste-5126b4bc7fec`
-- `source_path`: `C:\prospect\prospect\CompagnieDocs\UPRISING STUDIO  MANIFESTE.pdf`
+- `source_path`: `./CompagnieDocs/UPRISING STUDIO  MANIFESTE.pdf`
 - `sha256`: `5126b4bc7fec86ad9cf5e54e399ac9786f0833aea64c83b8bfac5934530be421`
 - `page_count`: `21`
-- `generated_at`: `2026-02-15T02:47:46.965796+00:00`
+- `generated_at`: `2026-02-16T05:35:43.435116+00:00`
 
 ## Page 1
 

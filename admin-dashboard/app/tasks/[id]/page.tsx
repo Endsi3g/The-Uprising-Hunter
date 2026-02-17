@@ -243,13 +243,17 @@ export default function TaskDetailPage() {
 
   const timelineItems = React.useMemo(() => {
     return [...(task?.timeline || [])].sort((a, b) => {
-      return Date.parse(String(b.created_at || 0)) - Date.parse(String(a.created_at || 0))
+      const ta = new Date(a.created_at ?? 0).getTime()
+      const tb = new Date(b.created_at ?? 0).getTime()
+      return (Number.isNaN(tb) ? 0 : tb) - (Number.isNaN(ta) ? 0 : ta)
     })
   }, [task?.timeline])
 
   const comments = React.useMemo(() => {
     return [...(task?.comments || [])].sort((a, b) => {
-      return Date.parse(String(b.created_at || 0)) - Date.parse(String(a.created_at || 0))
+      const ta = new Date(a.created_at ?? 0).getTime()
+      const tb = new Date(b.created_at ?? 0).getTime()
+      return (Number.isNaN(tb) ? 0 : tb) - (Number.isNaN(ta) ? 0 : ta)
     })
   }, [task?.comments])
 
@@ -408,14 +412,19 @@ export default function TaskDetailPage() {
       description: "Le statut passera a Done et l'action sera tracee dans la timeline.",
       confirmLabel: "Fermer la tache",
       onConfirm: async () => {
-        const updated = await requestApi<TaskDetail>(`/api/v1/admin/tasks/${encodeURIComponent(id)}/close`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({}),
-        })
-        await mutate(updated, { revalidate: false })
-        setHeaderForm((current) => ({ ...current, status: "Done" }))
-        toast.success("Tache fermee.")
+        try {
+          const updated = await requestApi<TaskDetail>(`/api/v1/admin/tasks/${encodeURIComponent(id)}/close`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({}),
+          })
+          await mutate(updated, { revalidate: false })
+          setHeaderForm((current) => ({ ...current, status: "Done" }))
+          toast.success("Tache fermee.")
+        } catch (error) {
+          console.error("closeTask failed", error)
+          toast.error(error instanceof Error ? error.message : "Fermeture impossible.")
+        }
       },
     })
   }

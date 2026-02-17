@@ -16,18 +16,19 @@ logger = get_logger(__name__)
 
 
 def _render_email(lead: DBLead | None, step: int, context: dict[str, Any]) -> tuple[str, str]:
-    first_name = (lead.first_name if lead and lead.first_name else "Bonjour").strip()
+    first_name = (lead.first_name if lead and lead.first_name else "").strip()
     company = ""
     if lead and isinstance(lead.details, dict):
         company = str(lead.details.get("company_name") or "").strip()
     if not company:
         company = str(context.get("company_name") or "votre entreprise").strip()
     pain = str(context.get("pain_point") or "l'optimisation de votre prospection").strip()
+    greeting = f"Bonjour {first_name}," if first_name else "Bonjour,"
 
     if step <= 1:
-        subject = f"{first_name}, 15 min pour accelerer {company}"
+        subject = f"{first_name}, 15 min pour accelerer {company}" if first_name else f"15 min pour accelerer {company}"
         body = (
-            f"Bonjour {first_name},\n\n"
+            f"{greeting}\n\n"
             f"J'ai identifie une opportunite concrete autour de {pain}.\n"
             "Je peux vous partager un plan actionnable en 15 minutes.\n"
             "Ouvert a un echange cette semaine ?"
@@ -35,7 +36,7 @@ def _render_email(lead: DBLead | None, step: int, context: dict[str, Any]) -> tu
     else:
         subject = f"Relance rapide sur {pain}"
         body = (
-            f"Bonjour {first_name},\n\n"
+            f"{greeting}\n\n"
             "Je me permets une relance rapide.\n"
             "Je peux vous envoyer un mini plan personnalise et 2 actions prioritaires.\n"
             "Souhaitez-vous que je vous le partage ?"
@@ -44,15 +45,16 @@ def _render_email(lead: DBLead | None, step: int, context: dict[str, Any]) -> tu
 
 
 def _render_call_script(lead: DBLead | None, context: dict[str, Any]) -> str:
-    first_name = (lead.first_name if lead and lead.first_name else "bonjour").strip()
+    first_name = (lead.first_name if lead and lead.first_name else "").strip()
     company = ""
     if lead and isinstance(lead.details, dict):
         company = str(lead.details.get("company_name") or "").strip()
     if not company:
         company = str(context.get("company_name") or "votre structure").strip()
     goal = str(context.get("goal") or "reduire le temps de suivi commercial").strip()
+    intro = f"Intro: Bonjour {first_name}, ici [Votre Nom]." if first_name else "Intro: Bonjour, ici [Votre Nom]."
     return (
-        f"Intro: Bonjour {first_name}, ici [Votre Nom].\n"
+        f"{intro}\n"
         f"Contexte: J'aide des equipes comme {company} a {goal}.\n"
         "Question de qualification: Comment gerez-vous ce sujet aujourd'hui ?\n"
         "Proposition: Je peux vous montrer un plan en 15 minutes.\n"

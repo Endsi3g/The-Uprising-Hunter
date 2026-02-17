@@ -70,7 +70,7 @@ def ensure_sqlite_schema_compatibility(engine) -> None:
         "closed_at": "TIMESTAMP",
     }
     required_opportunity_columns = {
-        "lead_id": "TEXT NOT NULL",
+        "lead_id": "TEXT NOT NULL DEFAULT 'unknown'",
         "name": "TEXT NOT NULL DEFAULT 'Opportunity'",
         "stage": "TEXT NOT NULL DEFAULT 'qualification'",
         "status": "TEXT NOT NULL DEFAULT 'open'",
@@ -85,10 +85,10 @@ def ensure_sqlite_schema_compatibility(engine) -> None:
         "handoff_completed_at": "TIMESTAMP",
         "amount": "REAL",
         "probability": "INTEGER NOT NULL DEFAULT 10",
-        "assigned_to": "TEXT NOT NULL DEFAULT 'Vous'",
+        "assigned_to": "TEXT NOT NULL DEFAULT 'You'",
         "expected_close_date": "TIMESTAMP",
         "details_json": "TEXT NOT NULL DEFAULT '{}'",
-        "created_at": "TIMESTAMP NOT NULL",
+        "created_at": "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP",
         "updated_at": "TIMESTAMP",
     }
     required_admin_settings_columns = {
@@ -185,6 +185,19 @@ def ensure_sqlite_schema_compatibility(engine) -> None:
                     """
                 )
             )
+            connection.execute(
+                text(
+                    """
+                    UPDATE opportunities
+                    SET lead_id = COALESCE(NULLIF(trim(lead_id), ''), 'unknown'),
+                        created_at = COALESCE(created_at, CURRENT_TIMESTAMP),
+                        assigned_to = CASE
+                            WHEN assigned_to IS NULL OR trim(assigned_to) = '' OR assigned_to = 'Vous' THEN 'You'
+                            ELSE assigned_to
+                        END
+                    """
+                )
+            )
         else:
             connection.execute(
                 text(
@@ -206,10 +219,10 @@ def ensure_sqlite_schema_compatibility(engine) -> None:
                         handoff_completed_at TIMESTAMP,
                         amount REAL,
                         probability INTEGER NOT NULL DEFAULT 10,
-                        assigned_to TEXT NOT NULL DEFAULT 'Vous',
+                        assigned_to TEXT NOT NULL DEFAULT 'You',
                         expected_close_date TIMESTAMP,
                         details_json TEXT NOT NULL DEFAULT '{}',
-                        created_at TIMESTAMP NOT NULL,
+                        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                         updated_at TIMESTAMP
                     )
                     """
@@ -811,7 +824,8 @@ def ensure_sqlite_schema_compatibility(engine) -> None:
                     next_run_at TIMESTAMP,
                     last_action_at TIMESTAMP,
                     created_at TIMESTAMP,
-                    updated_at TIMESTAMP
+                    updated_at TIMESTAMP,
+                    UNIQUE(campaign_id, lead_id)
                 )
                 """
             )
@@ -901,6 +915,12 @@ def ensure_sqlite_schema_compatibility(engine) -> None:
         )
         connection.execute(
             text("CREATE INDEX IF NOT EXISTS ix_campaign_enrollments_next_run_at ON campaign_enrollments (next_run_at)")
+        )
+        connection.execute(
+            text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS uq_campaign_enrollments_campaign_id_lead_id "
+                "ON campaign_enrollments (campaign_id, lead_id)"
+            )
         )
         connection.execute(
             text("CREATE INDEX IF NOT EXISTS ix_campaign_runs_campaign_id ON campaign_runs (campaign_id)")

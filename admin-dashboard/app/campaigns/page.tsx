@@ -122,7 +122,11 @@ function parseJsonArray(raw: string, label: string): AnyMap[] | null {
       toast.error(`${label} doit etre un tableau JSON.`)
       return null
     }
-    return parsed.filter((item) => typeof item === "object" && item !== null) as AnyMap[]
+    const filtered = parsed.filter((item) => typeof item === "object" && item !== null) as AnyMap[]
+    if (filtered.length !== parsed.length) {
+      toast.warn(`${label}: ${parsed.length - filtered.length} element(s) non objet ignores.`)
+    }
+    return filtered
   } catch {
     toast.error(`JSON invalide dans ${label}.`)
     return null
@@ -176,6 +180,7 @@ export default function CampaignsPage() {
   const [campaignStrategy, setCampaignStrategy] = React.useState("{}")
   const [campaignFilter, setCampaignFilter] = React.useState(DEFAULT_CAMPAIGN_FILTER)
   const [campaignBusy, setCampaignBusy] = React.useState(false)
+  const [processingCampaignActions, setProcessingCampaignActions] = React.useState<Set<string>>(new Set())
 
   const [runStatus, setRunStatus] = React.useState("all")
   const runsPath = React.useMemo(() => {
@@ -272,6 +277,9 @@ export default function CampaignsPage() {
 
   async function toggleCampaign(campaign: Campaign) {
     const action = campaign.status === "active" ? "pause" : "activate"
+    const actionKey = `toggle:${campaign.id}`
+    if (processingCampaignActions.has(actionKey)) return
+    setProcessingCampaignActions((current) => new Set(current).add(actionKey))
     try {
       await requestApi(`/api/v1/admin/campaigns/${campaign.id}/${action}`, { method: "POST" })
       await mutateCampaigns()
@@ -279,12 +287,21 @@ export default function CampaignsPage() {
       toast.success(action === "activate" ? "Campagne activee." : "Campagne en pause.")
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Action impossible.")
+    } finally {
+      setProcessingCampaignActions((current) => {
+        const next = new Set(current)
+        next.delete(actionKey)
+        return next
+      })
     }
   }
 
   async function enrollCampaign(campaign: Campaign) {
-    const filter = parseJsonObject(campaignFilter, "enrollment_filter")
+    const filter = parseJsonObject(JSON.stringify(campaign.enrollment_filter ?? {}), "enrollment_filter")
     if (filter === null) return
+    const actionKey = `enroll:${campaign.id}`
+    if (processingCampaignActions.has(actionKey)) return
+    setProcessingCampaignActions((current) => new Set(current).add(actionKey))
     try {
       const result = await requestApi<{ created: number; skipped: number }>(`/api/v1/admin/campaigns/${campaign.id}/enroll`, {
         method: "POST",
@@ -295,6 +312,12 @@ export default function CampaignsPage() {
       await mutateRuns()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Enrollment impossible.")
+    } finally {
+      setProcessingCampaignActions((current) => {
+        const next = new Set(current)
+        next.delete(actionKey)
+        return next
+      })
     }
   }
 
@@ -359,6 +382,12 @@ export default function CampaignsPage() {
     event.preventDefault()
     const context = parseJsonObject(contentContext, "context")
     if (context === null) return
+    const trimmedStep = contentStep.trim()
+    const parsedStep = trimmedStep === "" ? 1 : Number.parseInt(trimmedStep, 10)
+    if (Number.isNaN(parsedStep)) {
+      toast.error("L'etape de contenu doit etre un nombre entier.")
+      return
+    }
     setContentBusy(true)
     try {
       const result = await requestApi<AnyMap>("/api/v1/admin/content/generate", {
@@ -367,7 +396,7 @@ export default function CampaignsPage() {
         body: JSON.stringify({
           lead_id: contentLeadId.trim() || null,
           channel: contentChannel,
-          step: Number(contentStep || "1"),
+          step: parsedStep,
           template_key: contentTemplate.trim() || null,
           provider: contentProvider.trim() || "deterministic",
           context,
@@ -965,8 +994,8 @@ export default function CampaignsPage() {
                       <EmptyState title="Aucun contenu" description="Generez un message email/call/dm." />
                     ) : (
                       <div className="space-y-3">
-                        {contentHistory.map((item) => (
-                          <pre key={String(item.id)} className="max-h-72 overflow-auto rounded-lg border bg-muted p-3 text-[11px]">
+                        {contentHistory.map((item, index) => (
+                          <pre key={`content-${item.id ?? index}`} className="max-h-72 overflow-auto rounded-lg border bg-muted p-3 text-[11px]">
                             {pretty(item)}
                           </pre>
                         ))}
@@ -984,8 +1013,8 @@ export default function CampaignsPage() {
                       <EmptyState title="Aucun enrichissement" description="Lancez un enrichment run." />
                     ) : (
                       <div className="space-y-3">
-                        {enrichmentHistory.map((item) => (
-                          <pre key={String(item.id)} className="max-h-72 overflow-auto rounded-lg border bg-muted p-3 text-[11px]">
+                        {enrichmentHistory.map((item, index) => (
+                          <pre key={`enrichment-${item.id ?? index}`} className="max-h-72 overflow-auto rounded-lg border bg-muted p-3 text-[11px]">
                             {pretty(item)}
                           </pre>
                         ))}

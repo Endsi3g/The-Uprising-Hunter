@@ -1,15 +1,15 @@
 {
-  "generated_at": "2026-02-15T02:39:44.052196+00:00",
-  "source_dir": "C:\\prospect\\prospect\\CompagnieDocs",
-  "target_dir": "C:\\prospect\\prospect\\assets\\reference\\compagnie_docs",
+  "generated_at": "2026-02-16T05:35:54.371366+00:00",
+  "source_dir": "./CompagnieDocs",
+  "target_dir": "./assets/reference/compagnie_docs",
   "stats": {
     "total_files": 11,
-    "processed_pdf": 0,
+    "processed_pdf": 8,
     "processed_fig": 3,
-    "pending_fig_conversion": 3,
+    "pending_fig_conversion": 0,
     "fig_converted": 0,
     "duplicates": 0,
-    "failed": 8,
+    "failed": 3,
     "unsupported": 0
   },
   "documents": [
@@ -20,60 +20,60 @@
       "ext": ".pdf",
       "size_bytes": 4032914,
       "sha256": "8952f800b654cc74e0674498b771d2b7d568e9ced9a2d7b7ead904e43a63d142",
-      "source_path": "C:\\prospect\\prospect\\CompagnieDocs\\Document 2.pdf",
-      "raw_path": "C:\\prospect\\prospect\\assets\\reference\\compagnie_docs\\raw\\document-2-8952f800b654.pdf",
-      "status": "failed",
+      "source_path": "./CompagnieDocs/Document 2.pdf",
+      "raw_path": "./assets/reference/compagnie_docs/raw/document-2-8952f800b654.pdf",
+      "status": "processed",
       "processing": {
-        "processed_at": "2026-02-15T02:39:43.174993+00:00",
+        "processed_at": "2026-02-16T05:35:35.106781+00:00",
         "pdf": {
-          "page_count": 0,
-          "markdown_path": "C:\\prospect\\prospect\\assets\\reference\\compagnie_docs\\processed\\pdf_markdown\\document-2-8952f800b654.md",
-          "json_path": "C:\\prospect\\prospect\\assets\\reference\\compagnie_docs\\processed\\pdf_json\\document-2-8952f800b654.json",
-          "warnings": [
-            "missing_dependency:pypdf"
-          ],
-          "error": "missing_dependency:pypdf"
+          "page_count": 6,
+          "markdown_path": "./assets/reference/compagnie_docs/processed/pdf_markdown/document-2-8952f800b654.md",
+          "json_path": "./assets/reference/compagnie_docs/processed/pdf_json/document-2-8952f800b654.json",
+          "warnings": [],
+          "error": null
         }
       }
     },
     {
       "doc_id": "forme-juridique-et-secteur-d-activite-7abd595ffa87",
-      "original_name": "Forme juridique et secteur d_activité –...pdf",
+      "original_name": "Forme juridique et secteur d'activité –...pdf",
       "normalized_name": "forme-juridique-et-secteur-d-activite",
       "ext": ".pdf",
       "size_bytes": 154700,
       "sha256": "7abd595ffa87c55c937f58f27abf0e1d6cc569dc71c7a8238621909e8a6e81f1",
-      "source_path": "C:\\prospect\\prospect\\CompagnieDocs\\Forme juridique et secteur d_activité –...pdf",
-      "raw_path": "C:\\prospect\\prospect\\assets\\reference\\compagnie_docs\\raw\\forme-juridique-et-secteur-d-activite-7abd595ffa87.pdf",
-      "status": "failed",
+      "source_path": "./CompagnieDocs/Forme juridique et secteur d_activité –...pdf",
+      "raw_path": "./assets/reference/compagnie_docs/raw/forme-juridique-et-secteur-d-activite-7abd595ffa87.pdf",
+      "status": "processed",
       "processing": {
-        "processed_at": "2026-02-15T02:39:43.184805+00:00",
+        "processed_at": "2026-02-16T05:35:36.089438+00:00",
         "pdf": {
-          "page_count": 0,
-          "markdown_path": "C:\\prospect\\prospect\\assets\\reference\\compagnie_docs\\processed\\pdf_markdown\\forme-juridique-et-secteur-d-activite-7abd595ffa87.md",
-          "json_path": "C:\\prospect\\prospect\\assets\\reference\\compagnie_docs\\processed\\pdf_json\\forme-juridique-et-secteur-d-activite-7abd595ffa87.json",
+          "page_count": 2,
+          "markdown_path": "./assets/reference/compagnie_docs/processed/pdf_markdown/forme-juridique-et-secteur-d-activite-7abd595ffa87.md",
+          "json_path": "./assets/reference/compagnie_docs/processed/pdf_json/forme-juridique-et-secteur-d-activite-7abd595ffa87.json",
           "warnings": [
-            "missing_dependency:pypdf"
+            "page_1_contains_i255_artifacts",
+            "page_2_contains_i255_artifacts",
+            "contains_i255_artifacts"
           ],
-          "error": "missing_dependency:pypdf"
+          "error": null
         }
       }
     },
     {
       "doc_id": "invoice-easy-5c7e5c239682",
-      "original_name": "Invoice,+Easy!.fig",
+      "original_name": "Invoice, Easy!.fig",
       "normalized_name": "invoice-easy",
       "ext": ".fig",
       "size_bytes": 474815,
       "sha256": "5c7e5c239682a26bc50e890a78a7dff89ce122de6408cf74bc358277263a9301",
-      "source_path": "C:\\prospect\\prospect\\CompagnieDocs\\Invoice,+Easy!.fig",
-      "raw_path": "C:\\prospect\\prospect\\assets\\reference\\compagnie_docs\\raw\\invoice-easy-5c7e5c239682.fig",
-      "status": "pending_conversion",
+      "source_path": "./CompagnieDocs/Invoice,+Easy!.fig",
+      "raw_path": "./assets/reference/compagnie_docs/raw/invoice-easy-5c7e5c239682.fig",
+      "status": "failed",
       "processing": {
-        "processed_at": "2026-02-15T02:39:43.236247+00:00",
+        "processed_at": "2026-02-16T05:35:38.163829+00:00",
         "fig": {
-          "manifest_path": "C:\\prospect\\prospect\\assets\\reference\\compagnie_docs\\processed\\fig_exports\\invoice-easy-5c7e5c239682.json",
-          "conversion_status": "pending_conversion",
+          "manifest_path": "./assets/reference/compagnie_docs/processed/fig_exports/invoice-easy-5c7e5c239682.json",
+          "conversion_status": "failed",
           "conversion_outputs": [],
           "error": "missing_figma_credentials_or_file_key"
         }
@@ -81,42 +81,40 @@
     },
     {
       "doc_id": "manuel-operationelle-de-guerre-aa366af97155",
-      "original_name": "Manuel Opérationelle de Guerre.pdf",
+      "original_name": "Manuel Opérationnelle de Guerre.pdf",
       "normalized_name": "manuel-operationelle-de-guerre",
       "ext": ".pdf",
       "size_bytes": 4032952,
       "sha256": "aa366af971550503d1c4b67797cb97b2de23eecee3e01b8154dacac18ca7c7fb",
-      "source_path": "C:\\prospect\\prospect\\CompagnieDocs\\Manuel Opérationelle de Guerre.pdf",
-      "raw_path": "C:\\prospect\\prospect\\assets\\reference\\compagnie_docs\\raw\\manuel-operationelle-de-guerre-aa366af97155.pdf",
-      "status": "failed",
+      "source_path": "./CompagnieDocs/Manuel Opérationnelle de Guerre.pdf",
+      "raw_path": "./assets/reference/compagnie_docs/raw/manuel-operationelle-de-guerre-aa366af97155.pdf",
+      "status": "processed",
       "processing": {
-        "processed_at": "2026-02-15T02:39:43.261463+00:00",
+        "processed_at": "2026-02-16T05:35:38.212003+00:00",
         "pdf": {
-          "page_count": 0,
-          "markdown_path": "C:\\prospect\\prospect\\assets\\reference\\compagnie_docs\\processed\\pdf_markdown\\manuel-operationelle-de-guerre-aa366af97155.md",
-          "json_path": "C:\\prospect\\prospect\\assets\\reference\\compagnie_docs\\processed\\pdf_json\\manuel-operationelle-de-guerre-aa366af97155.json",
-          "warnings": [
-            "missing_dependency:pypdf"
-          ],
-          "error": "missing_dependency:pypdf"
+          "page_count": 6,
+          "markdown_path": "./assets/reference/compagnie_docs/processed/pdf_markdown/manuel-operationelle-de-guerre-aa366af97155.md",
+          "json_path": "./assets/reference/compagnie_docs/processed/pdf_json/manuel-operationelle-de-guerre-aa366af97155.json",
+          "warnings": [],
+          "error": null
         }
       }
     },
     {
       "doc_id": "pitch-easy-6ad370f3cad7",
-      "original_name": "Pitch,+Easy!.fig",
+      "original_name": "Pitch, Easy!.fig",
       "normalized_name": "pitch-easy",
       "ext": ".fig",
       "size_bytes": 78210759,
       "sha256": "6ad370f3cad74697b8fe2fbbf296ab2335c32fd2838812932073d509e7aaf2e6",
-      "source_path": "C:\\prospect\\prospect\\CompagnieDocs\\Pitch,+Easy!.fig",
-      "raw_path": "C:\\prospect\\prospect\\assets\\reference\\compagnie_docs\\raw\\pitch-easy-6ad370f3cad7.fig",
-      "status": "pending_conversion",
+      "source_path": "./CompagnieDocs/Pitch,+Easy!.fig",
+      "raw_path": "./assets/reference/compagnie_docs/raw/pitch-easy-6ad370f3cad7.fig",
+      "status": "failed",
       "processing": {
-        "processed_at": "2026-02-15T02:39:43.849442+00:00",
+        "processed_at": "2026-02-16T05:35:39.258231+00:00",
         "fig": {
-          "manifest_path": "C:\\prospect\\prospect\\assets\\reference\\compagnie_docs\\processed\\fig_exports\\pitch-easy-6ad370f3cad7.json",
-          "conversion_status": "pending_conversion",
+          "manifest_path": "./assets/reference/compagnie_docs/processed/fig_exports/pitch-easy-6ad370f3cad7.json",
+          "conversion_status": "failed",
           "conversion_outputs": [],
           "error": "missing_figma_credentials_or_file_key"
         }
@@ -129,19 +127,17 @@
       "ext": ".pdf",
       "size_bytes": 189029,
       "sha256": "7f2faa3d0ae276b4f51f708da579673d4ccc0ccec7cfe18eb1a99ccd95880e6e",
-      "source_path": "C:\\prospect\\prospect\\CompagnieDocs\\PLAYBOOK STRATÉGIQUE _ UPRISING STUDIO.pdf",
-      "raw_path": "C:\\prospect\\prospect\\assets\\reference\\compagnie_docs\\raw\\playbook-strategique-uprising-studio-7f2faa3d0ae2.pdf",
-      "status": "failed",
+      "source_path": "./CompagnieDocs/PLAYBOOK STRATÉGIQUE _ UPRISING STUDIO.pdf",
+      "raw_path": "./assets/reference/compagnie_docs/raw/playbook-strategique-uprising-studio-7f2faa3d0ae2.pdf",
+      "status": "processed",
       "processing": {
-        "processed_at": "2026-02-15T02:39:43.853689+00:00",
+        "processed_at": "2026-02-16T05:35:39.290177+00:00",
         "pdf": {
-          "page_count": 0,
-          "markdown_path": "C:\\prospect\\prospect\\assets\\reference\\compagnie_docs\\processed\\pdf_markdown\\playbook-strategique-uprising-studio-7f2faa3d0ae2.md",
-          "json_path": "C:\\prospect\\prospect\\assets\\reference\\compagnie_docs\\processed\\pdf_json\\playbook-strategique-uprising-studio-7f2faa3d0ae2.json",
-          "warnings": [
-            "missing_dependency:pypdf"
-          ],
-          "error": "missing_dependency:pypdf"
+          "page_count": 8,
+          "markdown_path": "./assets/reference/compagnie_docs/processed/pdf_markdown/playbook-strategique-uprising-studio-7f2faa3d0ae2.md",
+          "json_path": "./assets/reference/compagnie_docs/processed/pdf_json/playbook-strategique-uprising-studio-7f2faa3d0ae2.json",
+          "warnings": [],
+          "error": null
         }
       }
     },
@@ -152,14 +148,14 @@
       "ext": ".fig",
       "size_bytes": 8382597,
       "sha256": "b51d0a1359d3b557195c619e2813324b1979d7e7b63ba7b677ad625c09a615ae",
-      "source_path": "C:\\prospect\\prospect\\CompagnieDocs\\Professional Brand Guidelines Template (Figma).fig",
-      "raw_path": "C:\\prospect\\prospect\\assets\\reference\\compagnie_docs\\raw\\professional-brand-guidelines-template-figma-b51d0a1359d3.fig",
-      "status": "pending_conversion",
+      "source_path": "./CompagnieDocs/Professional Brand Guidelines Template (Figma).fig",
+      "raw_path": "./assets/reference/compagnie_docs/raw/professional-brand-guidelines-template-figma-b51d0a1359d3.fig",
+      "status": "failed",
       "processing": {
-        "processed_at": "2026-02-15T02:39:43.921442+00:00",
+        "processed_at": "2026-02-16T05:35:41.305302+00:00",
         "fig": {
-          "manifest_path": "C:\\prospect\\prospect\\assets\\reference\\compagnie_docs\\processed\\fig_exports\\professional-brand-guidelines-template-figma-b51d0a1359d3.json",
-          "conversion_status": "pending_conversion",
+          "manifest_path": "./assets/reference/compagnie_docs/processed/fig_exports/professional-brand-guidelines-template-figma-b51d0a1359d3.json",
+          "conversion_status": "failed",
           "conversion_outputs": [],
           "error": "missing_figma_credentials_or_file_key"
         }
@@ -172,42 +168,38 @@
       "ext": ".pdf",
       "size_bytes": 4047198,
       "sha256": "5126b4bc7fec86ad9cf5e54e399ac9786f0833aea64c83b8bfac5934530be421",
-      "source_path": "C:\\prospect\\prospect\\CompagnieDocs\\UPRISING STUDIO  MANIFESTE.pdf",
-      "raw_path": "C:\\prospect\\prospect\\assets\\reference\\compagnie_docs\\raw\\uprising-studio-manifeste-5126b4bc7fec.pdf",
-      "status": "failed",
+      "source_path": "./CompagnieDocs/UPRISING STUDIO  MANIFESTE.pdf",
+      "raw_path": "./assets/reference/compagnie_docs/raw/uprising-studio-manifeste-5126b4bc7fec.pdf",
+      "status": "processed",
       "processing": {
-        "processed_at": "2026-02-15T02:39:43.944772+00:00",
+        "processed_at": "2026-02-16T05:35:41.577822+00:00",
         "pdf": {
-          "page_count": 0,
-          "markdown_path": "C:\\prospect\\prospect\\assets\\reference\\compagnie_docs\\processed\\pdf_markdown\\uprising-studio-manifeste-5126b4bc7fec.md",
-          "json_path": "C:\\prospect\\prospect\\assets\\reference\\compagnie_docs\\processed\\pdf_json\\uprising-studio-manifeste-5126b4bc7fec.json",
-          "warnings": [
-            "missing_dependency:pypdf"
-          ],
-          "error": "missing_dependency:pypdf"
+          "page_count": 21,
+          "markdown_path": "./assets/reference/compagnie_docs/processed/pdf_markdown/uprising-studio-manifeste-5126b4bc7fec.md",
+          "json_path": "./assets/reference/compagnie_docs/processed/pdf_json/uprising-studio-manifeste-5126b4bc7fec.json",
+          "warnings": [],
+          "error": null
         }
       }
     },
     {
       "doc_id": "uprising-studio-guide-legalisation-quebec-outils-gratuits-4d66888f3e43",
-      "original_name": "UPRISING STUDIO - Guide Légalisation Québec + Outils Gratuits.pdf",
+      "original_name": "UPRISING STUDIO - Guide Légalisation Québec   Outils Gratuits.pdf",
       "normalized_name": "uprising-studio-guide-legalisation-quebec-outils-gratuits",
       "ext": ".pdf",
       "size_bytes": 1345497,
       "sha256": "4d66888f3e434346b3bfc4ffdf36ae9e37b24f622af5212e90077e7c9c3b6b12",
-      "source_path": "C:\\prospect\\prospect\\CompagnieDocs\\UPRISING STUDIO - Guide Légalisation Québec + Outils Gratuits.pdf",
-      "raw_path": "C:\\prospect\\prospect\\assets\\reference\\compagnie_docs\\raw\\uprising-studio-guide-legalisation-quebec-outils-gratuits-4d66888f3e43.pdf",
-      "status": "failed",
+      "source_path": "./CompagnieDocs/UPRISING STUDIO - Guide Légalisation Québec + Outils Gratuits.pdf",
+      "raw_path": "./assets/reference/compagnie_docs/raw/uprising-studio-guide-legalisation-quebec-outils-gratuits-4d66888f3e43.pdf",
+      "status": "processed",
       "processing": {
-        "processed_at": "2026-02-15T02:39:43.958862+00:00",
+        "processed_at": "2026-02-16T05:35:43.519720+00:00",
         "pdf": {
-          "page_count": 0,
-          "markdown_path": "C:\\prospect\\prospect\\assets\\reference\\compagnie_docs\\processed\\pdf_markdown\\uprising-studio-guide-legalisation-quebec-outils-gratuits-4d66888f3e43.md",
-          "json_path": "C:\\prospect\\prospect\\assets\\reference\\compagnie_docs\\processed\\pdf_json\\uprising-studio-guide-legalisation-quebec-outils-gratuits-4d66888f3e43.json",
-          "warnings": [
-            "missing_dependency:pypdf"
-          ],
-          "error": "missing_dependency:pypdf"
+          "page_count": 18,
+          "markdown_path": "./assets/reference/compagnie_docs/processed/pdf_markdown/uprising-studio-guide-legalisation-quebec-outils-gratuits-4d66888f3e43.md",
+          "json_path": "./assets/reference/compagnie_docs/processed/pdf_json/uprising-studio-guide-legalisation-quebec-outils-gratuits-4d66888f3e43.json",
+          "warnings": [],
+          "error": null
         }
       }
     },
@@ -218,19 +210,54 @@
       "ext": ".pdf",
       "size_bytes": 4076558,
       "sha256": "fc7dc0398fd5235e1e1874f338fa5dd29c0b14f9f850cc2aa28cbb7b4dcab151",
-      "source_path": "C:\\prospect\\prospect\\CompagnieDocs\\UPRISING STUDIO - Prompt Complet Branding Style Apple x Novara.pdf",
-      "raw_path": "C:\\prospect\\prospect\\assets\\reference\\compagnie_docs\\raw\\uprising-studio-prompt-complet-branding-style-apple-x-novara-fc7dc0398fd5.pdf",
-      "status": "failed",
+      "source_path": "./CompagnieDocs/UPRISING STUDIO - Prompt Complet Branding Style Apple x Novara.pdf",
+      "raw_path": "./assets/reference/compagnie_docs/raw/uprising-studio-prompt-complet-branding-style-apple-x-novara-fc7dc0398fd5.pdf",
+      "status": "processed",
       "processing": {
-        "processed_at": "2026-02-15T02:39:44.017886+00:00",
+        "processed_at": "2026-02-16T05:35:44.633700+00:00",
         "pdf": {
-          "page_count": 0,
-          "markdown_path": "C:\\prospect\\prospect\\assets\\reference\\compagnie_docs\\processed\\pdf_markdown\\uprising-studio-prompt-complet-branding-style-apple-x-novara-fc7dc0398fd5.md",
-          "json_path": "C:\\prospect\\prospect\\assets\\reference\\compagnie_docs\\processed\\pdf_json\\uprising-studio-prompt-complet-branding-style-apple-x-novara-fc7dc0398fd5.json",
+          "page_count": 35,
+          "markdown_path": "./assets/reference/compagnie_docs/processed/pdf_markdown/uprising-studio-prompt-complet-branding-style-apple-x-novara-fc7dc0398fd5.md",
+          "json_path": "./assets/reference/compagnie_docs/processed/pdf_json/uprising-studio-prompt-complet-branding-style-apple-x-novara-fc7dc0398fd5.json",
           "warnings": [
-            "missing_dependency:pypdf"
+            "page_1_contains_i255_artifacts",
+            "page_2_contains_i255_artifacts",
+            "page_3_contains_i255_artifacts",
+            "page_4_contains_i255_artifacts",
+            "page_5_contains_i255_artifacts",
+            "page_6_contains_i255_artifacts",
+            "page_7_contains_i255_artifacts",
+            "page_8_contains_i255_artifacts",
+            "page_9_contains_i255_artifacts",
+            "page_10_contains_i255_artifacts",
+            "page_11_contains_i255_artifacts",
+            "page_12_contains_i255_artifacts",
+            "page_13_contains_i255_artifacts",
+            "page_14_contains_i255_artifacts",
+            "page_15_contains_i255_artifacts",
+            "page_16_contains_i255_artifacts",
+            "page_17_contains_i255_artifacts",
+            "page_18_contains_i255_artifacts",
+            "page_19_contains_i255_artifacts",
+            "page_20_contains_i255_artifacts",
+            "page_21_contains_i255_artifacts",
+            "page_22_contains_i255_artifacts",
+            "page_23_contains_i255_artifacts",
+            "page_24_contains_i255_artifacts",
+            "page_25_contains_i255_artifacts",
+            "page_26_contains_i255_artifacts",
+            "page_27_contains_i255_artifacts",
+            "page_28_contains_i255_artifacts",
+            "page_29_contains_i255_artifacts",
+            "page_30_contains_i255_artifacts",
+            "page_31_contains_i255_artifacts",
+            "page_32_contains_i255_artifacts",
+            "page_33_contains_i255_artifacts",
+            "page_34_contains_i255_artifacts",
+            "page_35_contains_i255_artifacts",
+            "contains_i255_artifacts"
           ],
-          "error": "missing_dependency:pypdf"
+          "error": null
         }
       }
     },
@@ -241,19 +268,17 @@
       "ext": ".pdf",
       "size_bytes": 4009153,
       "sha256": "4199d9effe80f29d7dd3e8a6f75970fb31624e185bc309f88bf1ab7eba443f42",
-      "source_path": "C:\\prospect\\prospect\\CompagnieDocs\\UPRISING STUDIO.pdf",
-      "raw_path": "C:\\prospect\\prospect\\assets\\reference\\compagnie_docs\\raw\\uprising-studio-4199d9effe80.pdf",
-      "status": "failed",
+      "source_path": "./CompagnieDocs/UPRISING STUDIO.pdf",
+      "raw_path": "./assets/reference/compagnie_docs/raw/uprising-studio-4199d9effe80.pdf",
+      "status": "processed",
       "processing": {
-        "processed_at": "2026-02-15T02:39:44.048182+00:00",
+        "processed_at": "2026-02-16T05:35:52.946793+00:00",
         "pdf": {
-          "page_count": 0,
-          "markdown_path": "C:\\prospect\\prospect\\assets\\reference\\compagnie_docs\\processed\\pdf_markdown\\uprising-studio-4199d9effe80.md",
-          "json_path": "C:\\prospect\\prospect\\assets\\reference\\compagnie_docs\\processed\\pdf_json\\uprising-studio-4199d9effe80.json",
-          "warnings": [
-            "missing_dependency:pypdf"
-          ],
-          "error": "missing_dependency:pypdf"
+          "page_count": 18,
+          "markdown_path": "./assets/reference/compagnie_docs/processed/pdf_markdown/uprising-studio-4199d9effe80.md",
+          "json_path": "./assets/reference/compagnie_docs/processed/pdf_json/uprising-studio-4199d9effe80.json",
+          "warnings": [],
+          "error": null
         }
       }
     }

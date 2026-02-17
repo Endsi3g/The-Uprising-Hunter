@@ -342,7 +342,7 @@ export function TasksTable({
                   </div>
                   <div>
                     <p className="text-muted-foreground">Etape</p>
-                    <p>{task.sequence_step || 1}</p>
+                    <p>{task.sequence_step ?? 1}</p>
                   </div>
                 </div>
                 <div className="mt-2 flex justify-end">
@@ -439,7 +439,7 @@ export function TasksTable({
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <span className="text-sm">{task.sequence_step || 1}</span>
+                      <span className="text-sm">{task.sequence_step ?? 1}</span>
                     </TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>

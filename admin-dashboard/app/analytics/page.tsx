@@ -96,7 +96,7 @@ export default function AnalyticsPage() {
               title="Impossible de charger les donnees analytiques."
               description={
                 loadingTimedOut
-                  ? "Le chargement depasse le delai attendu. Verifiez la connectivite API puis relancez."
+                  ? "Le chargement depasse le delai attendu. Vérifiez la connectivite API puis relancez."
                   : analyticsError instanceof Error
                     ? analyticsError.message
                     : "Les donnees analytiques sont indisponibles."
@@ -202,5 +202,6 @@ export default function AnalyticsPage() {
     </SidebarProvider>
   )
 }
+
 
 

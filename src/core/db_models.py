@@ -158,7 +158,7 @@ class DBOpportunity(Base):
     handoff_completed_at = Column(DateTime, nullable=True, index=True)
     amount = Column(Float, nullable=True)
     probability = Column(Integer, nullable=False, default=10)
-    assigned_to = Column(String, nullable=False, default="Vous", index=True)
+    assigned_to = Column(String, nullable=False, default="You", index=True)
     expected_close_date = Column(DateTime, nullable=True, index=True)
     details_json = Column(JSON, default=dict, nullable=False)
     created_at = Column(DateTime, default=datetime.now, nullable=False, index=True)
@@ -503,6 +503,9 @@ class DBCampaign(Base):
 
 class DBCampaignEnrollment(Base):
     __tablename__ = "campaign_enrollments"
+    __table_args__ = (
+        UniqueConstraint("campaign_id", "lead_id", name="uq_campaign_enrollments_campaign_id_lead_id"),
+    )
 
     id = Column(String, primary_key=True, index=True)
     campaign_id = Column(String, ForeignKey("campaigns.id"), nullable=False, index=True)

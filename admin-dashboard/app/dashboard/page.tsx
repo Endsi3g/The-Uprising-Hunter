@@ -65,7 +65,7 @@ export default function DashboardPage() {
                 title="Impossible de charger les statistiques du tableau de bord."
                 description={
                   loadingTimedOut
-                    ? "Le chargement prend trop de temps. Verifiez API_BASE_URL et la disponibilite du backend."
+                    ? "Le chargement prend trop de temps. Vérifiez API_BASE_URL et la disponibilite du backend."
                     : error instanceof Error
                       ? error.message
                       : "Aucune donnee n'a pu etre recuperer pour le tableau de bord."
@@ -89,3 +89,4 @@ export default function DashboardPage() {
     </AppShell>
   )
 }
+

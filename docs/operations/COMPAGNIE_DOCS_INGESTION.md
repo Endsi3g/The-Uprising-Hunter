@@ -65,7 +65,12 @@ The script creates:
 
 Supported variables:
 
-- `FIGMA_ACCESS_TOKEN`: personal access token.
+- `FIGMA_ACCESS_TOKEN`: personal access token. Treat this as a secret credential:
+  - never commit it to git or plaintext docs,
+  - store it in environment variables or a secrets manager (Vault / cloud secret stores),
+  - keep `.env` files out of version control,
+  - use least-privilege scopes and rotate regularly,
+  - inject via secure CI/CD variables (never hardcode in pipelines).
 - `FIGMA_FILE_KEY`: default Figma file key for `.fig` exports.
 - `FIGMA_FILE_KEY_MAP_PATH`: path to JSON map for per-document keys.
 - `FIGMA_NODE_IDS`: optional comma-separated node IDs for image export.
@@ -100,5 +105,5 @@ After a run, verify:
 
 1. `index/corpus_index.json` exists and lists all source files.
 2. each PDF has `processed/pdf_markdown/<doc_id>.md` and `processed/pdf_json/<doc_id>.json`.
-3. each `.fig` has `processed/fig_exports/<doc_id>.json`.
+3. if Figma export is enabled (credentials present or explicit export flag enabled), each `.fig` has `processed/fig_exports/<doc_id>.json`; otherwise this artifact is optional.
 4. `stats.failed` in the index is `0` or accompanied by explicit error details.
