@@ -1,35 +1,61 @@
-# 🚀 ProspectionApp
+# 🚀 Uprising Prospect
 
-**Système intelligent de Sales Intelligence B2B**
+**Growth Automation Studio & Sales Intelligence B2B**
 
-Plateforme full-stack automatisant le cycle complet de prospection : du sourcing de leads à l'engagement personnalisé via IA.
+> "La prospection n'est pas une corvée, c'est une ingénierie de précision."
 
----
-
-## 🛠 Stack Technique
-
-- **Backend** : FastAPI, SQLAlchemy, Pydantic (Asynchrone & Haute performance)
-- **Frontend** : Next.js (Dashboard Admin & Playground)
-- **IA** : Moteur contextuel (`ai_engine`) pour la génération de messages
-- **Infrastructure** : PostgreSQL (Prod), Docker, Koyeb & Vercel
+Bienvenue dans le cockpit **Uprising**. Cette plateforme full-stack automatise l'intégralité du cycle de croissance : du sourcing chirurgical de leads à l'engagement piloté par IA.
 
 ---
 
-## 🏗 Structure du Projet
+## 💎 Features de Pointe
 
-| Module | Description |
-|--------|-------------|
-| `src/enrichment` | Sourcing et enrichissement (LinkedIn, Email) |
-| `src/intent` | Signaux d'achat (Bombora, 6sense) |
-| `src/scoring` | Algorithmes de priorisation des leads |
-| `src/outreach` | Séquences d'engagement et follow-up |
-| `src/admin` | API de gestion et Assistant IA |
+### 🛠 Growth Automation Studio
+
+- **Sequence Builder** : Créez des chaînes d'engagement complexes visuellement (Email, LinkedIn, WhatsApp).
+- **Enrichissement IA** : Deep-research automatique sur chaque lead pour des accroches ultra-personnalisées.
+- **Workflow Kanban** : Visualisez votre pipeline de conversion en un coup d'œil.
+
+### ⚡ Performance & UX Refined
+
+- **Universal Debouncing** : Réactivité instantanée sur les filtres complexes (Leads, Tasks, Projects).
+- **Cockpit Unifié** : Groupement intelligent des outils de configuration pour une navigation sans friction.
+- **Zero-Latency Data** : Optimisation massive de la gestion d'état et du caching (SWR).
 
 ---
 
-## 🚦 Démarrage Rapide
+## 🛠 L'Armurerie (Stack Technique)
 
-### Backend
+- **Cœur** : FastAPI (Python), SQLAlchemy, Pydantic (Haute Fidélité, Asynchrone).
+- **Interface** : Next.js 15, Tailwind CSS, Radix UI (Esthétique Premium).
+- **Moteur IA** : `ai_engine` contextuel pour la génération de signaux d'achat et contenu.
+- **Ops** : PostgreSQL, Docker, CI/CD automatisée.
+
+---
+
+## 🏗 Modularité Tactique
+
+| Secteur | Mission |
+|:--- |:--- |
+| `src/enrichment` | Sourcing & Intelligence LinkedIn/Web |
+| `src/intent` | Détection de signaux d'achat (Bombora, 6sense) |
+| `src/scoring` | Algorithmes de priorisation neuronale |
+| `src/outreach` | Séquences d'engagement multi-canal |
+| `src/admin` | API de Commandement & Assistant IA |
+
+---
+
+## 🚦 Activation Système
+
+### Cockpit (Frontend)
+
+```bash
+cd admin-dashboard
+npm install
+npm run dev
+```
+
+### Réacteur (Backend)
 
 ```powershell
 python -m venv .venv
@@ -38,36 +64,17 @@ pip install -r requirements.txt
 uvicorn src.admin.app:app --reload
 ```
 
-### Frontend
+---
 
-```bash
-cd admin-dashboard
-npm install
-npm run dev
-```
+## 🎯 Vision & Qualité
+
+- **Précision** : Validation type-safe via Zod et Pydantic.
+- **Vitesse** : Build optimisé et static generation pour les vues critiques.
+- **Fiabilité** : Suite de tests `pytest` couvrant les endpoints critiques.
 
 ---
 
-## 🧪 Qualité & Ops
+## 📄 Transmission
 
-- **Tests** : Suite complète via `pytest` avec scripts optimisés pour Windows
-- **Déploiement** : CI/CD prêt pour Koyeb (Backend) et Vercel (Frontend)
-- **Monitoring** : Diagnostics intelligents et healthchecks intégrés
-
----
-
-## 📄 License
-
-Tous droits réservés © 2026
-
----
-
-## 👤 Auteur
-
-**Ensieg** - [GitHub](https://github.com/Endsi3g)(cite:1)
-
-```text
-uvicorn src.admin.app:app --host 0.0.0.0 --port $PORT
-```
-
-Ce README suit les meilleures pratiques Markdown modernes  avec une structure claire comprenant : une introduction concise, une présentation du stack technique, une architecture modulaire en tableau, des instructions de démarrage pour chaque composant, et une section qualité/opérations. Le formatage utilise des emoji pour la lisibilité, des blocs de code avec syntaxe spécifique (PowerShell/Bash), et une hiérarchie de titres cohérente. [markdownguide](https://www.markdownguide.org/basic-syntax/)
+Tous droits réservés © 2026 **Uprising Studio**.
+Propriété de **Ensieg**. [Transmission Sécurisée.](https://github.com/Endsi3g)
