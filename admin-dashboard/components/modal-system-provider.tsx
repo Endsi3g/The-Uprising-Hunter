@@ -8,6 +8,8 @@ import { toast } from "sonner"
 
 import { requestApi } from "@/lib/api"
 import { formatDateTimeFr } from "@/lib/format"
+import { useI18n } from "@/lib/i18n"
+import { requestOnboardingOpen } from "@/lib/onboarding"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -73,6 +75,7 @@ type ConfirmConfig = {
 type ModalSystemContextValue = {
   openSearch: () => void
   openHelp: () => void
+  openOnboarding: () => void
   openProjectForm: (config?: ProjectFormConfig) => void
   openConfirm: (config: ConfirmConfig) => void
 }
@@ -106,6 +109,7 @@ export function useModalSystem(): ModalSystemContextValue {
 
 export function ModalSystemProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter()
+  const { messages } = useI18n()
 
   const [searchOpen, setSearchOpen] = React.useState(false)
   const [helpOpen, setHelpOpen] = React.useState(false)
@@ -224,6 +228,11 @@ export function ModalSystemProvider({ children }: { children: React.ReactNode })
     setProjectOpen(true)
   }, [])
 
+  const openOnboarding = React.useCallback(() => {
+    setHelpOpen(false)
+    requestOnboardingOpen()
+  }, [])
+
   const openConfirm = React.useCallback((config: ConfirmConfig) => {
     setConfirmConfig(config)
     setConfirmOpen(true)
@@ -233,10 +242,11 @@ export function ModalSystemProvider({ children }: { children: React.ReactNode })
     () => ({
       openSearch: () => setSearchOpen(true),
       openHelp: () => setHelpOpen(true),
+      openOnboarding,
       openProjectForm,
       openConfirm,
     }),
-    [openConfirm, openProjectForm],
+    [openConfirm, openOnboarding, openProjectForm],
   )
 
   async function submitProjectForm(event: React.FormEvent<HTMLFormElement>) {
@@ -360,6 +370,9 @@ export function ModalSystemProvider({ children }: { children: React.ReactNode })
           </SheetHeader>
           <div className="mt-4 space-y-4">
             {helpLoading ? <p className="text-sm text-muted-foreground">Chargement...</p> : null}
+            <Button type="button" variant="outline" onClick={openOnboarding}>
+              {messages.onboarding.launchFromHelp}
+            </Button>
             {!helpLoading && helpData ? (
               <>
                 <p className="text-sm">

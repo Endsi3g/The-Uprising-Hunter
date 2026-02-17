@@ -5,6 +5,7 @@ import useSWR from "swr"
 
 import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
@@ -12,6 +13,8 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar"
 import { requestApi } from "@/lib/api"
+import { useI18n } from "@/lib/i18n"
+import { requestOnboardingOpen } from "@/lib/onboarding"
 
 type HelpPayload = {
   support_email: string
@@ -22,7 +25,11 @@ type HelpPayload = {
 const fetcher = <T,>(path: string) => requestApi<T>(path)
 
 export default function HelpPage() {
+  const { messages } = useI18n()
   const { data, error, isLoading } = useSWR<HelpPayload>("/api/v1/admin/help", fetcher)
+  const onLaunchOnboarding = React.useCallback(() => {
+    requestOnboardingOpen()
+  }, [])
 
   return (
     <SidebarProvider
@@ -37,7 +44,12 @@ export default function HelpPage() {
       <SidebarInset>
         <SiteHeader />
         <div className="flex flex-1 flex-col gap-4 p-3 pt-0 sm:p-4 sm:pt-0 lg:p-6">
-          <h2 className="text-3xl font-bold tracking-tight">Centre aide</h2>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-3xl font-bold tracking-tight">Centre aide</h2>
+            <Button type="button" variant="outline" onClick={onLaunchOnboarding}>
+              {messages.onboarding.launchFromHelp}
+            </Button>
+          </div>
           {isLoading ? (
             <div className="grid gap-4 lg:grid-cols-2">
               <Skeleton className="h-32 w-full" />
