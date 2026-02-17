@@ -70,6 +70,7 @@ export function SecretsModal({ open, onOpenChange }: SecretsModalProps) {
   const [editingKey, setEditingKey] = React.useState<string | null>(null)
   const [inputValue, setInputValue] = React.useState("")
   const [isSaving, setIsSaving] = React.useState(false)
+  const [isDeleting, setIsDeleting] = React.useState<string | null>(null)
 
   const statesMap = React.useMemo(() => {
     const map = new Map<string, SecretStateItem>()
@@ -83,7 +84,7 @@ export function SecretsModal({ open, onOpenChange }: SecretsModalProps) {
     setIsSaving(true)
     try {
       await requestApi("/api/v1/admin/secrets", {
-        method: "PUT",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ key: editingKey, value: inputValue.trim() }),
       })
@@ -99,12 +100,19 @@ export function SecretsModal({ open, onOpenChange }: SecretsModalProps) {
   }
 
   async function handleDelete(key: string) {
+    if (!window.confirm(`Êtes-vous sûr de vouloir supprimer le secret ${key} ?`)) {
+      return
+    }
+
+    setIsDeleting(key)
     try {
       await requestApi(`/api/v1/admin/secrets/${key}`, { method: "DELETE" })
       toast.success(`Clé ${key} supprimée du vault.`)
       await mutateStates()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Erreur de suppression")
+    } finally {
+      setIsDeleting(null)
     }
   }
 
@@ -163,18 +171,23 @@ export function SecretsModal({ open, onOpenChange }: SecretsModalProps) {
                           {!k.readonly && (
                             <div className="flex gap-2">
                               {isConfigured && state?.source === "db" && !isEditing && (
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
                                   className="size-7 h-7 w-7 text-muted-foreground hover:text-destructive"
                                   onClick={() => handleDelete(k.key)}
+                                  disabled={isDeleting === k.key}
                                 >
-                                  <IconTrash className="size-3.5" />
+                                  {isDeleting === k.key ? (
+                                    <div className="size-3.5 animate-spin border-2 border-primary border-t-transparent rounded-full" />
+                                  ) : (
+                                    <IconTrash className="size-3.5" />
+                                  )}
                                 </Button>
                               )}
-                              <Button 
-                                variant={isEditing ? "default" : "outline"} 
-                                size="sm" 
+                              <Button
+                                variant={isEditing ? "default" : "outline"}
+                                size="sm"
                                 className="h-7 text-[10px]"
                                 onClick={() => {
                                   if (isEditing) handleSave()
@@ -192,23 +205,35 @@ export function SecretsModal({ open, onOpenChange }: SecretsModalProps) {
                         </div>
 
                         {isEditing && (
-                          <div className="mt-3 flex gap-2">
-                            <Input
-                              autoFocus
-                              placeholder="Saisir la nouvelle valeur..."
-                              value={inputValue}
-                              onChange={(e) => setInputValue(e.target.value)}
-                              className="h-8 text-xs font-mono"
-                              type="password"
-                            />
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="h-8 text-[10px]"
-                              onClick={() => setEditingKey(null)}
-                            >
-                              Annuler
-                            </Button>
+                          <div className="mt-3 flex flex-col gap-2">
+                            {k.multiline ? (
+                              <textarea
+                                autoFocus
+                                value={inputValue}
+                                onChange={(e) => setInputValue(e.target.value)}
+                                className="min-h-[80px] w-full rounded-md border bg-transparent px-3 py-2 text-xs font-mono ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                placeholder="Saisir la nouvelle valeur..."
+                              />
+                            ) : (
+                              <Input
+                                autoFocus
+                                placeholder="Saisir la nouvelle valeur..."
+                                value={inputValue}
+                                onChange={(e) => setInputValue(e.target.value)}
+                                className="h-8 text-xs font-mono"
+                                type="password"
+                              />
+                            )}
+                            <div className="flex justify-end">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 text-[10px]"
+                                onClick={() => setEditingKey(null)}
+                              >
+                                Annuler
+                              </Button>
+                            </div>
                           </div>
                         )}
                       </div>

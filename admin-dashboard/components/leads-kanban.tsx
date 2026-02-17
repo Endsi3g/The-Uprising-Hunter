@@ -31,7 +31,7 @@ interface LeadsKanbanProps {
   onDataChanged?: () => void
 }
 
-const KANBAN_STATUSES = ["NEW", "SCORED", "CONTACTED", "INTERESTED", "CONVERTED"]
+const KANBAN_STATUSES = ["NEW", "SCORED", "CONTACTED", "INTERESTED", "CONVERTED", "OTHER"]
 
 const statusLabels: Record<string, string> = {
   NEW: "Nouveaux",
@@ -39,6 +39,7 @@ const statusLabels: Record<string, string> = {
   CONTACTED: "Contactés",
   INTERESTED: "Engagés",
   CONVERTED: "Gagnés",
+  OTHER: "Autres",
 }
 
 export function LeadsKanban({ data, onDataChanged }: LeadsKanbanProps) {
@@ -50,9 +51,8 @@ export function LeadsKanban({ data, onDataChanged }: LeadsKanbanProps) {
     data.forEach(lead => {
       if (cols[lead.status]) {
         cols[lead.status].push(lead)
-      } else if (KANBAN_STATUSES.includes("NEW")) {
-        // Fallback for statuses not in our simplified kanban list
-        // (Though in reality we might want a 'Other' column)
+      } else {
+        cols["OTHER"].push(lead)
       }
     })
     return cols
@@ -131,7 +131,7 @@ export function LeadsKanban({ data, onDataChanged }: LeadsKanbanProps) {
                 </div>
                 
                 <p className="text-[11px] text-muted-foreground truncate mb-2">
-                  {lead.company.name}
+                  {lead.company?.name || "Sans entreprise"}
                 </p>
 
                 <div className="flex items-center justify-between mt-auto">

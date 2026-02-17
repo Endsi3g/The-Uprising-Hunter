@@ -718,6 +718,7 @@ const buildOpportunityItem = (state: any, row: any) => {
         id: String(lead.id),
         name: prospectName,
         email: String(lead.email || ""),
+        phone: String(lead.phone || ""),
         company_name: String(lead.company?.name || ""),
       }
       : null,
@@ -2591,6 +2592,12 @@ function handleJson(path: string, init?: RequestInit): unknown {
     const items = clone(state.assistant_runs).slice(0, limit).map((run: any) => ({ id: run.id, prompt: run.prompt, status: run.status, actor: run.actor, summary: run.summary, action_count: (run.actions || []).length, created_at: run.created_at, finished_at: run.finished_at }))
     return { items, total: (state.assistant_runs as any[]).length }
   }
+  if (pathname.match(/^\/api\/v1\/admin\/assistant\/prospect\/runs\/[^/]+$/) && method === "GET") {
+    const id = pathname.split("/").pop() || ""
+    const run = (state.assistant_runs as any[]).find((r) => r.id === id)
+    if (!run) throw new Error("Assistant run introuvable")
+    return clone(run)
+  }
   if (pathname === "/api/v1/admin/assistant/prospect/execute" && method === "POST") {
     const prompt = String(body.prompt || "Run mock")
     const maxLeads = Math.max(1, Math.min(100, Number(body.max_leads || 20)))
@@ -2677,6 +2684,21 @@ function handleJson(path: string, init?: RequestInit): unknown {
       }
     }
     return { ok: true, updated }
+  }
+  if (pathname.match(/^\/api\/v1\/admin\/leads\/[^/]+\/send-email$/) && method === "POST") {
+    const leadId = pathname.split("/")[5]
+    const lead = (state.leads as any[]).find((item) => String(item.id) === leadId)
+    if (!lead) throw new Error("Lead introuvable")
+    return { success: true, recipient: lead.email }
+  }
+  if (pathname.match(/^\/api\/v1\/admin\/leads\/[^/]+\/send-whatsapp$/) && method === "POST") {
+    return { success: true }
+  }
+  if (pathname.match(/^\/api\/v1\/admin\/leads\/[^/]+\/send-sms$/) && method === "POST") {
+    return { success: true }
+  }
+  if (pathname.match(/^\/api\/v1\/admin\/leads\/[^/]+\/log-call$/) && method === "POST") {
+    return { success: true }
   }
   if (pathname === "/api/v1/admin/search" && method === "GET") {
     const q = String(url.searchParams.get("q") || "").trim().toLowerCase()
@@ -2859,7 +2881,8 @@ export async function getMockBlobResponse(path: string, init?: RequestInit): Pro
     return new Blob([makeCsv((state.leads as any[]).map((l) => ({ id: l.id, first_name: l.first_name, last_name: l.last_name, email: l.email, company_name: l.company?.name || "", status: l.status })))], { type: "text/csv;charset=utf-8" })
   }
   if (url.pathname === "/api/v1/admin/reports/export/pdf") {
-    return new Blob([`PROSPECT MOCK REPORT\nGenerated at: ${nowIso()}\n`], { type: "application/pdf" })
+    const pdfHeader = "%PDF-1.4\n%âãÏÓ\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >>\nendobj\n4 0 obj\n<< /Length 20 >>\nstream\nBT /F1 12 Tf ET\nendstream\nendobj\nxref\n0 5\n0000000000 65535 f\n0000000015 00000 n\n0000000064 00000 n\n0000000113 00000 n\n0000000182 00000 n\ntrailer\n<< /Size 5 /Root 1 0 R >>\nstartxref\n251\n%%EOF"
+    return new Blob([pdfHeader], { type: "application/pdf" })
   }
   throw new Error(`[MOCK] No blob mock data found for ${path}`)
 }

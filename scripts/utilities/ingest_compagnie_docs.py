@@ -262,14 +262,14 @@ def _extract_pdf_content(pdf_path: Path) -> dict[str, Any]:
         if tounicode_text and not _looks_like_glyph_tokens(tounicode_text):
             full_text = tounicode_text
             warnings.append("recovered_with_tounicode")
-            pages = [{"page": None, "text": full_text, "char_count": len(full_text), "recovered": True, "recovery_method": "tounicode"}]
+            pages = [{"page": "Recovered", "text": full_text, "char_count": len(full_text), "recovered": True, "recovery_method": "tounicode"}]
             has_artifacts = False
         else:
             ocr_text = _attempt_ocr_fallback(pdf_path)
             if ocr_text:
                 full_text = ocr_text
                 warnings.append("recovered_with_ocr")
-                pages = [{"page": None, "text": full_text, "char_count": len(full_text), "recovered": True, "recovery_method": "ocr"}]
+                pages = [{"page": "Recovered", "text": full_text, "char_count": len(full_text), "recovered": True, "recovery_method": "ocr"}]
                 has_artifacts = _looks_like_glyph_tokens(full_text)
 
     is_valid = not has_artifacts

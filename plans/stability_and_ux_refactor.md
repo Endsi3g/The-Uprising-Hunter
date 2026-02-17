@@ -18,7 +18,7 @@ Add indexes to frequently queried/sorted columns in `src/core/db_models.py`:
 
 ### 1.3 Optimize `list_leads` and `_get_tasks_payload`
 - Ensure sorting columns are indexed.
-- Review the `total = query.count()` call. Use an optimized count strategy such as estimated counts (`EXPLAIN`) or a separate lightweight count query to avoid expensive full scans on large datasets.
+- Review the `total = query.count()` call. Use an optimized count strategy such as running a separate lightweight COUNT query on a narrow index or utilizing database-specific statistics (e.g., PostgreSQL's `pg_class.reltuples` or `ANALYZE` snapshots) to avoid expensive full scans on large datasets.
 
 ## 2. UX Simplification (Product Improvements)
 

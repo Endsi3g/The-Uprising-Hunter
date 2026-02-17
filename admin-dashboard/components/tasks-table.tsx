@@ -160,6 +160,7 @@ const TaskRow = React.memo(({
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon" className="size-8">
             <IconDotsVertical className="size-4" />
+            <span className="sr-only">Actions de la tache</span>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">

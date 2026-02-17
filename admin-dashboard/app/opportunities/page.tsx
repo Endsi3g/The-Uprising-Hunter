@@ -24,8 +24,14 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { ResponsiveDataView } from "@/components/responsive/responsive-data-view"
 import { useLoadingTimeout } from "@/hooks/use-loading-timeout"
+import { SendEmailModal } from "@/components/send-email-modal"
+import { SendWhatsAppModal } from "@/components/send-whatsapp-modal"
+import { SendSMSModal } from "@/components/send-sms-modal"
+import { LogCallModal } from "@/components/log-call-modal"
 import { fetchApi, requestApi } from "@/lib/api"
 import { formatCurrencyFr, formatDateFr, formatNumberFr } from "@/lib/format"
+import { IconBrandWhatsapp, IconPhone, IconMail } from "@tabler/icons-react"
+import Link from "next/link"
 
 type Stage = "Prospect" | "Qualified" | "Proposed" | "Won" | "Lost"
 type ViewMode = "kanban" | "table"
@@ -46,6 +52,13 @@ type Opportunity = {
   sla_due_at?: string | null
   created_at: string | null
   is_overdue?: boolean
+  prospect?: {
+    id: string
+    name: string
+    email: string
+    phone?: string | null
+    company_name?: string | null
+  } | null
 }
 type OpportunitiesResponse = { page: number; page_size: number; total: number; items: Opportunity[] }
 type Summary = {
@@ -128,6 +141,12 @@ export default function OpportunitiesPage() {
   const [handoffNote, setHandoffNote] = React.useState("")
   const [handoffBusy, setHandoffBusy] = React.useState(false)
 
+  const [selectedLead, setSelectedLead] = React.useState<{ id: string; name: string; email: string; phone: string } | null>(null)
+  const [emailModalOpen, setEmailModalOpen] = React.useState(false)
+  const [whatsappModalOpen, setWhatsappModalOpen] = React.useState(false)
+  const [smsModalOpen, setSmsModalOpen] = React.useState(false)
+  const [callModalOpen, setCallModalOpen] = React.useState(false)
+
   React.useEffect(() => { const t = window.setTimeout(() => setFDebounced(filters), 300); return () => window.clearTimeout(t) }, [filters])
   React.useEffect(() => { const t = window.setTimeout(() => setSearchLeadDebounced(searchLead.trim()), 250); return () => window.clearTimeout(t) }, [searchLead])
   React.useEffect(() => { try { const v = window.localStorage.getItem("prospect:opportunities:view"); if (v === "kanban" || v === "table") setView(v) } catch {} }, [])
@@ -208,7 +227,7 @@ export default function OpportunitiesPage() {
       await mutateSummary()
     } catch (e) {
       mutate(snap, false)
-      toast.error(e instanceof Error ? e.message : "Mise a jour impossible")
+      toast.error(e instanceof Error ? e.message : "Mise à jour impossible")
     }
   }
 
@@ -275,12 +294,12 @@ export default function OpportunitiesPage() {
     try {
       setSaving(true)
       await requestApi("/api/v1/admin/opportunities", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prospect_id: form.prospect_id, amount, stage: form.stage, probability: Math.round(prob), close_date: toIsoDate(form.close_date), assigned_to: form.assigned_to.trim() || "Vous" }) })
-      toast.success("Opportunite creee.")
+      toast.success("Opportunité créée.")
       setOpen(false)
       setForm({ prospect_id: "", amount: "", stage: "Prospect", probability: "30", close_date: "", assigned_to: "Vous" })
       await mutate(); await mutateSummary()
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Creation impossible")
+      toast.error(e instanceof Error ? e.message : "Création impossible")
     } finally { setSaving(false) }
   }
 
@@ -289,18 +308,18 @@ export default function OpportunitiesPage() {
     try {
       setSavingLead(true)
       const res = await requestApi<QuickLeadResponse>("/api/v1/admin/opportunities/quick-lead", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(quickLead) })
-      if (!res.lead?.id) return toast.error("Creation prospect impossible.")
+      if (!res.lead?.id) return toast.error("Création prospect impossible.")
       setForm((c) => ({ ...c, prospect_id: res.lead.id }))
       setSearchLead(res.lead.name)
-      toast.success(res.created ? "Prospect cree." : "Prospect existant.")
+      toast.success(res.created ? "Prospect créé." : "Prospect existant.")
       await mutateLeads()
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Creation prospect impossible")
+      toast.error(e instanceof Error ? e.message : "Création prospect impossible")
     } finally { setSavingLead(false) }
   }
 
   async function createOpportunityHandoff() {
-    if (!handoffOpportunityId) return toast.error("Selectionnez une opportunite gagnee.")
+    if (!handoffOpportunityId) return toast.error("Sélectionnez une opportunité gagnée.")
     try {
       setHandoffBusy(true)
       await requestApi("/api/v1/admin/handoffs", {
@@ -312,7 +331,7 @@ export default function OpportunitiesPage() {
           note: handoffNote.trim() || null,
         }),
       })
-      toast.success("Handoff cree.")
+      toast.success("Handoff créé.")
       setHandoffNote("")
       await mutate()
     } catch (error) {
@@ -326,11 +345,11 @@ export default function OpportunitiesPage() {
     <AppShell contentClassName="p-3 pt-0 sm:p-4 sm:pt-0 lg:p-6">
       <div className="flex flex-1 flex-col gap-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <h2 className="text-3xl font-bold tracking-tight">Opportunites</h2>
+            <h2 className="text-3xl font-bold tracking-tight">Opportunités</h2>
             <div className="flex flex-wrap gap-2">
               <Button variant={view === "kanban" ? "default" : "outline"} onClick={() => setView("kanban")}><IconLayoutKanban className="size-4" />Kanban</Button>
               <Button variant={view === "table" ? "default" : "outline"} onClick={() => setView("table")}><IconListDetails className="size-4" />Table</Button>
-              <Button onClick={() => setOpen(true)}><IconPlus className="size-4" />Creer opportunite</Button>
+              <Button onClick={() => setOpen(true)}><IconPlus className="size-4" />Créer une opportunité</Button>
             </div>
           </div>
 
@@ -432,9 +451,9 @@ export default function OpportunitiesPage() {
 
           {isLoading && !timeout ? <div className="space-y-3"><Skeleton className="h-24 w-full" /><Skeleton className="h-24 w-full" /></div> : null}
           {!isLoading && (error || summaryError || timeout) ? (
-            <ErrorState title="Impossible de charger les opportunites." description={timeout ? "Le chargement est trop long." : error instanceof Error ? error.message : summaryError instanceof Error ? summaryError.message : "Erreur inconnue."} onRetry={() => { void mutate(); void mutateSummary() }} />
+            <ErrorState title="Impossible de charger les opportunités." description={timeout ? "Le chargement est trop long." : error instanceof Error ? error.message : summaryError instanceof Error ? summaryError.message : "Erreur inconnue."} onRetry={() => { void mutate(); void mutateSummary() }} />
           ) : null}
-          {!isLoading && !error && !timeout && filtered.length === 0 ? <EmptyState title="Aucune opportunite" description="Ajustez les filtres ou creez une opportunite." /> : null}
+          {!isLoading && !error && !timeout && filtered.length === 0 ? <EmptyState title="Aucune opportunité" description="Ajustez les filtres ou créez une opportunité." /> : null}
 
           {!isLoading && !error && !timeout && filtered.length > 0 ? (
             view === "kanban" ? (
@@ -449,10 +468,60 @@ export default function OpportunitiesPage() {
                             <DragCard key={row.id} item={row}>
                               <div className="space-y-1 text-sm">
                                 <div className="flex items-center justify-between"><span className="text-muted-foreground">Deal value</span>{inline(row, "amount")}</div>
-                                <div className="flex items-center justify-between"><span className="text-muted-foreground">Probability</span>{inline(row, "probability")}</div>
+                                <div className="flex items-center justify-between"><span className="text-muted-foreground">Probabilité</span>{inline(row, "probability")}</div>
                                 <div className="flex items-center justify-between"><span className="text-muted-foreground">Close date</span>{inline(row, "close_date")}</div>
                                 <div className="flex items-center justify-between"><span className="text-muted-foreground">Assigned to</span><span>{row.assigned_to}</span></div>
                                 {overdue(row) ? <div className="rounded border border-red-300 bg-red-50 px-2 py-1 text-xs text-red-700">Retard close date</div> : null}
+                                <div className="mt-3 flex items-center justify-between border-t pt-2">
+                                  <Link href={`/leads/${row.prospect_id}`} className="text-[10px] font-medium text-primary hover:underline uppercase">Voir fiche</Link>
+                                  <div className="flex items-center gap-1.5">
+                                    <button 
+                                      type="button" 
+                                      className="rounded p-1 hover:bg-accent disabled:opacity-30" 
+                                      disabled={!row.prospect?.phone}
+                                      onClick={() => {
+                                        setSelectedLead({ id: row.prospect_id, name: row.prospect_name, email: row.prospect?.email || "", phone: row.prospect?.phone || "" });
+                                        setWhatsappModalOpen(true);
+                                      }}
+                                    >
+                                      <IconBrandWhatsapp className="size-3.5 text-green-600" />
+                                    </button>
+                                    <button 
+                                      type="button" 
+                                      className="rounded p-1 hover:bg-accent disabled:opacity-30"
+                                      disabled={!row.prospect?.phone}
+                                      onClick={() => {
+                                        setSelectedLead({ id: row.prospect_id, name: row.prospect_name, email: row.prospect?.email || "", phone: row.prospect?.phone || "" });
+                                        setSmsModalOpen(true);
+                                      }}
+                                    >
+                                      <IconMail className="size-3.5 text-blue-600" />
+                                    </button>
+                                    <button 
+                                      type="button" 
+                                      className="rounded p-1 hover:bg-accent disabled:opacity-30"
+                                      disabled={!row.prospect?.email}
+                                      onClick={() => {
+                                        setSelectedLead({ id: row.prospect_id, name: row.prospect_name, email: row.prospect?.email || "", phone: row.prospect?.phone || "" });
+                                        setEmailModalOpen(true);
+                                      }}
+                                    >
+                                      <IconMail className="size-3.5 text-orange-600" />
+                                    </button>
+                                    <button 
+                                      type="button" 
+                                      className="rounded p-1 hover:bg-accent disabled:opacity-30"
+                                      disabled={!row.prospect?.phone}
+                                      onClick={() => {
+                                        setSelectedLead({ id: row.prospect_id, name: row.prospect_name, email: row.prospect?.email || "", phone: row.prospect?.phone || "" });
+                                        (window.location.href = `tel:${row.prospect?.phone}`);
+                                        setCallModalOpen(true);
+                                      }}
+                                    >
+                                      <IconPhone className="size-3.5 text-blue-600" />
+                                    </button>
+                                  </div>
+                                </div>
                               </div>
                             </DragCard>
                           ))}
@@ -589,6 +658,38 @@ export default function OpportunitiesPage() {
           </SheetFooter>
         </SheetContent>
       </Sheet>
+
+      {selectedLead && (
+        <>
+          <SendEmailModal 
+            open={emailModalOpen} 
+            onOpenChange={setEmailModalOpen}
+            leadId={selectedLead.id}
+            leadName={selectedLead.name}
+            leadEmail={selectedLead.email}
+          />
+          <SendWhatsAppModal
+            open={whatsappModalOpen}
+            onOpenChange={setWhatsappModalOpen}
+            leadId={selectedLead.id}
+            leadName={selectedLead.name}
+            leadPhone={selectedLead.phone}
+          />
+          <SendSMSModal
+            open={smsModalOpen}
+            onOpenChange={setSmsModalOpen}
+            leadId={selectedLead.id}
+            leadName={selectedLead.name}
+            leadPhone={selectedLead.phone}
+          />
+          <LogCallModal
+            open={callModalOpen}
+            onOpenChange={setCallModalOpen}
+            leadId={selectedLead.id}
+            leadName={selectedLead.name}
+          />
+        </>
+      )}
     </AppShell>
   )
 }

@@ -27,7 +27,7 @@ export function proxy(request: NextRequest) {
   })
 
   if (isPublicPath(pathname)) {
-    if (hasAccessCookie && (pathname === "/login" || pathname === "/create-account")) {
+    if (authenticated && (pathname === "/login" || pathname === "/create-account")) {
       const redirectUrl = request.nextUrl.clone()
       redirectUrl.pathname = "/dashboard"
       redirectUrl.search = ""

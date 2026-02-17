@@ -199,7 +199,7 @@ Alternative payante abordable :
 
 ## Page 8
 
-QuickBooks Self-Employed : ~12 )
+QuickBooks Self-Employed : ~12 $/mois
 🎨  DESIGN & CRÉATION VISUELLE
 6. FIGMA (GRATUIT) ⭐  ESSENTIEL
 URL : https://figma.com
@@ -225,7 +225,7 @@ URL : https://photopea.com
 Clone de Photoshop en ligne, gratuit
 Retouche photos, manipulation images
 9. UNSPLASH / PEXELS (GRATUIT)
-/mois(recommand sirevenus>eˊ 30k
+(recommandé si revenus > 30k$/mois)
 
 ## Page 9
 

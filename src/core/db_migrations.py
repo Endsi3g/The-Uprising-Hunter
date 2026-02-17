@@ -937,9 +937,14 @@ def ensure_sqlite_schema_compatibility(engine) -> None:
                 """
                 DELETE FROM campaign_enrollments 
                 WHERE id NOT IN (
-                    SELECT MIN(id) 
-                    FROM campaign_enrollments 
-                    GROUP BY campaign_id, lead_id
+                    SELECT id FROM (
+                        SELECT id, 
+                               ROW_NUMBER() OVER (
+                                   PARTITION BY campaign_id, lead_id 
+                                   ORDER BY created_at ASC, id ASC
+                               ) as rn
+                        FROM campaign_enrollments
+                    ) WHERE rn = 1
                 )
                 """
             )

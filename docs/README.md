@@ -6,7 +6,7 @@ This folder contains project documentation organized by topic.
 
 - `docs/PROJECT_NAVIGATION.md`: repository map and where key code lives.
 - `docs/api/admin_v1.md`: admin API v1 routes and auth notes.
-- `docs/reference/COMPAGNIEDOCS_CATALOG.md`: catalogue de la bibliothèque commerciale.
+- `docs/reference/COMPAGNIE_DOCS_CATALOG.md`: catalogue de la bibliothèque commerciale.
 
 ## Strategy and planning
 

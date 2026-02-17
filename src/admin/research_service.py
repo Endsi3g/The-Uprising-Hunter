@@ -22,7 +22,7 @@ PERPLEXITY_SEARCH_URL = "https://api.perplexity.ai/search"
 PERPLEXITY_CHAT_COMPLETIONS_URL = "https://api.perplexity.ai/chat/completions"
 FIRECRAWL_SEARCH_URL = "https://api.firecrawl.dev/v2/search"
 
-DEFAULT_TIMEOUT_SECONDS = 20.0
+DEFAULT_TIMEOUT_SECONDS = 60.0
 MAX_RESULT_LIMIT = 25
 
 SUPPORTED_RESEARCH_PROVIDERS = ("duckduckgo", "perplexity", "firecrawl", "ollama")

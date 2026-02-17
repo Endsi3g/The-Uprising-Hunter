@@ -42,10 +42,14 @@ export function SendEmailModal({
 
   React.useEffect(() => {
     if (open) {
-      setSubject(defaultSubject || `Suivi Prospect - ${leadName}`)
-      setBody(defaultBody || `Bonjour ${leadName.split(' ')[0]},
+      const firstName = (leadName || "").trim().split(/\s+/)[0] || "Prospect"
+      setSubject(defaultSubject || `Suivi Prospect - ${leadName || "Prospect"}`)
+      setBody(
+        defaultBody ||
+          `Bonjour ${firstName},
 
-`)
+`,
+      )
     }
   }, [open, leadName, defaultSubject, defaultBody])
 

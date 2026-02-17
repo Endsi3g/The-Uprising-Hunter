@@ -86,23 +86,23 @@ export default function AnalyticsPage() {
           ) : null}
           {!analyticsLoading && (analyticsError || loadingTimedOut) ? (
             <ErrorState
-              title="Impossible de charger les donnees analytiques."
+              title="Impossible de charger les données analytiques."
               description={
                 loadingTimedOut
                   ? "Le chargement dépasse le délai attendu. Vérifiez la connectivité API puis relancez."
                   : analyticsError instanceof Error
                     ? analyticsError.message
-                    : "Les donnees analytiques sont indisponibles."
+                    : "Les données analytiques sont indisponibles."
               }
-              secondaryLabel="Ouvrir Parametres"
+              secondaryLabel="Ouvrir Paramètres"
               secondaryHref="/settings"
               onRetry={() => void mutateAnalytics()}
             />
           ) : null}
           {!analyticsLoading && !analyticsError && !loadingTimedOut && analytics && analytics.total_leads === 0 ? (
             <EmptyState
-              title="Aucune donnee disponible"
-              description="Les graphiques et KPI apparaitront apres creation de vos premiers leads."
+              title="Aucune donnée disponible"
+              description="Les graphiques et KPI apparaîtront après création de vos premiers leads."
             />
           ) : null}
           {!analyticsLoading && !analyticsError && !loadingTimedOut && analytics && analytics.total_leads > 0 ? (
@@ -130,12 +130,12 @@ export default function AnalyticsPage() {
                 </Card>
                 <Card className="rounded-xl border shadow-sm">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Completion taches</CardTitle>
+                    <CardTitle className="text-sm font-medium">Complétion tâches</CardTitle>
                     <IconChartBar className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">{Math.round(analytics.task_completion_rate)}%</div>
-                    <p className="text-xs text-muted-foreground">Efficacite equipe</p>
+                    <p className="text-xs text-muted-foreground">Efficacité équipe</p>
                   </CardContent>
                 </Card>
                 <Card className="rounded-xl border shadow-sm">
@@ -146,7 +146,7 @@ export default function AnalyticsPage() {
                   <CardContent>
                     <div className="text-2xl font-bold">{formatNumberFr(analytics.total_leads)}</div>
                     <p className="text-xs text-muted-foreground">
-                      +{formatNumberFr(analytics.new_leads_today)} aujourdhui
+                      +{formatNumberFr(analytics.new_leads_today)} aujourd'hui
                     </p>
                   </CardContent>
                 </Card>
@@ -159,7 +159,7 @@ export default function AnalyticsPage() {
                 <Card className="lg:col-span-3 rounded-xl border shadow-sm">
                   <CardHeader>
                     <CardTitle>Leads par statut</CardTitle>
-                    <CardDescription>Distribution par etape pipeline</CardDescription>
+                    <CardDescription>Distribution par étape pipeline</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">

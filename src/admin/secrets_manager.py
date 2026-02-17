@@ -34,6 +34,7 @@ SECRET_SCHEMA = {
             "keys": [
                 {"key": "APIFY_API_TOKEN", "required": False, "multiline": False, "description": "Token Apify pour le scraping LinkedIn/Web"},
                 {"key": "FIRECRAWL_API_KEY", "required": False, "multiline": False, "description": "Clé Firecrawl pour le crawling haute performance"},
+                {"key": "SLACK_WEBHOOK", "required": False, "multiline": True, "description": "Webhook Slack pour les notifications système"},
             ]
         },
         {
@@ -51,6 +52,17 @@ SECURE_SECRETS_SETTING_KEY = "secure_secrets_v1"
 MIGRATION_MARKER_KEY = "secure_secrets_migration_v1_done"
 
 class SecretsManager:
+    SENSITIVE_FIELDS = {
+        "openai": ["api_key"],
+        "apify": ["api_token"],
+        "perplexity": ["api_key"],
+        "firecrawl": ["api_key"],
+        "ollama": ["api_key"],
+        "anthropic": ["api_key"],
+        "slack": ["webhook"],
+        "smtp": ["password"]
+    }
+
     def __init__(self):
         self._encryption_key = os.getenv("APP_ENCRYPTION_KEY", "").strip()
         self._fernet = None
@@ -60,6 +72,18 @@ class SecretsManager:
             except Exception:
                 # Invalid key format
                 pass
+
+    @classmethod
+    def _get_vault_key(cls, provider_key: str, field_key: str) -> str | None:
+        if provider_key == "apify" and field_key == "api_token":
+            return "APIFY_API_TOKEN"
+        if provider_key == "slack" and field_key == "webhook":
+            return "SLACK_WEBHOOK"
+        if provider_key == "smtp" and field_key == "password":
+            return "SMTP_PASSWORD"
+        if field_key == "api_key":
+            return f"{provider_key.upper()}_API_KEY"
+        return field_key.upper()
 
     def get_schema(self) -> dict[str, Any]:
         return SECRET_SCHEMA
@@ -74,7 +98,7 @@ class SecretsManager:
         if not row:
             row = DBAdminSetting(key=SECURE_SECRETS_SETTING_KEY, value_json={"version": 1, "ciphertext": ""})
             db.add(row)
-            db.commit()
+            db.flush()
             db.refresh(row)
         return row
 
@@ -85,9 +109,9 @@ class SecretsManager:
         try:
             decrypted = self._get_fernet().decrypt(ciphertext.encode()).decode()
             return json.loads(decrypted)
-        except Exception:
-            # Fallback to empty if decryption fails (e.g. wrong key)
-            return {}
+        except Exception as exc:
+            logger.error("Failed to decrypt vault ciphertext: %s", exc)
+            raise SecretsManagerError("Erreur lors du déchiffrement du vault. Vérifiez APP_ENCRYPTION_KEY.") from exc
 
     def _encrypt_vault(self, row: DBAdminSetting, secrets: dict[str, str], actor: str = "system") -> None:
         payload = json.dumps(secrets)
@@ -152,15 +176,20 @@ class SecretsManager:
         return {"success": True, "key": key}
 
     def upsert_many_secrets(self, db: Session, secrets_payload: dict[str, str], actor: str) -> dict[str, Any]:
+        valid_keys = [k["key"] for cat in SECRET_SCHEMA["categories"] for k in cat["keys"]]
         row = self._get_vault_row(db)
         secrets = self._decrypt_vault(row)
+        upserted_count = 0
         for key, value in secrets_payload.items():
+            if key not in valid_keys:
+                continue
             if value and value != "********":
                 secrets[key] = value.strip()
-        
+                upserted_count += 1
+
         self._encrypt_vault(row, secrets, actor)
         db.commit()
-        return {"success": True, "count": len(secrets_payload)}
+        return {"success": True, "count": upserted_count}
 
     def delete_secret(self, db: Session, key: str, actor: str) -> dict[str, Any]:
         row = self._get_vault_row(db)
@@ -198,73 +227,29 @@ class SecretsManager:
         return os.getenv(key, default)
 
     def sanitize_integration_config(self, provider_key: str, config: dict[str, Any]) -> tuple[dict[str, Any], dict[str, str]]:
-        # Define sensitive fields per provider
-        SENSITIVE_FIELDS = {
-            "openai": ["api_key"],
-            "apify": ["api_token"],
-            "perplexity": ["api_key"],
-            "firecrawl": ["api_key"],
-            "ollama": ["api_key"],
-            "anthropic": ["api_key"],
-            "slack": ["webhook"],
-            "smtp": ["password"]
-        }
-        
-        sensitive_keys = SENSITIVE_FIELDS.get(provider_key, [])
+        sensitive_keys = self.SENSITIVE_FIELDS.get(provider_key, [])
         extracted = {}
         clean_config = dict(config)
-        
+        all_schema_keys = [k["key"] for cat in SECRET_SCHEMA["categories"] for k in cat["keys"]]
+
         for s_key in sensitive_keys:
             val = config.get(s_key)
             if val and val != "********":
-                # Map to canonical vault key
-                vault_key = s_key.upper()
-                if provider_key == "apify" and s_key == "api_token":
-                    vault_key = "APIFY_API_TOKEN"
-                elif provider_key == "slack" and s_key == "webhook":
-                    vault_key = "SLACK_WEBHOOK"
-                elif provider_key != "smtp":
-                    vault_key = f"{provider_key.upper()}_API_KEY"
-                elif provider_key == "smtp" and s_key == "password":
-                    vault_key = "SMTP_PASSWORD"
-                
-                # Verify if vault_key is in schema
-                all_schema_keys = [k["key"] for cat in SECRET_SCHEMA["categories"] for k in cat["keys"]]
+                vault_key = self._get_vault_key(provider_key, s_key)
                 if vault_key in all_schema_keys:
                     extracted[vault_key] = val
                     clean_config[s_key] = "" # Clear from config
             elif val == "********":
-                # Keep as empty in clean_config to avoid overwriting with masking string
                 clean_config[s_key] = ""
-                
+
         return clean_config, extracted
 
     def apply_integration_secret_fields(self, db: Session, provider_key: str, config: dict[str, Any], include_runtime_values: bool = False) -> dict[str, Any]:
-        SENSITIVE_FIELDS = {
-            "openai": ["api_key"],
-            "apify": ["api_token"],
-            "perplexity": ["api_key"],
-            "firecrawl": ["api_key"],
-            "ollama": ["api_key"],
-            "anthropic": ["api_key"],
-            "slack": ["webhook"],
-            "smtp": ["password"]
-        }
-        
-        sensitive_keys = SENSITIVE_FIELDS.get(provider_key, [])
+        sensitive_keys = self.SENSITIVE_FIELDS.get(provider_key, [])
         output_config = dict(config)
-        
+
         for s_key in sensitive_keys:
-            vault_key = s_key.upper()
-            if provider_key == "apify" and s_key == "api_token":
-                vault_key = "APIFY_API_TOKEN"
-            elif provider_key == "slack" and s_key == "webhook":
-                vault_key = "SLACK_WEBHOOK"
-            elif provider_key != "smtp":
-                vault_key = f"{provider_key.upper()}_API_KEY"
-            elif provider_key == "smtp" and s_key == "password":
-                vault_key = "SMTP_PASSWORD"
-            
+            vault_key = self._get_vault_key(provider_key, s_key)
             secret_val = self.resolve_secret(db, vault_key)
             if secret_val:
                 if include_runtime_values:
@@ -273,7 +258,7 @@ class SecretsManager:
                     output_config[s_key] = "********"
             else:
                 output_config[s_key] = ""
-                
+
         return output_config
 
     def migrate_plaintext_integration_secrets_if_needed(self, db: Session) -> dict[str, Any]:
@@ -281,67 +266,44 @@ class SecretsManager:
         if marker and marker.value_json.get("done"):
             return {"status": "already_done"}
 
-        # Define sensitive fields per provider
-        SENSITIVE_FIELDS = {
-            "openai": ["api_key"],
-            "apify": ["api_token"],
-            "perplexity": ["api_key"],
-            "firecrawl": ["api_key"],
-            "ollama": ["api_key"],
-            "anthropic": ["api_key"],
-            "slack": ["webhook"],
-            "smtp": ["password"]
-        }
-        
         integrations = db.query(DBIntegrationConfig).all()
         vault_row = self._get_vault_row(db)
         secrets = self._decrypt_vault(vault_row)
         migrated_count = 0
-        
+        all_schema_keys = [k["key"] for cat in SECRET_SCHEMA["categories"] for k in cat["keys"]]
+
         for integration in integrations:
-            sensitive_keys = SENSITIVE_FIELDS.get(integration.key, [])
+            sensitive_keys = self.SENSITIVE_FIELDS.get(integration.key, [])
             config = integration.config_json or {}
             changed = False
-            
+
             for s_key in sensitive_keys:
                 val = config.get(s_key)
                 if val and val != "********":
-                    # Map config key to canonical vault key if needed
-                    vault_key = s_key.upper()
-                    if integration.key == "apify" and s_key == "api_token":
-                        vault_key = "APIFY_API_TOKEN"
-                    elif integration.key == "slack" and s_key == "webhook":
-                        vault_key = "SLACK_WEBHOOK"
-                    elif integration.key != "smtp":
-                        vault_key = f"{integration.key.upper()}_API_KEY"
-                    elif integration.key == "smtp" and s_key == "password":
-                        vault_key = "SMTP_PASSWORD"
-                    
-                    # Verify if vault_key is in schema
-                    all_schema_keys = [k["key"] for cat in SECRET_SCHEMA["categories"] for k in cat["keys"]]
+                    vault_key = self._get_vault_key(integration.key, s_key)
                     if vault_key in all_schema_keys:
                         secrets[vault_key] = val
                         config[s_key] = "" # Clear from config
                         changed = True
                         migrated_count += 1
-            
+
             if changed:
                 integration.config_json = config
-        
+
         if migrated_count > 0:
             self._encrypt_vault(vault_row, secrets, "migration_system")
-        
+
         if not marker:
             marker = DBAdminSetting(key=MIGRATION_MARKER_KEY)
             db.add(marker)
-        
+
         marker.value_json = {
             "done": True,
             "at": datetime.now(timezone.utc).isoformat(),
             "migrated_count": migrated_count
         }
         db.commit()
-        
+
         return {"status": "completed", "migrated": migrated_count}
 
 secrets_manager = SecretsManager()

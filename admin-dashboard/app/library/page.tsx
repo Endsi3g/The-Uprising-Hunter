@@ -196,7 +196,13 @@ export default function LibraryPage() {
                         </div>
                       </CardContent>
                       <CardFooter className="p-3 bg-muted/30 flex gap-2">
-                        <Button variant="ghost" size="sm" className="flex-1 h-8 text-[10px] gap-1" disabled={!doc.raw_path}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="flex-1 h-8 text-[10px] gap-1"
+                          disabled={!doc.raw_path}
+                          onClick={() => doc.raw_path && window.open(doc.raw_path, "_blank")}
+                        >
                           <IconDownload className="size-3" />
                           RAW
                         </Button>

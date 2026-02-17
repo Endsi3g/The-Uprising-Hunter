@@ -91,14 +91,17 @@ export default function ProjectDetailsPage({ params }: { params: Promise<{ id: s
   const [newDeliverable, setNewDeliverable] = React.useState({ title: "", owner: "", due: "", file_url: "" })
 
   React.useEffect(() => {
+    let cancelled = false
     async function loadProjectData() {
       try {
         const [tl, dl] = await Promise.all([
           requestApi<TimelineItem[]>(`/api/v1/admin/projects/${id}/timeline`),
           requestApi<Deliverable[]>(`/api/v1/admin/projects/${id}/deliverables`),
         ])
-        setTimeline(tl || [])
-        setDeliverables(dl || [])
+        if (!cancelled) {
+          setTimeline(tl || [])
+          setDeliverables(dl || [])
+        }
       } catch (e) {
         console.error("Failed to load project sub-resources", e)
       }
@@ -108,11 +111,22 @@ export default function ProjectDetailsPage({ params }: { params: Promise<{ id: s
       setBudgetSpent(String(project.budget_spent || 0))
       void loadProjectData()
     }
+    return () => {
+      cancelled = true
+    }
   }, [project, id])
 
   const byStatus = React.useMemo(() => {
     const grouped: Record<TaskStatus, Task[]> = { Todo: [], "In Progress": [], Done: [] }
-    if (tasks) tasks.forEach((t) => grouped[t.status].push(t))
+    if (tasks) {
+      tasks.forEach((t) => {
+        if (grouped[t.status]) {
+          grouped[t.status].push(t)
+        } else {
+          console.warn(`Unknown task status: ${t.status} for task ${t.id}`)
+        }
+      })
+    }
     return grouped
   }, [tasks])
 

@@ -31,7 +31,7 @@ The following data is provided for your analysis:
 !{echo $AVAILABLE_LABELS}
 ```
 
-**Issues to Triage** (JSON array where each object has `"number"`, `"title"`, and `"body"` keys):
+**Issues to Triage** (JSON array where each object has `"number"` and `"title"` keys):
 ```
 !{echo $ISSUES_TO_TRIAGE}
 ```
@@ -72,13 +72,13 @@ Based on your semantic map, establish a set of general principles to guide your 
 *   **Focus on Relevance:** Aim for high signal-to-noise. In most cases, 1-3 labels are sufficient to accurately categorize an issue. This reinforces the principle of precision over coverage.
 *   **Heuristics for Priority:** If priority labels (e.g., `priority/p0`, `priority/p1`) exist, map them to specific keywords. For example, terms like "security," "vulnerability," "data loss," "crash," or "outage" suggest a high priority. A lack of such terms suggests a lower priority.
 *   **Distinguishing `bug` vs. `enhancement`:** If an issue describes behavior that contradicts current documentation, it is likely a `bug`. If it proposes new functionality or a change to existing, working-as-intended behavior, it is an `enhancement`.
-*   **Assessing Issue Quality:** If an issue's title and body are extremely sparse or unclear, making a confident classification impossible, it should be excluded from the output.
+*   **Assessing Issue Quality:** If an issue's title is extremely sparse or unclear, making a confident classification impossible, it should be excluded from the output.
 
 ### Step 4: Triage Issues
 
 Iterate through each issue object. For each issue:
 
-1.  Analyze its `title` and `body` to understand its core intent, context, and urgency.
+1.  Analyze its `title` to understand its core intent, context, and urgency.
 2.  Compare the issue's intent against the semantic map and the general principles you established.
 3.  Select the set of one or more labels that most accurately and confidently describe the issue.
 4.  If no available labels are a clear and confident match, or if the issue quality is too low for analysis, **exclude that issue from the final output.**
@@ -87,7 +87,13 @@ Iterate through each issue object. For each issue:
 
 Assemble the results into a single JSON array, formatted as a string, according to the **Output Specification** below. Finally, execute the command to write this string to the output file, ensuring the JSON is enclosed in single quotes to prevent shell interpretation.
 
-- Use the shell command to write: `echo 'TRIAGED_ISSUES=...' >> "$GITHUB_ENV"` (Replace `...` with the final, minified JSON array string).
+- Use the shell command to write the results to the environment file using a heredoc to ensure internal quotes are preserved:
+  ```bash
+  cat >> "$GITHUB_ENV" << 'TRIAGED_EOF'
+  TRIAGED_ISSUES=...
+  TRIAGED_EOF
+  ```
+  (Replace `...` with the final, minified JSON array string).
 
 ## Output Specification
 

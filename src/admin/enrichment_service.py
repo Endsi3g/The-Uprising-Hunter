@@ -149,15 +149,26 @@ def run_enrichment(
         db.refresh(row)
         return row
     except Exception as exc:
-        row.status = "failed"
-        row.error_message = sanitize_error_message(exc)
-        row.finished_at = datetime.now(timezone.utc)
+        db.rollback()
+        error_msg = sanitize_error_message(exc)
+        logger.error("Enrichment execution failed for job %s: %s", row.id, error_msg)
+
+        # Attempt to persist the failure in a fresh transaction to avoid session poisoning
         try:
-            db.commit()
-            db.refresh(row)
+            from ..core.database import SessionLocal
+            with SessionLocal() as fresh_db:
+                db_job = fresh_db.query(DBEnrichmentJob).filter(DBEnrichmentJob.id == row.id).first()
+                if db_job:
+                    db_job.status = "failed"
+                    db_job.error_message = error_msg
+                    db_job.finished_at = datetime.now(timezone.utc)
+                    fresh_db.commit()
         except Exception as commit_exc:
-            # Attach commit error info but don't swallow 'exc'
-            row.error_message = f"{row.error_message} (Commit failure: {commit_exc})"
+            logger.error(
+                "Critical: Failed to persist enrichment failure status for job %s. Commit error: %s",
+                row.id,
+                sanitize_error_message(commit_exc)
+            )
         raise
 
 

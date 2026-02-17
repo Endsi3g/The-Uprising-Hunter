@@ -123,17 +123,40 @@ export default function HelpPage() {
               {/* Quick Actions */}
               {data.quick_actions && data.quick_actions.length > 0 && (
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {data.quick_actions.map((action) => (
-                    <Card key={action.id} className="hover:border-primary/50 transition-colors group cursor-pointer" onClick={() => window.location.href = action.href}>
-                      <CardHeader className="p-4 flex flex-row items-center justify-between space-y-0">
-                        <div className="space-y-1">
-                          <CardTitle className="text-sm font-bold uppercase tracking-wider">{action.label}</CardTitle>
-                          <CardDescription className="text-xs">Accès rapide {action.scope}</CardDescription>
-                        </div>
-                        <IconSparkles className="size-5 text-primary opacity-50 group-hover:opacity-100 transition-opacity" />
-                      </CardHeader>
-                    </Card>
-                  ))}
+                  {data.quick_actions.map((action) => {
+                    const isSafe = (() => {
+                      try {
+                        const url = new URL(action.href, window.location.origin);
+                        return ["http:", "https:", "mailto:"].includes(url.protocol);
+                      } catch {
+                        return false;
+                      }
+                    })();
+
+                    const card = (
+                      <Card className="hover:border-primary/50 transition-colors group cursor-pointer h-full">
+                        <CardHeader className="p-4 flex flex-row items-center justify-between space-y-0">
+                          <div className="space-y-1">
+                            <CardTitle className="text-sm font-bold uppercase tracking-wider">{action.label}</CardTitle>
+                            <CardDescription className="text-xs">Accès rapide {action.scope}</CardDescription>
+                          </div>
+                          <IconSparkles className="size-5 text-primary opacity-50 group-hover:opacity-100 transition-opacity" />
+                        </CardHeader>
+                      </Card>
+                    );
+
+                    if (!isSafe) return <div key={action.id}>{card}</div>;
+
+                    return (
+                      <a
+                        key={action.id}
+                        href={action.href}
+                        className="block no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-xl"
+                      >
+                        {card}
+                      </a>
+                    );
+                  })}
                 </div>
               )}
 

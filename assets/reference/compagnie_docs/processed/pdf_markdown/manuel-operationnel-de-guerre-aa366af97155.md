@@ -10,7 +10,7 @@
 
 MANUEL OPÉRATIONNEL DE GUERRE 
 (MOG) : UPRISING STUDIO 
-Niveau d'Accréditation : Fondateur (Kael Belceus)  
+Niveau d'Accréditation : Fondateur ([REDACTED])  
 Mission : Domination du marché "Old Money" (Construction, Droit, Santé) au Québec. 
 Doctrine : Vitesse, Précision, Infrastructure. 
  
@@ -86,7 +86,7 @@ bloque et comment on répare ça avec une infrastructure moderne.
 Je vous envoie le lien ?" 
 3.2 Scénario B : L'Email "Sniper" (Si pas sur LinkedIn) 
 Context : Via Apollo.io. Envoie à l'adresse pro perso, pas info@. 
-Sujet : Problème de chargement sur [https://www.google.com/search?q=UrlDuSite.com] 
+Sujet : Problème de chargement sur https://UrlDuSite.com 
 (Mobile) 
 "Bonjour [Prénom],
 

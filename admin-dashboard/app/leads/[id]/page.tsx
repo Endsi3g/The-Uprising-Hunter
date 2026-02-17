@@ -17,6 +17,9 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { SendEmailModal } from "@/components/send-email-modal"
+import { SendWhatsAppModal } from "@/components/send-whatsapp-modal"
+import { SendSMSModal } from "@/components/send-sms-modal"
+import { LogCallModal } from "@/components/log-call-modal"
 import { requestApi } from "@/lib/api"
 import { formatCurrencyFr, formatDateTimeFr } from "@/lib/format"
 
@@ -162,6 +165,9 @@ export default function LeadDetailPage() {
   const [handoffNote, setHandoffNote] = React.useState("")
   const [workflowBusy, setWorkflowBusy] = React.useState(false)
   const [emailModalOpen, setEmailModalOpen] = React.useState(false)
+  const [whatsappModalOpen, setWhatsappModalOpen] = React.useState(false)
+  const [smsModalOpen, setSmsModalOpen] = React.useState(false)
+  const [callModalOpen, setCallModalOpen] = React.useState(false)
   const [recommendationBusyId, setRecommendationBusyId] = React.useState<string | null>(null)
 
   const [notes, setNotes] = React.useState<Note[]>([])
@@ -433,33 +439,41 @@ export default function LeadDetailPage() {
               <Card><CardHeader><CardTitle>Recommandations IA</CardTitle><CardDescription>Actions suggerees pour ce lead.</CardDescription></CardHeader><CardContent className="space-y-2">{recommendationsLoading ? <Skeleton className="h-24 w-full" /> : null}{!recommendationsLoading && leadRecommendations.length === 0 ? <p className="text-sm text-muted-foreground">Aucune recommandation en attente.</p> : null}{leadRecommendations.map((item) => <div key={item.id} className="rounded-lg border p-3"><div className="flex items-center justify-between gap-2"><p className="text-sm font-medium">{recommendationLabel(item)}</p><Badge variant="outline">P{item.priority}</Badge></div><p className="mt-1 text-xs text-muted-foreground">{formatDateTimeFr(item.created_at || null)}</p><div className="mt-2 flex gap-2"><Button size="sm" onClick={() => void applyRecommendation(item.id)} disabled={recommendationBusyId === item.id}>{recommendationBusyId === item.id ? "..." : "Appliquer"}</Button><Button size="sm" variant="outline" onClick={() => void dismissRecommendation(item.id)} disabled={recommendationBusyId === item.id}>Ignorer</Button></div></div>)}</CardContent></Card>
               <Card><CardHeader><CardTitle>Actions rapides</CardTitle></CardHeader><CardContent className="space-y-2">
                 <div className="grid grid-cols-2 gap-2">
-                  <Button variant="outline" className="w-full justify-start h-9 px-2 text-xs" onClick={() => window.open(`https://wa.me/${lead.phone?.replace(/\D/g, "")}`, "_blank")} disabled={!lead.phone}>
+                  <Button variant="outline" className="w-full justify-start h-9 px-2 text-xs" onClick={() => setWhatsappModalOpen(true)} disabled={!lead.phone}>
                     <IconBrandWhatsapp className="mr-1.5 h-3.5 w-3.5 text-green-600" />
                     WhatsApp
                   </Button>
-                  <Button variant="outline" className="w-full justify-start h-9 px-2 text-xs" onClick={() => (window.location.href = `tel:${lead.phone}`)} disabled={!lead.phone}>
+                  <Button variant="outline" className="w-full justify-start h-9 px-2 text-xs" onClick={() => {
+                    (window.location.href = `tel:${lead.phone}`);
+                    setCallModalOpen(true);
+                  }} disabled={!lead.phone}>
                     <IconPhone className="mr-1.5 h-3.5 w-3.5 text-blue-600" />
                     Appeler
                   </Button>
+                  <Button variant="outline" className="w-full justify-start h-9 px-2 text-xs" onClick={() => setSmsModalOpen(true)} disabled={!lead.phone}>
+                    <IconMail className="mr-1.5 h-3.5 w-3.5 text-blue-600" />
+                    SMS
+                  </Button>
                   <Button variant="outline" className="w-full justify-start h-9 px-2 text-xs" onClick={() => setEmailModalOpen(true)}>
                     <IconMail className="mr-1.5 h-3.5 w-3.5 text-orange-600" />
-                    Email (Interne)
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start h-9 px-2 text-xs" onClick={() => (window.location.href = `mailto:${lead.email}`)}>
-                    <IconMail className="mr-1.5 h-3.5 w-3.5 text-orange-600" />
-                    Email (Client)
+                    Email
                   </Button>
                   <Button variant="outline" className="w-full justify-start h-9 px-2 text-xs" onClick={() => {
                     if (!lead.linkedin_url) return;
-                    try {
-                      const url = new URL(lead.linkedin_url);
-                      if (["http:", "https:"].includes(url.protocol) && (url.hostname.endsWith("linkedin.com") || url.hostname === "lnkd.in")) {
-                        window.open(lead.linkedin_url, "_blank");
-                      } else {
-                        toast.error("URL LinkedIn non sécurisée ou invalide.");
+                    const isSafeLinkedInUrl = (urlStr: string) => {
+                      try {
+                        const url = new URL(urlStr);
+                        if (!["http:", "https:"].includes(url.protocol)) return false;
+                        const host = url.hostname.toLowerCase();
+                        return host === "linkedin.com" || host.endsWith(".linkedin.com") || host === "lnkd.in";
+                      } catch {
+                        return false;
                       }
-                    } catch {
-                      toast.error("URL LinkedIn malformée.");
+                    };
+                    if (isSafeLinkedInUrl(lead.linkedin_url)) {
+                      window.open(lead.linkedin_url, "_blank");
+                    } else {
+                      toast.error("URL LinkedIn invalide ou non autorisée.");
                     }
                   }} disabled={!lead.linkedin_url}>
                     <IconBrandLinkedin className="mr-1.5 h-3.5 w-3.5 text-cyan-600" />
@@ -483,6 +497,26 @@ export default function LeadDetailPage() {
         leadId={id}
         leadName={`${lead.first_name} ${lead.last_name}`}
         leadEmail={lead.email}
+      />
+      <SendWhatsAppModal
+        open={whatsappModalOpen}
+        onOpenChange={setWhatsappModalOpen}
+        leadId={id}
+        leadName={`${lead.first_name} ${lead.last_name}`}
+        leadPhone={lead.phone || ""}
+      />
+      <SendSMSModal
+        open={smsModalOpen}
+        onOpenChange={setSmsModalOpen}
+        leadId={id}
+        leadName={`${lead.first_name} ${lead.last_name}`}
+        leadPhone={lead.phone || ""}
+      />
+      <LogCallModal
+        open={callModalOpen}
+        onOpenChange={setCallModalOpen}
+        leadId={id}
+        leadName={`${lead.first_name} ${lead.last_name}`}
       />
     </SidebarProvider>
   )

@@ -105,5 +105,5 @@ After a run, verify:
 
 1. `index/corpus_index.json` exists and lists all source files.
 2. each PDF has `processed/pdf_markdown/<doc_id>.md` and `processed/pdf_json/<doc_id>.json`.
-3. if Figma export is enabled (credentials present and not explicitly disabled), each `.fig` has `processed/fig_exports/<doc_id>.json`; otherwise this artifact is optional.
+3. if Figma export is enabled (FIGMA_ACCESS_TOKEN and either FIGMA_FILE_KEY or FIGMA_FILE_KEY_MAP_PATH are set, and not explicitly disabled), each `.fig` has `processed/fig_exports/<doc_id>.json`; otherwise this artifact is optional.
 4. `stats.failed` in the index is `0` or accompanied by explicit error details.

@@ -185,7 +185,7 @@
 
         <section id="devis" class="quote-section">
             <h2 class="quote-title">Obtenir un devis personnalisé</h2>
-            <form action="thanks.html" method="POST" class="quote-form">
+            <form id="quote-form" class="quote-form">
                 <div class="form-group">
                     <label for="clinic-name">Nom de la clinique</label>
                     <input type="text" id="clinic-name" name="clinic" placeholder="Ma Clinique Dentaire" required>
@@ -194,10 +194,49 @@
                     <label for="email">Email professionnel</label>
                     <input type="email" id="email" name="email" placeholder="contact@clinique.com" required>
                 </div>
-                <button type="submit" class="btn btn-primary submit-btn">Recevoir mon devis</button>
+                <button type="submit" id="submit-btn" class="btn btn-primary submit-btn">Recevoir mon devis</button>
             </form>
         </section>
     </div>
+
+    <script>
+        document.getElementById('quote-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('submit-btn');
+            const originalText = btn.textContent;
+            
+            try {
+                btn.disabled = true;
+                btn.textContent = 'Envoi en cours...';
+                
+                const formData = new FormData(e.target);
+                const payload = {
+                    email: formData.get('email'),
+                    company_name: formData.get('clinic'),
+                    source: 'landing_page_quote'
+                };
+                
+                const response = await fetch('/api/v1/capture/lead', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (response.ok) {
+                    window.location.href = 'thanks.html';
+                } else {
+                    const error = await response.json();
+                    alert('Erreur: ' + (error.detail || 'Une erreur est survenue.'));
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Erreur de connexion au serveur.');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
+        });
+    </script>
 </body>
 
 </html>

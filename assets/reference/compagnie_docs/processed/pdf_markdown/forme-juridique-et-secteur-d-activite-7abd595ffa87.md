@@ -1,4 +1,4 @@
-# Forme juridique et secteur d_activité –...pdf
+# Forme juridique et secteur d'activité –...pdf
 
 - `doc_id`: `forme-juridique-et-secteur-d-activite-7abd595ffa87`
 - `source_path`: `./CompagnieDocs/Forme juridique et secteur d_activité –...pdf`

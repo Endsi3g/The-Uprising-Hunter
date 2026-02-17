@@ -18,7 +18,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: '${{ github.workflow }}'
+  group: '${{ github.workflow }}-schedule-${{ github.event_name }}'
   cancel-in-progress: true
 
 defaults:
@@ -74,21 +74,24 @@ jobs:
           ISSUES="$(gh issue list \
             --state 'open' \
             --search 'no:label OR label:"status/needs-triage"' \
-            --json number,title,body \
+            --json number,title \
             --limit '100' \
             --repo "${GITHUB_REPOSITORY}"
           )"
 
           echo '📝 Setting output for GitHub Actions...'
-          echo "issues_to_triage=${ISSUES}" >> "${GITHUB_OUTPUT}"
+          {
+            echo "issues_to_triage<<TRIAGED_EOF"
+            echo "${ISSUES}"
+            echo "TRIAGED_EOF"
+          } >> "${GITHUB_OUTPUT}"
 
           ISSUE_COUNT="$(echo "${ISSUES}" | jq 'length')"
           echo "✅ Found ${ISSUE_COUNT} issue(s) to triage! 🎯"
 
       - name: 'Run Gemini Issue Analysis'
         id: 'gemini_issue_analysis'
-        if: |-
-          ${{ steps.find_issues.outputs.issues_to_triage != '[]' }}
+        if: steps.find_issues.outputs.issues_to_triage != '[]'
         uses: 'google-github-actions/run-gemini-cli@v0' # ratchet:exclude
         env:
           GITHUB_TOKEN: '' # Do not pass any auth token here since this runs on untrusted inputs
@@ -145,8 +148,7 @@ jobs:
     steps:
       - name: 'Mint identity token'
         id: 'mint_identity_token'
-        if: |-
-          ${{ vars.APP_ID }}
+        if: vars.APP_ID
         uses: 'actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf' # ratchet:actions/create-github-app-token@v2
         with:
           app-id: '${{ vars.APP_ID }}'

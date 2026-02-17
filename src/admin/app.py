@@ -10,7 +10,7 @@ import secrets
 import time
 import uuid
 from contextlib import asynccontextmanager
-from datetime import datetime, time as datetime_time, timedelta
+from datetime import datetime, time as datetime_time, timedelta, timezone
 from io import StringIO
 from pathlib import Path
 from threading import Lock
@@ -3353,6 +3353,7 @@ def _serialize_opportunity_prospect_summary(lead: DBLead | None) -> dict[str, An
         "id": lead.id,
         "name": full_name,
         "email": lead.email,
+        "phone": lead.phone,
         "company_name": lead.company.name if lead.company else None,
     }
 
@@ -3681,7 +3682,7 @@ def _update_opportunity_payload(
         )
         row.stage_entered_at = datetime.utcnow()
     if "amount" in update_data:
-        row.amount = float(payload.amount) if payload.amount is not None else 0.0
+        row.amount = float(payload.amount) if payload.amount is not None else None
     if "probability" in update_data:
         row.probability = int(payload.probability or 0)
     if "close_date" in update_data:
@@ -7457,10 +7458,104 @@ def create_app() -> FastAPI:
                 "source": "manual_ui"
             }
         )
+        try:
+            db.add(interaction)
+            db.commit()
+        except Exception as exc:
+            db.rollback()
+            logger.error("Failed to log interaction: %s", exc)
+            raise HTTPException(status_code=500, detail="L'email a été envoyé mais l'interaction n'a pas pu être enregistrée.") from exc
+
+        return {"success": True, "recipient": recipient}
+
+
+    @admin_v1.post("/leads/{lead_id}/send-whatsapp")
+    def send_lead_whatsapp_v1(
+        lead_id: str,
+        payload: dict[str, Any],
+        actor: str = "admin",
+        db: Session = Depends(get_db),
+    ) -> dict[str, Any]:
+        lead = _get_lead_or_404(db, lead_id)
+        message = str(payload.get("message", ""))
+        
+        # Log interaction
+        interaction = DBInteraction(
+            lead_id=lead.id,
+            type="whatsapp",
+            timestamp=datetime.now(),
+            details={
+                "message": message,
+                "sent_by": actor,
+                "recipient": lead.phone,
+                "source": "manual_ui"
+            }
+        )
         db.add(interaction)
         db.commit()
         
-        return {"success": True, "recipient": recipient}
+        return {"success": True}
+
+
+    @admin_v1.post("/leads/{lead_id}/send-sms")
+    def send_lead_sms_v1(
+        lead_id: str,
+        payload: dict[str, Any],
+        actor: str = "admin",
+        db: Session = Depends(get_db),
+    ) -> dict[str, Any]:
+        lead = _get_lead_or_404(db, lead_id)
+        message = str(payload.get("message", ""))
+        
+        # In a real app, we would call Twilio here
+        # ok = _send_sms_via_twilio(lead.phone, message)
+        
+        # Log interaction
+        interaction = DBInteraction(
+            lead_id=lead.id,
+            type="sms",
+            timestamp=datetime.now(),
+            details={
+                "message": message,
+                "sent_by": actor,
+                "recipient": lead.phone,
+                "source": "manual_ui"
+            }
+        )
+        db.add(interaction)
+        db.commit()
+        
+        return {"success": True}
+
+
+    @admin_v1.post("/leads/{lead_id}/log-call")
+    def log_lead_call_v1(
+        lead_id: str,
+        payload: dict[str, Any],
+        actor: str = "admin",
+        db: Session = Depends(get_db),
+    ) -> dict[str, Any]:
+        lead = _get_lead_or_404(db, lead_id)
+        duration = payload.get("duration")
+        notes = payload.get("notes")
+        
+        # Log interaction
+        interaction = DBInteraction(
+            lead_id=lead.id,
+            type="call",
+            timestamp=datetime.now(),
+            details={
+                "duration_seconds": duration,
+                "notes": notes,
+                "sent_by": actor,
+                "recipient": lead.phone,
+                "source": "manual_ui"
+            }
+        )
+        db.add(interaction)
+        db.commit()
+        
+        return {"success": True}
 
 
     @admin_v1.post("/leads")
@@ -8874,49 +8969,54 @@ def create_app() -> FastAPI:
             )
             return {"rejected": True, "count": count}
 
-    @app.post("/api/v1/capture/lead")
+    @app.post("/api/v1/capture/lead", dependencies=[Depends(require_rate_limit)])
     def capture_lead_public(
         payload: LeadCaptureRequest,
         db: Session = Depends(get_db),
     ) -> dict[str, Any]:
         """Public endpoint for lead capture (e.g. from website form)."""
-        existing = db.query(DBLead).filter(DBLead.email == str(payload.email)).first()
-        if existing:
-            return {"status": "already_exists", "lead_id": existing.id}
-            
-        company_name = (payload.company_name or "Unknown").strip()
-        company = db.query(DBCompany).filter(DBCompany.name == company_name).first()
-        if not company:
-            company = DBCompany(name=company_name)
-            db.add(company)
-            db.flush()
-            
-        db_lead = DBLead(
-            id=str(payload.email),
-            email=str(payload.email),
-            first_name=(payload.first_name or "").strip() or "Web",
-            last_name=(payload.last_name or "").strip() or "Capture",
-            phone=payload.phone,
-            company_id=company.id,
-            status=LeadStatus.NEW,
-            source=payload.source,
-            details={"web_message": payload.message}
-        )
-        _funnel_svc.ensure_lead_funnel_defaults(db, db_lead)
-        db.add(db_lead)
-        db.commit()
-        
-        _emit_event_notification(
-            db,
-            event_key="lead_created",
-            title="Nouveau lead (Capture Web)",
-            message=f"{db_lead.email} a rempli un formulaire.",
-            entity_type="lead",
-            entity_id=db_lead.id,
-            link_href=f"/leads/{db_lead.id}",
-        )
-        
-        return {"status": "created", "lead_id": db_lead.id}
+        try:
+            existing = db.query(DBLead).filter(DBLead.email == str(payload.email)).first()
+            if existing:
+                return {"status": "already_exists", "lead_id": existing.id}
+
+            company_name = (payload.company_name or "Unknown").strip()
+            company = db.query(DBCompany).filter(DBCompany.name == company_name).first()
+            if not company:
+                company = DBCompany(name=company_name)
+                db.add(company)
+                db.flush()
+
+            db_lead = DBLead(
+                id=str(payload.email),
+                email=str(payload.email),
+                first_name=(payload.first_name or "").strip() or "Web",
+                last_name=(payload.last_name or "").strip() or "Capture",
+                phone=payload.phone,
+                company_id=company.id,
+                status=LeadStatus.NEW,
+                source=payload.source,
+                details={"web_message": payload.message}
+            )
+            _funnel_svc.ensure_lead_funnel_defaults(db, db_lead)
+            db.add(db_lead)
+            db.commit()
+
+            _emit_event_notification(
+                db,
+                event_key="lead_created",
+                title="Nouveau lead (Capture Web)",
+                message=f"{db_lead.email} a rempli un formulaire.",
+                entity_type="lead",
+                entity_id=db_lead.id,
+                link_href=f"/leads/{db_lead.id}",
+            )
+
+            return {"status": "created", "lead_id": db_lead.id}
+        except Exception as exc:
+            db.rollback()
+            logger.error("Capture lead error: %s", exc)
+            return {"status": "error"}
 
     api_v1.include_router(auth_v1)
     api_v1.include_router(admin_v1)
