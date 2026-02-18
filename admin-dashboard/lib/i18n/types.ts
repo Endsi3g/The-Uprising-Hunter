@@ -18,6 +18,7 @@ export interface Messages {
     analytics: string
     projects: string
     campaigns: string
+    appointments: string
     systems: string
     siteBuilder: string
     research: string
@@ -55,6 +56,7 @@ export interface Messages {
       analytics: string
       projects: string
       campaigns: string
+      appointments: string
       research: string
       systems: string
       settings: string

@@ -605,3 +605,24 @@ class DBDocument(Base):
     is_public = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.now, index=True)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+
+class DBAppointment(Base):
+    __tablename__ = "appointments"
+
+    id = Column(String, primary_key=True, index=True)
+    lead_id = Column(String, ForeignKey("leads.id"), nullable=False, index=True)
+    title = Column(String, nullable=False)
+    description = Column(String, nullable=True)
+    start_at = Column(DateTime, nullable=False, index=True)
+    end_at = Column(DateTime, nullable=False, index=True)
+    status = Column(String, default="scheduled", index=True) # scheduled, completed, cancelled, no-show
+    location = Column(String, nullable=True)
+    meeting_link = Column(String, nullable=True)
+    opportunity_id = Column(String, ForeignKey("opportunities.id"), nullable=True, index=True)
+    
+    created_at = Column(DateTime, default=datetime.now, index=True)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now, index=True)
+
+    lead = relationship("DBLead")
+    opportunity = relationship("DBOpportunity")

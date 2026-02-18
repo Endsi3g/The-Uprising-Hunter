@@ -13,8 +13,8 @@ root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fil
 sys.path.append(root_dir)
 
 from src.core.database import SessionLocal, engine, Base
-from src.core.db_models import DBLead, DBTask, DBProject, DBCompany, DBLandingPage
-from src.core.models import Lead, Task, TaskStatus, TaskPriority, Project, ProjectStatus, LandingPage
+from src.core.db_models import DBLead, DBTask, DBProject, DBCompany, DBLandingPage, DBAppointment
+from src.core.models import Lead, Task, TaskStatus, TaskPriority, Project, ProjectStatus, LandingPage, Appointment
 from datetime import datetime
 from src.ai_engine.generator import MessageGenerator
 from src.scoring.engine import ScoringEngine
@@ -26,6 +26,14 @@ from src.workflows.manager import WorkflowManager
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Prospect Sales Machine API")
+
+# Dependency
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 # Initialize engines
 generator = MessageGenerator()
@@ -215,14 +223,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Dependency
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
 @app.get("/")
 def read_root():
     return {"status": "Sales Machine Online", "time": datetime.now()}
@@ -329,7 +329,67 @@ def create_project(project: Project, db: Session = Depends(get_db)):
     db.refresh(db_project)
     return db_project
 
+
+# --- APPOINTMENTS ---
+
+@app.get("/api/v1/admin/appointments", response_model=List[Appointment])
+def get_appointments(db: Session = Depends(get_db)):
+    return db.query(DBAppointment).all()
+
+@app.post("/api/v1/admin/appointments", response_model=Appointment)
+def create_appointment(appointment: Appointment, db: Session = Depends(get_db)):
+    appointment_id = appointment.id or str(uuid.uuid4())
+    db_appointment = DBAppointment(
+        id=appointment_id,
+        lead_id=appointment.lead_id,
+        title=appointment.title,
+        description=appointment.description,
+        start_at=appointment.start_at,
+        end_at=appointment.end_at,
+        status=appointment.status,
+        location=appointment.location,
+        meeting_link=appointment.meeting_link,
+        opportunity_id=appointment.opportunity_id
+    )
+    db.add(db_appointment)
+    db.commit()
+    db.refresh(db_appointment)
+    return db_appointment
+
+@app.get("/api/v1/admin/leads/{lead_id}/appointments", response_model=List[Appointment])
+def get_lead_appointments(lead_id: str, db: Session = Depends(get_db)):
+    return db.query(DBAppointment).filter(DBAppointment.lead_id == lead_id).all()
+
+@app.patch("/api/v1/admin/appointments/{appointment_id}", response_model=Appointment)
+def update_appointment(appointment_id: str, appointment_update: dict, db: Session = Depends(get_db)):
+    db_appointment = db.query(DBAppointment).filter(DBAppointment.id == appointment_id).first()
+    if not db_appointment:
+        raise HTTPException(status_code=404, detail="Appointment not found")
+    
+    for key, value in appointment_update.items():
+        if hasattr(db_appointment, key):
+            if key in ["start_at", "end_at"] and isinstance(value, str):
+                setattr(db_appointment, key, datetime.fromisoformat(value.replace("Z", "+00:00")))
+            else:
+                setattr(db_appointment, key, value)
+    
+    db.commit()
+    db.refresh(db_appointment)
+    return db_appointment
+
+@app.delete("/api/v1/admin/appointments/{appointment_id}")
+def delete_appointment(appointment_id: str, db: Session = Depends(get_db)):
+    db_appointment = db.query(DBAppointment).filter(DBAppointment.id == appointment_id).first()
+    if not db_appointment:
+        raise HTTPException(status_code=404, detail="Appointment not found")
+    
+    db.delete(db_appointment)
+    db.commit()
+    return {"status": "success"}
+
+
 @app.get("/api/v1/admin/analytics")
+
 def get_analytics(db: Session = Depends(get_db)):
     # Aggregate data for analytics page
     total_leads = db.query(DBLead).count()

@@ -152,6 +152,28 @@ class Project(BaseModel):
 
     model_config = ConfigDict(from_attributes=True, use_enum_values=True)
 
+class AppointmentStatus(str, Enum):
+    SCHEDULED = "scheduled"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+    NO_SHOW = "no-show"
+
+class Appointment(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    lead_id: str
+    title: str
+    description: Optional[str] = None
+    start_at: datetime
+    end_at: datetime
+    status: AppointmentStatus = AppointmentStatus.SCHEDULED
+    location: Optional[str] = None
+    meeting_link: Optional[str] = None
+    opportunity_id: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
+
+    model_config = ConfigDict(from_attributes=True, use_enum_values=True)
+
 class LandingPage(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     name: str
