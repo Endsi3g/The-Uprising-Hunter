@@ -13,8 +13,8 @@ root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fil
 sys.path.append(root_dir)
 
 from src.core.database import SessionLocal, engine, Base
-from src.core.db_models import DBLead, DBTask, DBProject, DBCompany, DBLandingPage, DBAppointment
-from src.core.models import Lead, Task, TaskStatus, TaskPriority, Project, ProjectStatus, LandingPage, Appointment
+from src.core.db_models import DBLead, DBTask, DBProject, DBCompany, DBLandingPage, DBAppointment, DBWorkflowRule
+from src.core.models import Lead, Task, TaskStatus, TaskPriority, Project, ProjectStatus, LandingPage, Appointment, WorkflowRule
 from datetime import datetime
 from src.ai_engine.generator import MessageGenerator
 from src.scoring.engine import ScoringEngine
@@ -145,6 +145,46 @@ def generate_builder_content(config: dict):
         }
     return content
 
+# --- WORKFLOW UTILITIES ---
+
+def execute_workflow_action(lead: DBLead, rule: DBWorkflowRule, db: Session):
+    config = rule.action_config_json
+    if rule.action_type == "create_task":
+        db_task = DBTask(
+            id=str(uuid.uuid4()),
+            title=config.get("title", f"Workflow: {rule.name}"),
+            description=config.get("description", ""),
+            status="To Do",
+            priority=config.get("priority", "Medium"),
+            lead_id=lead.id,
+            assigned_to="You"
+        )
+        db.add(db_task)
+        db.commit()
+    elif rule.action_type == "change_stage":
+        lead.stage_canonical = config.get("stage", "qualified")
+        db.commit()
+
+def trigger_workflow(lead: DBLead, trigger_type: str, db: Session):
+    rules = db.query(DBWorkflowRule).filter(
+        DBWorkflowRule.trigger_type == trigger_type,
+        DBWorkflowRule.is_active == True
+    ).all()
+    
+    for rule in rules:
+        criteria = rule.criteria_json
+        match = True
+        
+        if trigger_type == "lead_scored":
+            if "min_score" in criteria and lead.total_score < criteria["min_score"]:
+                match = False
+            if "tier" in criteria and lead.tier != criteria["tier"]:
+                match = False
+                
+        if match:
+            execute_workflow_action(lead, rule, db)
+
+
 # --- LEAD CAPTURE ---
 
 @app.post("/api/v1/capture/lead")
@@ -209,11 +249,16 @@ def capture_lead(payload: dict, db: Session = Depends(get_db)):
     db_lead.details = scored_lead.details
     db_lead.status = "SCORED"
     
-    db.commit()
+        db.commit()
+        
+        # 4. Trigger Workflows
+        trigger_workflow(db_lead, "lead_scored", db)
+        
+        return {"status": "success", "lead_id": db_lead.id, "tier": db_lead.tier}
     
-    return {"status": "success", "lead_id": db_lead.id, "tier": db_lead.tier}
-
-# Configure CORS for Next.js frontend
+    
+    # Configure CORS for Next.js frontend
+    
 app.add_middleware(
     CORSMiddleware,
     # Allow local dev and production domains
@@ -354,6 +399,13 @@ def create_appointment(appointment: Appointment, db: Session = Depends(get_db)):
     db.add(db_appointment)
     db.commit()
     db.refresh(db_appointment)
+    
+    # Automate: transition lead to booked
+    db_lead = db.query(DBLead).filter(DBLead.id == appointment.lead_id).first()
+    if db_lead:
+        db_lead.stage_canonical = "booked"
+        db.commit()
+
     return db_appointment
 
 @app.get("/api/v1/admin/leads/{lead_id}/appointments", response_model=List[Appointment])
@@ -384,6 +436,39 @@ def delete_appointment(appointment_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Appointment not found")
     
     db.delete(db_appointment)
+    db.commit()
+    return {"status": "success"}
+
+
+# --- WORKFLOWS ---
+
+@app.get("/api/v1/admin/workflows", response_model=List[WorkflowRule])
+def get_workflows(db: Session = Depends(get_db)):
+    return db.query(DBWorkflowRule).all()
+
+@app.post("/api/v1/admin/workflows", response_model=WorkflowRule)
+def create_workflow(workflow: WorkflowRule, db: Session = Depends(get_db)):
+    workflow_id = workflow.id or str(uuid.uuid4())
+    db_workflow = DBWorkflowRule(
+        id=workflow_id,
+        name=workflow.name,
+        trigger_type=workflow.trigger_type,
+        criteria_json=workflow.criteria,
+        action_type=workflow.action_type,
+        action_config_json=workflow.action_config,
+        is_active=workflow.is_active
+    )
+    db.add(db_workflow)
+    db.commit()
+    db.refresh(db_workflow)
+    return db_workflow
+
+@app.delete("/api/v1/admin/workflows/{workflow_id}")
+def delete_workflow(workflow_id: str, db: Session = Depends(get_db)):
+    db_workflow = db.query(DBWorkflowRule).filter(DBWorkflowRule.id == workflow_id).first()
+    if not db_workflow:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+    db.delete(db_workflow)
     db.commit()
     return {"status": "success"}
 

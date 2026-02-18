@@ -174,6 +174,18 @@ class Appointment(BaseModel):
 
     model_config = ConfigDict(from_attributes=True, use_enum_values=True)
 
+class WorkflowRule(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    trigger_type: str
+    criteria: Dict[str, Any] = Field(default_factory=dict)
+    action_type: str
+    action_config: Dict[str, Any] = Field(default_factory=dict)
+    is_active: bool = True
+    created_at: datetime = Field(default_factory=datetime.now)
+
+    model_config = ConfigDict(from_attributes=True)
+
 class LandingPage(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     name: str

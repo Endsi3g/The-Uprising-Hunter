@@ -19,6 +19,7 @@ export const fr: Messages = {
     projects: "Projets",
     campaigns: "Campagnes",
     appointments: "Rendez-vous",
+    workflows: "Automatisations",
     siteBuilder: "Constructeur de Site",
     systems: "Configuration",
     research: "Recherche",

@@ -626,3 +626,18 @@ class DBAppointment(Base):
 
     lead = relationship("DBLead")
     opportunity = relationship("DBOpportunity")
+
+
+class DBWorkflowRule(Base):
+    __tablename__ = "workflow_rules"
+
+    id = Column(String, primary_key=True, index=True)
+    name = Column(String, nullable=False, index=True)
+    trigger_type = Column(String, nullable=False, index=True) # lead_created, lead_scored, appointment_created, task_completed
+    criteria_json = Column(JSON, default=dict, nullable=False) # e.g. {"min_score": 80}
+    action_type = Column(String, nullable=False, index=True) # create_task, send_webhook, change_stage
+    action_config_json = Column(JSON, default=dict, nullable=False)
+    is_active = Column(Boolean, default=True, index=True)
+    
+    created_at = Column(DateTime, default=datetime.now, index=True)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)

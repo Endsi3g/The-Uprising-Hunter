@@ -12,6 +12,7 @@ import {
   IconInnerShadowTop,
   IconListDetails,
   IconReport,
+  IconRocket,
   IconSearch,
   IconSettings,
   IconSparkles,
@@ -108,6 +109,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             title: messages.sidebar.appointments,
             url: "/appointments",
             icon: IconListDetails,
+          },
+          {
+            title: messages.sidebar.workflows,
+            url: "/workflows",
+            icon: IconRocket,
           },
           {
             title: messages.sidebar.siteBuilder,

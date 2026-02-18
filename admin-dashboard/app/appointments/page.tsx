@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import useSWR from "swr"
-import { IconCalendar, IconMapPin, IconLink, IconDotsVertical, IconCheck, IconX, IconClock } from "@tabler/icons-react"
+import { IconCalendar, IconMapPin, IconLink, IconDotsVertical, IconCheck, IconX, IconClock, IconLoader2 } from "@tabler/icons-react"
 import { format, isSameDay, parseISO } from "date-fns"
 import { fr } from "date-fns/locale"
 
@@ -41,6 +41,7 @@ export default function AppointmentsPage() {
     fetcher
   )
   const [updatedAt, setUpdatedAt] = React.useState<Date | null>(null)
+  const [busyId, setBusyId] = React.useState<string | null>(null)
 
   React.useEffect(() => {
     if (!appointments) return
@@ -61,6 +62,7 @@ export default function AppointmentsPage() {
   }, [appointments])
 
   async function updateStatus(id: string, status: string) {
+    setBusyId(id)
     try {
       await requestApi(`/api/v1/admin/appointments/${id}`, {
         method: "PATCH",
@@ -71,6 +73,8 @@ export default function AppointmentsPage() {
       await mutate()
     } catch (error) {
       toast.error("Erreur lors de la mise à jour.")
+    } finally {
+      setBusyId(null)
     }
   }
 
@@ -161,8 +165,12 @@ export default function AppointmentsPage() {
                       </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <IconDotsVertical className="h-4 w-4" />
+                          <Button variant="ghost" size="icon" disabled={busyId === apt.id}>
+                            {busyId === apt.id ? (
+                              <IconLoader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <IconDotsVertical className="h-4 w-4" />
+                            )}
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">

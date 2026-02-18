@@ -19,6 +19,7 @@ export const en: Messages = {
     projects: "Projects",
     campaigns: "Campaigns",
     appointments: "Appointments",
+    workflows: "Workflows",
     siteBuilder: "Site Builder",
     systems: "Configuration",
     research: "Research",
