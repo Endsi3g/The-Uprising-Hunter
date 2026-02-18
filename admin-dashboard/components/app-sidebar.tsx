@@ -104,6 +104,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             url: "/campaigns",
             icon: IconDatabase,
           },
+          {
+            title: messages.sidebar.siteBuilder,
+            url: "/builder",
+            icon: IconInnerShadowTop,
+          },
         ],
       },
       {

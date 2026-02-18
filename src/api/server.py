@@ -13,14 +13,197 @@ root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fil
 sys.path.append(root_dir)
 
 from src.core.database import SessionLocal, engine, Base
-from src.core.db_models import DBLead, DBTask, DBProject, DBCompany
-from src.core.models import Lead, Task, TaskStatus, TaskPriority, Project, ProjectStatus
+from src.core.db_models import DBLead, DBTask, DBProject, DBCompany, DBLandingPage
+from src.core.models import Lead, Task, TaskStatus, TaskPriority, Project, ProjectStatus, LandingPage
 from datetime import datetime
+from src.ai_engine.generator import MessageGenerator
+from src.scoring.engine import ScoringEngine
+from src.enrichment.service import EnrichmentService
+from src.enrichment.apify_client import ApifyMapsClient, MockApifyMapsClient
+from src.workflows.manager import WorkflowManager
 
 # Create tables if they don't exist
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Prospect Sales Machine API")
+
+# Initialize engines
+generator = MessageGenerator()
+scoring_engine = ScoringEngine()
+
+# Sourcing client selection (Real vs Mock)
+apify_token = os.getenv("APIFY_API_TOKEN")
+if apify_token and apify_token != "your_apify_token_here":
+    sourcing_client = ApifyMapsClient(apify_token)
+else:
+    print("Warning: APIFY_API_TOKEN not found. Using MockApifyMapsClient.")
+    sourcing_client = MockApifyMapsClient()
+
+enrichment_service = EnrichmentService(client=sourcing_client)
+workflow_manager = WorkflowManager(sourcing_client=sourcing_client)
+
+# ... (CORS and get_db remain same)
+
+# --- LANDING PAGE BUILDER ---
+
+@app.get("/api/v1/builder/pages", response_model=List[LandingPage])
+def get_landing_pages(db: Session = Depends(get_db)):
+    return db.query(DBLandingPage).all()
+
+@app.post("/api/v1/builder/pages", response_model=LandingPage)
+def create_landing_page(page: LandingPage, db: Session = Depends(get_db)):
+    db_page = DBLandingPage(
+        id=page.id,
+        name=page.name,
+        slug=page.slug,
+        title=page.title,
+        description=page.description,
+        content_json=page.content,
+        theme_json=page.theme,
+        is_published=page.is_published
+    )
+    db.add(db_page)
+    db.commit()
+    db.refresh(db_page)
+    return db_page
+
+@app.get("/api/v1/builder/pages/{page_id}", response_model=LandingPage)
+def get_landing_page(page_id: str, db: Session = Depends(get_db)):
+    page = db.query(DBLandingPage).filter(DBLandingPage.id == page_id).first()
+    if not page:
+        raise HTTPException(status_code=404, detail="Page not found")
+    return LandingPage(
+        id=page.id,
+        name=page.name,
+        slug=page.slug,
+        title=page.title,
+        description=page.description,
+        content=page.content_json,
+        theme=page.theme_json,
+        is_published=page.is_published,
+        created_at=page.created_at,
+        updated_at=page.updated_at
+    )
+
+@app.patch("/api/v1/builder/pages/{page_id}", response_model=LandingPage)
+def update_landing_page(page_id: str, page_update: dict, db: Session = Depends(get_db)):
+    db_page = db.query(DBLandingPage).filter(DBLandingPage.id == page_id).first()
+    if not db_page:
+        raise HTTPException(status_code=404, detail="Page not found")
+    
+    for key, value in page_update.items():
+        if key == "content":
+            db_page.content_json = value
+        elif key == "theme":
+            db_page.theme_json = value
+        elif hasattr(db_page, key):
+            setattr(db_page, key, value)
+    
+    db.commit()
+    db.refresh(db_page)
+    return db_page
+
+@app.get("/api/v1/public/pages/{slug}", response_model=LandingPage)
+def get_public_landing_page(slug: str, db: Session = Depends(get_db)):
+    page = db.query(DBLandingPage).filter(DBLandingPage.slug == slug, DBLandingPage.is_published == True).first()
+    if not page:
+        raise HTTPException(status_code=404, detail="Page not found or not published")
+    return LandingPage(
+        id=page.id,
+        name=page.name,
+        slug=page.slug,
+        title=page.title,
+        description=page.description,
+        content=page.content_json,
+        theme=page.theme_json,
+        is_published=page.is_published,
+        created_at=page.created_at,
+        updated_at=page.updated_at
+    )
+
+@app.post("/api/v1/builder/generate")
+def generate_builder_content(config: dict):
+    business_type = config.get("business_type", "Clinique")
+    target_audience = config.get("target_audience", "Patients")
+    content = generator.generate_landing_page_copy(business_type, target_audience)
+    # Ensure it's a dict and has expected keys
+    if not isinstance(content, dict):
+        return {
+            "hero_title": f"Solution IA pour {business_type}",
+            "hero_subtitle": f"Optimisez votre gestion et gagnez du temps pour vos clients {target_audience}.",
+            "cta_text": "Réserver un appel",
+            "problem_statement": "Les tâches administratives répétitives freinent votre croissance.",
+            "solution_statement": "Notre IA automatise votre workflow."
+        }
+    return content
+
+# --- LEAD CAPTURE ---
+
+@app.post("/api/v1/capture/lead")
+def capture_lead(payload: dict, db: Session = Depends(get_db)):
+    # This is called by the landing pages
+    email = payload.get("email")
+    company_name = payload.get("company_name", "Inconnue")
+    source = payload.get("source", "landing_page")
+    
+    if not email:
+        raise HTTPException(status_code=400, detail="Email requis")
+        
+    # 1. Create/Get Company
+    db_company = db.query(DBCompany).filter(DBCompany.name == company_name).first()
+    if not db_company:
+        db_company = DBCompany(name=company_name)
+        db.add(db_company)
+        db.commit()
+        db.refresh(db_company)
+        
+    # 2. Create Lead (Raw)
+    db_lead = db.query(DBLead).filter(DBLead.id == email).first()
+    if not db_lead:
+        db_lead = DBLead(
+            id=email,
+            email=email,
+            company_id=db_company.id,
+            status="NEW",
+            source=source
+        )
+        db.add(db_lead)
+        db.commit()
+        db.refresh(db_lead)
+    
+    # 3. Process through Workflow
+    # We create a Lead model for the manager
+    lead_model = Lead.from_orm(db_lead)
+    
+    # Enrichment
+    try:
+        if lead_model.company.domain:
+            enriched_company = sourcing_client.enrich_company(lead_model.company.domain)
+            lead_model.company.industry = enriched_company.get("industry")
+            lead_model.company.description = enriched_company.get("description")
+    except:
+        pass
+
+    # Score & Action (Decision Logic)
+    scored_lead = scoring_engine.score_lead(lead_model)
+    
+    # Generate hook/email
+    scored_lead.personalized_hook = generator.generate_personalized_hook(scored_lead)
+    scored_lead.details["draft_email"] = generator.generate_cold_email(scored_lead)
+
+    # Update DB
+    db_lead.icp_score = scored_lead.score.icp_score
+    db_lead.heat_score = scored_lead.score.heat_score
+    db_lead.total_score = scored_lead.score.total_score
+    db_lead.tier = scored_lead.score.tier
+    db_lead.heat_status = scored_lead.score.heat_status
+    db_lead.personalized_hook = scored_lead.personalized_hook
+    db_lead.details = scored_lead.details
+    db_lead.status = "SCORED"
+    
+    db.commit()
+    
+    return {"status": "success", "lead_id": db_lead.id, "tier": db_lead.tier}
 
 # Configure CORS for Next.js frontend
 app.add_middleware(
@@ -171,24 +354,28 @@ def get_analytics(db: Session = Depends(get_db)):
 
 @app.get("/api/v1/admin/stats")
 def get_stats(db: Session = Depends(get_db)):
+    # Optimized counters for dashboard
     total_leads = db.query(DBLead).count()
-    # Assuming 'Interested' is a status or high score. For now, let's use a placeholder logic or a specific status if available.
-    # Let's count leads with "Hot" or "Warm" status if mapped, or just total for now. 
-    # Actually, looking at models.py, Lead has 'status'. Let's count 'New' vs others if possible, or just total.
-    # Let's return a simple breakdown.
+    qualified_leads = db.query(DBLead).filter(DBLead.tier.in_(["Tier A", "Tier B"])).count()
+    hot_leads = db.query(DBLead).filter(DBLead.heat_status == "Hot").count()
     
-    new_leads_today = db.query(DBLead).filter(DBLead.created_at >= datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)).count()
+    new_leads_today = db.query(DBLead).filter(
+        DBLead.created_at >= datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    ).count()
     
-    # Simple logic: 'converted' or 'interested' might be tracked by status. 
-    # Let's assume 'Interested' means score > 70 for this MVP.
-    # But for now, let's just return raw counts of tasks and leads.
     pending_tasks = db.query(DBTask).filter(DBTask.status != "Done").count()
+    
+    # Calculate a simple conversion rate if possible
+    contacted = db.query(DBLead).filter(DBLead.status == "CONTACTED").count()
+    conversion_rate = (contacted / total_leads * 100) if total_leads > 0 else 0.0
     
     return {
         "total_leads": total_leads,
         "new_leads_today": new_leads_today,
+        "qualified_leads": qualified_leads,
+        "hot_leads": hot_leads,
         "pending_tasks": pending_tasks,
-        "conversion_rate": 0.0 # Placeholder
+        "conversion_rate": round(conversion_rate, 1)
     }
 
 if __name__ == "__main__":

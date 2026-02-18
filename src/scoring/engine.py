@@ -250,6 +250,29 @@ class ScoringEngine:
         )
         score += access_urgency_score
 
+        # 5) Sniper Signals (0-15)
+        sniper_score = 0.0
+        sniper_rules = rules.get("sniper", {})
+        sniper_weights = w.get("sniper", {})
+
+        if self._truthy(lead.details.get(sniper_rules.get("facebook_pixel_detail_key"))):
+            p = float(sniper_weights.get("facebook_pixel", 0))
+            sniper_score += p
+            breakdown["sniper_fb_pixel"] = p
+
+        if self._truthy(lead.details.get(sniper_rules.get("high_design_detail_key"))):
+            p = float(sniper_weights.get("high_design", 0))
+            sniper_score += p
+            breakdown["sniper_high_design"] = p
+
+        if self._truthy(lead.details.get(sniper_rules.get("low_design_detail_key"))):
+            p = float(sniper_weights.get("low_design", 0))
+            sniper_score += p
+            breakdown["sniper_low_design_penalty"] = p
+
+        sniper_score = self._cap_section("sniper", sniper_score, breakdown, self.caps.get("sniper", 15))
+        score += sniper_score
+
         total_icp = self._cap(score, self.caps["total_icp"])
         if total_icp < score:
             breakdown["icp_total_cap_adjustment"] = round(total_icp - score, 4)

@@ -5,6 +5,7 @@ from ..core.logging import get_logger
 from ..core.models import Lead, Company
 from .client import SourcingClient
 from ..intent.base import IntentProviderClient
+from ..ai_engine.generator import MessageGenerator
 
 
 logger = get_logger(__name__)
@@ -13,6 +14,7 @@ class EnrichmentService:
     def __init__(self, client: SourcingClient, intent_client: Optional[IntentProviderClient] = None):
         self.client = client
         self.intent_client = intent_client
+        self.generator = MessageGenerator()
 
     def enrich_intent(self, lead: Lead) -> None:
         if not self.intent_client:
@@ -63,6 +65,12 @@ class EnrichmentService:
         for key in ("source", "website", "location"):
             if key in raw_data and raw_data[key] is not None:
                 lead.details[key] = raw_data[key]
+
+        # Generate Personalized Hook
+        try:
+            lead.personalized_hook = self.generator.generate_personalized_hook(lead)
+        except Exception as exc:
+            logger.warning("Failed to generate personalized hook for lead.", extra={"lead_id": lead.id, "error": str(exc)})
 
         self.enrich_intent(lead)
         

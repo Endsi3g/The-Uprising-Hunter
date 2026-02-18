@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { IconDotsVertical, IconFolderPlus, IconPlus, IconRocket, IconEye, IconTrash } from "@tabler/icons-react"
+import { IconDotsVertical, IconFolderPlus, IconPlus, IconRocket, IconEye, IconTrash, IconPhone, IconCopy } from "@tabler/icons-react"
 import { toast } from "sonner"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -66,7 +66,10 @@ export type Lead = {
   status: string
   score: number
   segment: string
+  personalized_hook?: string
 }
+
+const SALON_PARTNER_SCRIPT = "Bonjour {name}, j'ai analysé votre site {company} avec notre IA chez Uprising Studio. {hook} On en discute au salon ?"
 
 type TriStateFilter = "ANY" | "YES" | "NO"
 
@@ -132,51 +135,91 @@ const LeadRow = React.memo(({
           {lead.status}
         </Badge>
       </TableCell>
+      <TableCell className="max-w-[200px]">
+        <p className="truncate text-[11px] italic text-muted-foreground" title={lead.personalized_hook}>
+          {lead.personalized_hook || "En attente IA..."}
+        </p>
+      </TableCell>
       <TableCell>
         <span className={`font-semibold ${scoreClass(lead.score)}`}>{lead.score}</span>
       </TableCell>
       <TableCell>{lead.segment}</TableCell>
       <TableCell className="text-right">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="size-8">
-              <IconDotsVertical className="size-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuItem asChild>
-              <Link
-                href={`/leads/${encodeURIComponent(lead.id)}`}
-                className="flex cursor-pointer items-center"
+        <div className="flex items-center justify-end gap-1">
+          {lead.phone && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="size-8" asChild>
+                  <a href={`tel:${lead.phone}`}>
+                    <IconPhone className="size-4 text-green-600" />
+                  </a>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Appeler {lead.phone}</TooltipContent>
+            </Tooltip>
+          )}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8"
+                onClick={() => {
+                  const text = SALON_PARTNER_SCRIPT
+                    .replace("{name}", lead.name.split(' ')[0])
+                    .replace("{company}", lead.company.name)
+                    .replace("{hook}", lead.personalized_hook || "")
+                  void navigator.clipboard.writeText(text)
+                  toast.success("Script copié dans le presse-papier !")
+                }}
               >
-                <IconEye className="size-4 mr-2" />
-                Voir details
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => onCreateProject(lead)}>
-              <IconFolderPlus className="size-4 mr-2" />
-              Creer un projet
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onCreateTask(lead)}>
-              <IconPlus className="size-4 mr-2" />
-              Creer une tache
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => onDelete(lead.id)}
-              className="text-red-600 focus:text-red-600"
-            >
-              <IconTrash className="size-4 mr-2" />
-              Supprimer
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => toast.info("Flow audit disponible prochainement")}>
-              <IconRocket className="size-4 mr-2" />
-              Generer un audit
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+                <IconCopy className="size-4 text-blue-600" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Copier le script "Salon"</TooltipContent>
+          </Tooltip>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="size-8">
+                <IconDotsVertical className="size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem asChild>
+                <Link
+                  href={`/leads/${encodeURIComponent(lead.id)}`}
+                  className="flex cursor-pointer items-center"
+                >
+                  <IconEye className="size-4 mr-2" />
+                  Voir details
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => onCreateProject(lead)}>
+                <IconFolderPlus className="size-4 mr-2" />
+                Creer un projet
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onCreateTask(lead)}>
+                <IconPlus className="size-4 mr-2" />
+                Creer une tache
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => onDelete(lead.id)}
+                className="text-red-600 focus:text-red-600"
+              >
+                <IconTrash className="size-4 mr-2" />
+                Supprimer
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => toast.info("Flow audit disponible prochainement")}>
+                <IconRocket className="size-4 mr-2" />
+                Generer un audit
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </TableCell>
     </TableRow>
   )
@@ -232,7 +275,38 @@ const LeadCard = React.memo(({
           <p className="truncate">{lead.segment}</p>
         </div>
       </div>
-      <div className="mt-2 flex justify-end">
+      {lead.personalized_hook && (
+        <div className="mt-2 rounded bg-muted/30 p-2 text-[10px] italic text-muted-foreground border-l-2 border-primary/20">
+          "{lead.personalized_hook}"
+        </div>
+      )}
+      <div className="mt-3 flex items-center justify-between">
+        <div className="flex gap-1">
+          {lead.phone && (
+            <Button variant="outline" size="sm" className="h-8 px-2" asChild>
+              <a href={`tel:${lead.phone}`}>
+                <IconPhone className="size-3.5 mr-1 text-green-600" />
+                Appeler
+              </a>
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 px-2"
+            onClick={() => {
+              const text = SALON_PARTNER_SCRIPT
+                .replace("{name}", lead.name.split(' ')[0])
+                .replace("{company}", lead.company.name)
+                .replace("{hook}", lead.personalized_hook || "")
+              void navigator.clipboard.writeText(text)
+              toast.success("Script copié !")
+            }}
+          >
+            <IconCopy className="size-3.5 mr-1 text-blue-600" />
+            Script
+          </Button>
+        </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="size-9">
@@ -556,12 +630,12 @@ export function LeadsTable({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="ALL">Tous les statuts</SelectItem>
-                <SelectItem value="NEW">New</SelectItem>
-                <SelectItem value="SCORED">Scored</SelectItem>
-                <SelectItem value="CONTACTED">Contacted</SelectItem>
-                <SelectItem value="INTERESTED">Interested</SelectItem>
-                <SelectItem value="CONVERTED">Converted</SelectItem>
-                <SelectItem value="LOST">Lost</SelectItem>
+                <SelectItem value="NEW">À contacter (Nouveau)</SelectItem>
+                <SelectItem value="SCORED">Qualifié (Score &gt; 40)</SelectItem>
+                <SelectItem value="CONTACTED">En cours</SelectItem>
+                <SelectItem value="INTERESTED">RDV pris / Intéressé</SelectItem>
+                <SelectItem value="CONVERTED">Signé (Won)</SelectItem>
+                <SelectItem value="LOST">Pas intéressé / Perdu</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -733,6 +807,7 @@ export function LeadsTable({
                     >
                       Statut <SortIcon column="status" sort={sort} order={order} />
                     </TableHead>
+                    <TableHead className="w-[200px]">Accroche IA</TableHead>
                     <TableHead
                       className="cursor-pointer hover:bg-muted/50"
                       onClick={() => handleSort("total_score")}

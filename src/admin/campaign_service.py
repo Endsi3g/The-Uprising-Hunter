@@ -457,6 +457,8 @@ def _candidate_leads_for_enrollment(
     payload = filters or {}
     statuses = payload.get("statuses", ["NEW", "ENRICHED", "SCORED", "CONTACTED"])
     min_total_score = payload.get("min_total_score")
+    days_since_created = payload.get("days_since_created")
+    tiers = payload.get("tiers")
 
     query = db.query(DBLead)
     if isinstance(statuses, list) and statuses:
@@ -468,6 +470,19 @@ def _candidate_leads_for_enrollment(
             query = query.filter(DBLead.total_score >= float(min_total_score))
         except (TypeError, ValueError):
             pass
+
+    if days_since_created is not None:
+        try:
+            cutoff = datetime.now() - timedelta(days=int(days_since_created))
+            query = query.filter(DBLead.created_at >= cutoff)
+        except (TypeError, ValueError):
+            pass
+
+    if isinstance(tiers, list) and tiers:
+        normalized_tiers = [str(item).strip() for item in tiers if str(item).strip()]
+        if normalized_tiers:
+            query = query.filter(DBLead.tier.in_(normalized_tiers))
+
     return query.order_by(DBLead.created_at.desc()).limit(limit).all()
 
 

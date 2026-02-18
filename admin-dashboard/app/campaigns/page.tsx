@@ -199,7 +199,12 @@ export default function CampaignsPage() {
 
   const [useFormForFilter, setUseFormForFilter] = React.useState(true)
   const [filterMinScore, setFilterMinScore] = React.useState("35")
+  const [filterMinIcpScore, setFilterMinIcpScore] = React.useState("0")
   const [filterStatuses, setFilterStatuses] = React.useState<string[]>(["NEW", "ENRICHED"])
+  const [filterDaysSinceCreated, setFilterDaysSinceCreated] = React.useState("30")
+  const [filterTiers, setFilterTiers] = React.useState<string[]>(["Tier A", "Tier B"])
+  const [filterSegments, setFilterSegments] = React.useState<string[]>([])
+  const [filterIncludeArchived, setFilterIncludeArchived] = React.useState(false)
   const [campaignBusy, setCampaignBusy] = React.useState(false)
   const [processingCampaignActions, setProcessingCampaignActions] = React.useState<Set<string>>(new Set())
 
@@ -281,7 +286,12 @@ export default function CampaignsPage() {
     setStrategyLinkedin(false)
     setStrategyLinkedinDelay("48")
     setFilterMinScore("35")
+    setFilterMinIcpScore("0")
     setFilterStatuses(["NEW", "ENRICHED"])
+    setFilterDaysSinceCreated("30")
+    setFilterTiers(["Tier A", "Tier B"])
+    setFilterSegments([])
+    setFilterIncludeArchived(false)
   }
 
   function startEditingCampaign(campaign: Campaign) {
@@ -311,8 +321,13 @@ export default function CampaignsPage() {
     const filter = campaign.enrollment_filter || {}
     setCampaignFilter(pretty(filter))
     setFilterMinScore(String(filter.min_total_score || "0"))
+    setFilterMinIcpScore(String(filter.min_icp_score || "0"))
     setFilterStatuses((filter.statuses as string[]) || [])
-    
+    setFilterDaysSinceCreated(String(filter.days_since_created || "30"))
+    setFilterTiers((filter.tiers as string[]) || [])
+    setFilterSegments((filter.segments as string[]) || [])
+    setFilterIncludeArchived(Boolean(filter.include_archived))
+
     // Switch to form mode
     setUseFormForStrategy(true)
     setUseFormForFilter(true)
@@ -343,7 +358,12 @@ export default function CampaignsPage() {
     if (useFormForFilter) {
       filter = {
         statuses: filterStatuses,
-        min_total_score: Number.parseInt(filterMinScore, 10) || 0,
+        min_total_score: Number.parseFloat(filterMinScore) || 0,
+        min_icp_score: Number.parseFloat(filterMinIcpScore) || 0,
+        days_since_created: Number.parseInt(filterDaysSinceCreated, 10) || null,
+        tiers: filterTiers,
+        segments: filterSegments,
+        include_archived: filterIncludeArchived,
       }
     } else {
       filter = parseJsonObject(campaignFilter, "enrollment_filter")
@@ -352,10 +372,10 @@ export default function CampaignsPage() {
 
     setCampaignBusy(true)
     try {
-      const url = editingCampaignId 
+      const url = editingCampaignId
         ? `/api/v1/admin/campaigns/${editingCampaignId}`
         : "/api/v1/admin/campaigns"
-      
+
       const method = editingCampaignId ? "PATCH" : "POST"
 
       await requestApi(url, {
@@ -370,7 +390,7 @@ export default function CampaignsPage() {
           enrollment_filter: filter,
         }),
       })
-      
+
       toast.success(editingCampaignId ? "Campagne mise a jour." : "Campagne creee.")
       resetCampaignForm()
       await mutateCampaigns()
@@ -573,7 +593,7 @@ export default function CampaignsPage() {
     <AppShell>
       <div className="flex flex-1 flex-col gap-4">
         <div className="rounded-2xl border bg-gradient-to-r from-slate-900 via-slate-800 to-slate-700 p-5 text-slate-50">
-          <h2 className="text-3xl font-bold tracking-tight">Growth Automation Studio</h2>
+          <h2 className="text-3xl font-bold tracking-tight">The Uprising Hunter</h2>
           <p className="mt-2 text-sm text-slate-200">
             Campagnes, sequences, generation de contenu et enrichment dans une vue unifiee.
           </p>
@@ -670,7 +690,7 @@ export default function CampaignsPage() {
                         onClick={() => setUseFormForStrategy(!useFormForStrategy)}
                         type="button"
                       >
-                        {useFormForStrategy ? "Switch to JSON" : "Switch to Form"}
+                        {useFormForStrategy ? "Advanced Mode (JSON)" : "Simple Mode (Form)"}
                       </Button>
                     </div>
 
@@ -742,24 +762,40 @@ export default function CampaignsPage() {
                         onClick={() => setUseFormForFilter(!useFormForFilter)}
                         type="button"
                       >
-                        {useFormForFilter ? "Switch to JSON" : "Switch to Form"}
+                        {useFormForFilter ? "Advanced Mode (JSON)" : "Simple Mode (Form)"}
                       </Button>
                     </div>
 
                     {useFormForFilter ? (
                       <div className="grid gap-4 rounded-lg border p-3">
-                        <div className="grid gap-2">
-                          <Label htmlFor="filter-min-score">Minimum Quality Score</Label>
-                          <div className="flex items-center gap-4">
-                            <Input
-                              id="filter-min-score"
-                              type="number"
-                              min="0"
-                              max="100"
-                              value={filterMinScore}
-                              onChange={(e) => setFilterMinScore(e.target.value)}
-                            />
-                            <span className="text-sm font-medium">{filterMinScore}/100</span>
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <div className="grid gap-2">
+                            <Label htmlFor="filter-min-score">Minimum Quality Score</Label>
+                            <div className="flex items-center gap-4">
+                              <Input
+                                id="filter-min-score"
+                                type="number"
+                                min="0"
+                                max="100"
+                                value={filterMinScore}
+                                onChange={(e) => setFilterMinScore(e.target.value)}
+                              />
+                              <span className="text-sm font-medium">{filterMinScore}/100</span>
+                            </div>
+                          </div>
+
+                          <div className="grid gap-2">
+                            <Label htmlFor="filter-days">Recency (max days since creation)</Label>
+                            <div className="flex items-center gap-4">
+                              <Input
+                                id="filter-days"
+                                type="number"
+                                min="1"
+                                value={filterDaysSinceCreated}
+                                onChange={(e) => setFilterDaysSinceCreated(e.target.value)}
+                              />
+                              <span className="text-xs text-muted-foreground whitespace-nowrap">days</span>
+                            </div>
                           </div>
                         </div>
 
@@ -785,6 +821,67 @@ export default function CampaignsPage() {
                               </div>
                             ))}
                           </div>
+                        </div>
+
+                        <div className="grid gap-2">
+                          <Label>ICP Tiers to Include</Label>
+                          <div className="flex flex-wrap gap-3">
+                            {["Tier A", "Tier B", "Tier C", "Tier D"].map((tier) => (
+                              <div key={tier} className="flex items-center gap-1.5">
+                                <Checkbox
+                                  id={`tier-${tier}`}
+                                  checked={filterTiers.includes(tier)}
+                                  onCheckedChange={(checked) => {
+                                    if (checked) {
+                                      setFilterTiers([...filterTiers, tier])
+                                    } else {
+                                      setFilterTiers(filterTiers.filter((t) => t !== tier))
+                                    }
+                                  }}
+                                />
+                                <Label htmlFor={`tier-${tier}`} className="text-xs">
+                                  {tier}
+                                </Label>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <div className="grid gap-2">
+                            <Label htmlFor="filter-min-icp-score">Min ICP Score</Label>
+                            <div className="flex items-center gap-4">
+                              <Input
+                                id="filter-min-icp-score"
+                                type="number"
+                                min="0"
+                                max="100"
+                                value={filterMinIcpScore}
+                                onChange={(e) => setFilterMinIcpScore(e.target.value)}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-4 pt-6">
+                            <Checkbox
+                              id="filter-archived"
+                              checked={filterIncludeArchived}
+                              onCheckedChange={(checked) => setFilterIncludeArchived(checked === true)}
+                            />
+                            <Label htmlFor="filter-archived" className="text-sm font-medium">
+                              Include Archived Leads
+                            </Label>
+                          </div>
+                        </div>
+
+                        <div className="grid gap-2">
+                          <Label htmlFor="filter-segments">Segments (comma separated)</Label>
+                          <Input
+                            id="filter-segments"
+                            value={filterSegments.join(", ")}
+                            onChange={(e) => setFilterSegments(e.target.value.split(",").map(s => s.trim()).filter(Boolean))}
+                            placeholder="SaaS, Enterprise, SMB"
+                          />
                         </div>
                       </div>
                     ) : (

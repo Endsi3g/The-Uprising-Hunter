@@ -21,8 +21,10 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { ResponsiveDataView } from "@/components/responsive/responsive-data-view"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { IconFilter, IconChartBar } from "@tabler/icons-react"
+
+// ... existing imports ...
 import { useLoadingTimeout } from "@/hooks/use-loading-timeout"
 import { SendEmailModal } from "@/components/send-email-modal"
 import { SendWhatsAppModal } from "@/components/send-whatsapp-modal"
@@ -362,66 +364,71 @@ export default function OpportunitiesPage() {
             <Card><CardHeader className="pb-2"><CardDescription>Close rate</CardDescription><CardTitle>{summary.close_rate_percent.toFixed(1)}%</CardTitle></CardHeader></Card>
           </div>
 
-          <Card>
-            <CardHeader><CardTitle>Filtres</CardTitle></CardHeader>
-            <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
-              <div className="space-y-1">
-                <Label>Status</Label>
-                <Select value={filters.status} onValueChange={(value) => setFilters((c) => ({ ...c, status: value }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent><SelectItem value="ALL">Tous</SelectItem>{STAGES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-                </Select>
+          <Card className="overflow-hidden">
+            <Tabs defaultValue="filters" className="w-full">
+              <div className="flex items-center justify-between border-b px-4 py-2 bg-muted/30">
+                <div className="flex items-center gap-4">
+                  <TabsList className="bg-transparent border-none h-auto p-0 gap-4">
+                    <TabsTrigger value="filters" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-primary border-none p-0 flex items-center gap-2 h-8 text-xs font-bold uppercase tracking-wider">
+                      <IconFilter className="size-3.5" />
+                      Filtres
+                    </TabsTrigger>
+                    <TabsTrigger value="forecast" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-primary border-none p-0 flex items-center gap-2 h-8 text-xs font-bold uppercase tracking-wider">
+                      <IconChartBar className="size-3.5" />
+                      Revenue Forecast
+                    </TabsTrigger>
+                  </TabsList>
+                </div>
               </div>
-              <div className="space-y-1"><Label>Amount min</Label><Input type="number" min={0} value={filters.amountMin} onChange={(e) => setFilters((c) => ({ ...c, amountMin: e.target.value }))} /></div>
-              <div className="space-y-1"><Label>Amount max</Label><Input type="number" min={0} value={filters.amountMax} onChange={(e) => setFilters((c) => ({ ...c, amountMax: e.target.value }))} /></div>
-              <div className="space-y-1">
-                <Label>Date field</Label>
-                <Select value={filters.dateField} onValueChange={(value) => setFilters((c) => ({ ...c, dateField: value as "close" | "created" }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent><SelectItem value="close">Close date</SelectItem><SelectItem value="created">Created date</SelectItem></SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1"><Label>Date from</Label><Input type="date" value={filters.dateFrom} onChange={(e) => setFilters((c) => ({ ...c, dateFrom: e.target.value }))} /></div>
-              <div className="space-y-1"><Label>Date to</Label><Input type="date" value={filters.dateTo} onChange={(e) => setFilters((c) => ({ ...c, dateTo: e.target.value }))} /></div>
-              <div className="space-y-1 sm:col-span-2 lg:col-span-3">
-                <Label>Assigned user</Label>
-                <Select value={filters.assignedTo} onValueChange={(value) => setFilters((c) => ({ ...c, assignedTo: value }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent><SelectItem value="ALL">Tous</SelectItem>{assigned.map((a) => <SelectItem key={a} value={a}>{a}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-            </CardContent>
+              <TabsContent value="filters" className="mt-0 p-4">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+                  <div className="space-y-1">
+                    <Label className="text-[10px] uppercase text-muted-foreground font-bold">Status</Label>
+                    <Select value={filters.status} onValueChange={(value) => setFilters((c) => ({ ...c, status: value }))}>
+                      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                      <SelectContent><SelectItem value="ALL">Tous</SelectItem>{STAGES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1"><Label className="text-[10px] uppercase text-muted-foreground font-bold">Amount min</Label><Input className="h-9" type="number" min={0} value={filters.amountMin} onChange={(e) => setFilters((c) => ({ ...c, amountMin: e.target.value }))} /></div>
+                  <div className="space-y-1"><Label className="text-[10px] uppercase text-muted-foreground font-bold">Amount max</Label><Input className="h-9" type="number" min={0} value={filters.amountMax} onChange={(e) => setFilters((c) => ({ ...c, amountMax: e.target.value }))} /></div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] uppercase text-muted-foreground font-bold">Date field</Label>
+                    <Select value={filters.dateField} onValueChange={(value) => setFilters((c) => ({ ...c, dateField: value as "close" | "created" }))}>
+                      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                      <SelectContent><SelectItem value="close">Close date</SelectItem><SelectItem value="created">Created date</SelectItem></SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1"><Label className="text-[10px] uppercase text-muted-foreground font-bold">Date from</Label><Input className="h-9" type="date" value={filters.dateFrom} onChange={(e) => setFilters((c) => ({ ...c, dateFrom: e.target.value }))} /></div>
+                  <div className="space-y-1"><Label className="text-[10px] uppercase text-muted-foreground font-bold">Date to</Label><Input className="h-9" type="date" value={filters.dateTo} onChange={(e) => setFilters((c) => ({ ...c, dateTo: e.target.value }))} /></div>
+                </div>
+              </TabsContent>
+              <TabsContent value="forecast" className="mt-0 p-4">
+                {summary.forecast_monthly.length === 0 ? (
+                  <div className="flex h-32 items-center justify-center rounded border border-dashed text-sm text-muted-foreground">Aucun forecast disponible.</div>
+                ) : (
+                  <ChartContainer config={chartConfig} className="h-32 w-full">
+                    <AreaChart data={summary.forecast_monthly}>
+                      <CartesianGrid vertical={false} />
+                      <XAxis dataKey="month" tickLine={false} axisLine={false} tickFormatter={(value) => new Date(`${value}-01`).toLocaleDateString("fr-FR", { month: "short", year: "2-digit" })} />
+                      <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
+                      <Area dataKey="expected_revenue" type="monotone" stroke="var(--color-expected_revenue)" fill="var(--color-expected_revenue)" fillOpacity={0.1} />
+                      <Area dataKey="weighted_revenue" type="monotone" stroke="var(--color-weighted_revenue)" fill="var(--color-weighted_revenue)" fillOpacity={0.25} />
+                    </AreaChart>
+                  </ChartContainer>
+                )}
+              </TabsContent>
+            </Tabs>
           </Card>
 
           <Card>
-            <CardHeader><CardTitle>Revenue forecast</CardTitle><CardDescription>Projections par mois basees sur probabilities.</CardDescription></CardHeader>
-            <CardContent>
-              {summary.forecast_monthly.length === 0 ? (
-                <div className="flex h-52 items-center justify-center rounded border border-dashed text-sm text-muted-foreground">Aucun forecast disponible.</div>
-              ) : (
-                <ChartContainer config={chartConfig} className="h-52 w-full">
-                  <AreaChart data={summary.forecast_monthly}>
-                    <CartesianGrid vertical={false} />
-                    <XAxis dataKey="month" tickLine={false} axisLine={false} tickFormatter={(value) => new Date(`${value}-01`).toLocaleDateString("fr-FR", { month: "short", year: "2-digit" })} />
-                    <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
-                    <Area dataKey="expected_revenue" type="monotone" stroke="var(--color-expected_revenue)" fill="var(--color-expected_revenue)" fillOpacity={0.1} />
-                    <Area dataKey="weighted_revenue" type="monotone" stroke="var(--color-weighted_revenue)" fill="var(--color-weighted_revenue)" fillOpacity={0.25} />
-                  </AreaChart>
-                </ChartContainer>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Handoff post-sale</CardTitle>
-              <CardDescription>Creation de handoff pour les opportunites gagnees.</CardDescription>
+            <CardHeader className="py-3 px-4">
+              <CardTitle className="text-sm">Handoff post-sale</CardTitle>
             </CardHeader>
-            <CardContent className="grid gap-3 lg:grid-cols-3">
+            <CardContent className="grid gap-3 lg:grid-cols-4 p-4 pt-0">
               <div className="space-y-1">
-                <Label>Opportunite</Label>
+                <Label className="text-[10px] uppercase text-muted-foreground font-bold">Opportunite</Label>
                 <Select value={handoffOpportunityId} onValueChange={setHandoffOpportunityId}>
-                  <SelectTrigger><SelectValue placeholder="Selectionner" /></SelectTrigger>
+                  <SelectTrigger className="h-9"><SelectValue placeholder="Selectionner" /></SelectTrigger>
                   <SelectContent>
                     {wonRows.length === 0 ? <SelectItem value="none" disabled>Aucune opportunite Won</SelectItem> : null}
                     {wonRows.map((row) => <SelectItem key={row.id} value={row.id}>{row.prospect_name}</SelectItem>)}
@@ -429,21 +436,21 @@ export default function OpportunitiesPage() {
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label>Transfert vers</Label>
+                <Label className="text-[10px] uppercase text-muted-foreground font-bold">Transfert vers</Label>
                 <Select value={handoffUserId} onValueChange={setHandoffUserId}>
-                  <SelectTrigger><SelectValue placeholder="Selectionner un utilisateur" /></SelectTrigger>
+                  <SelectTrigger className="h-9"><SelectValue placeholder="Selectionner un utilisateur" /></SelectTrigger>
                   <SelectContent>
                     {(usersData?.items || []).map((user) => <SelectItem key={user.id} value={user.id}>{(user.display_name || "").trim() || user.email}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label>Note</Label>
-                <Input value={handoffNote} onChange={(e) => setHandoffNote(e.target.value)} placeholder="Contexte de passation (optionnel)" />
+                <Label className="text-[10px] uppercase text-muted-foreground font-bold">Note</Label>
+                <Input className="h-9" value={handoffNote} onChange={(e) => setHandoffNote(e.target.value)} placeholder="Note contextuelle" />
               </div>
-              <div className="lg:col-span-3">
-                <Button disabled={handoffBusy || wonRows.length === 0 || !handoffOpportunityId} onClick={() => void createOpportunityHandoff()}>
-                  {handoffBusy ? "Creation..." : "Creer handoff"}
+              <div className="flex items-end">
+                <Button className="h-9 w-full" disabled={handoffBusy || wonRows.length === 0 || !handoffOpportunityId} onClick={() => void createOpportunityHandoff()}>
+                  {handoffBusy ? "..." : "Creer handoff"}
                 </Button>
               </div>
             </CardContent>

@@ -24,6 +24,10 @@ icp_weights:
     recent_post: 2
     hiring: 2
     new_service: 1
+  sniper:
+    facebook_pixel: 10
+    high_design: 5
+    low_design: -10
 heat_weights:
   email:
     open: 5
@@ -61,6 +65,7 @@ caps:
   fit: 30
   pain: 35
   digital: 20
+  sniper: 15
   access_urgency: 15
   email_engagement: 40
   site_reply: 50
@@ -129,6 +134,10 @@ rules:
     recent_post_detail_key: recent_post
     hiring_detail_key: hiring
     new_service_detail_key: new_service
+  sniper:
+    facebook_pixel_detail_key: has_fb_pixel
+    high_design_detail_key: high_design_quality
+    low_design_detail_key: low_design_quality
   timing:
     buckets_hours:
       within_24h: 24

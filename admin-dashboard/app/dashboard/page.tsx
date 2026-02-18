@@ -14,20 +14,13 @@ import { fetchApi } from "@/lib/api"
 import { useI18n } from "@/lib/i18n"
 
 type DashboardStats = {
-  sourced_total: number
-  qualified_total: number
-  contacted_total: number
-  replied_total: number
-  booked_total: number
-  closed_total: number
-  qualified_rate: number
-  contact_rate: number
-  reply_rate: number
-  book_rate: number
-  close_rate: number
-  avg_total_score: number
-  tier_distribution: Record<string, number>
-  daily_pipeline_trend: TrendPoint[]
+  total_leads: number
+  new_leads_today: number
+  qualified_leads: number
+  hot_leads: number
+  pending_tasks: number
+  conversion_rate: number
+  daily_pipeline_trend?: TrendPoint[]
 }
 
 const fetcher = <T,>(path: string) => fetchApi<T>(path)

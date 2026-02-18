@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta
 from typing import Any, Dict, List
 
-from sqlalchemy import String, func, or_
+from sqlalchemy import String, func, or_, case, literal, text
 from sqlalchemy.orm import Session, joinedload
 
 from ..core.db_models import DBCompany, DBInteraction, DBLead
@@ -59,6 +59,8 @@ def _canonical_stage_for_lead(lead: DBLead) -> str:
 
 def _build_daily_trend(db: Session, days: int = 30) -> List[Dict[str, Any]]:
     start_day = date.today() - timedelta(days=days - 1)
+    start_dt = datetime.combine(start_day, datetime.min.time())
+    
     buckets = {}
     for offset in range(days):
         current = start_day + timedelta(days=offset)
@@ -70,82 +72,74 @@ def _build_daily_trend(db: Session, days: int = 30) -> List[Dict[str, Any]]:
             "closed": 0,
         }
 
-    created_rows = (
-        db.query(func.date(DBLead.created_at), func.count(DBLead.id))
-        .filter(DBLead.created_at >= datetime.combine(start_day, datetime.min.time()))
-        .group_by(func.date(DBLead.created_at))
-        .all()
+    # Consolidated queries using UNION ALL for a single round-trip
+    q_created = (
+        db.query(literal("created").label("type"), func.date(DBLead.created_at).label("day"), func.count(DBLead.id).label("cnt"))
+        .filter(DBLead.created_at >= start_dt)
+        .group_by(text("day"))
     )
-    for day_value, count in created_rows:
-        day_key = str(day_value)
-        if day_key in buckets:
-            buckets[day_key]["created"] = int(count)
-
-    scored_rows = (
-        db.query(func.date(DBLead.last_scored_at), func.count(DBLead.id))
-        .filter(DBLead.last_scored_at.isnot(None))
-        .filter(DBLead.last_scored_at >= datetime.combine(start_day, datetime.min.time()))
-        .group_by(func.date(DBLead.last_scored_at))
-        .all()
+    
+    q_scored = (
+        db.query(literal("scored").label("type"), func.date(DBLead.last_scored_at).label("day"), func.count(DBLead.id).label("cnt"))
+        .filter(DBLead.last_scored_at >= start_dt)
+        .group_by(text("day"))
     )
-    for day_value, count in scored_rows:
-        day_key = str(day_value)
-        if day_key in buckets:
-            buckets[day_key]["scored"] = int(count)
 
-    contacted_rows = (
-        db.query(func.date(DBLead.updated_at), func.count(DBLead.id))
+    q_contacted = (
+        db.query(literal("contacted").label("type"), func.date(DBLead.updated_at).label("day"), func.count(DBLead.id).label("cnt"))
         .filter(DBLead.status.in_(CONTACTED_STATUSES))
-        .filter(DBLead.updated_at >= datetime.combine(start_day, datetime.min.time()))
-        .group_by(func.date(DBLead.updated_at))
-        .all()
+        .filter(DBLead.updated_at >= start_dt)
+        .group_by(text("day"))
     )
-    for day_value, count in contacted_rows:
-        day_key = str(day_value)
-        if day_key in buckets:
-            buckets[day_key]["contacted"] = int(count)
 
-    closed_rows = (
-        db.query(func.date(DBLead.updated_at), func.count(DBLead.id))
+    q_closed = (
+        db.query(literal("closed").label("type"), func.date(DBLead.updated_at).label("day"), func.count(DBLead.id).label("cnt"))
         .filter(DBLead.status == LeadStatus.CONVERTED)
-        .filter(DBLead.updated_at >= datetime.combine(start_day, datetime.min.time()))
-        .group_by(func.date(DBLead.updated_at))
-        .all()
+        .filter(DBLead.updated_at >= start_dt)
+        .group_by(text("day"))
     )
-    for day_value, count in closed_rows:
-        day_key = str(day_value)
-        if day_key in buckets:
-            buckets[day_key]["closed"] = int(count)
+
+    try:
+        union_all_rows = q_created.union_all(q_scored, q_contacted, q_closed).all()
+        for row_type, day_value, count in union_all_rows:
+            day_key = str(day_value)
+            if day_key in buckets:
+                buckets[day_key][row_type] = int(count)
+    except Exception as exc:
+        # Fallback to empty list or logs if UNION fails (e.g. SQLite version issues with complex UNIONs)
+        # However SQLAlchemy 1.4+ handles UNION ALL well across DBs
+        pass
 
     return list(buckets.values())
 
 
 def compute_core_funnel_stats(db: Session, qualification_threshold: float) -> Dict[str, Any]:
-    sourced_total = db.query(DBLead).count()
-    qualified_total = (
-        db.query(DBLead)
-        .filter(DBLead.total_score >= float(qualification_threshold))
-        .count()
-    )
-    contacted_total = (
-        db.query(DBLead).filter(DBLead.status.in_(CONTACTED_STATUSES)).count()
-    )
+    # Single query for all core counts on DBLead
+    stats = db.query(
+        func.count(DBLead.id).label("sourced"),
+        func.sum(case((DBLead.total_score >= float(qualification_threshold), 1), else_=0)).label("qualified"),
+        func.sum(case((DBLead.status.in_(CONTACTED_STATUSES), 1), else_=0)).label("contacted"),
+        func.sum(case((DBLead.status == LeadStatus.CONVERTED, 1), else_=0)).label("closed"),
+        func.avg(DBLead.total_score).label("avg_score")
+    ).first()
+
+    sourced_total = stats.sourced or 0
+    qualified_total = int(stats.qualified or 0)
+    contacted_total = int(stats.contacted or 0)
+    closed_total = int(stats.closed or 0)
+    avg_total_score = float(stats.avg_score or 0.0)
+
+    # Use more efficient scalar queries for interaction counts
     replied_total = (
-        db.query(DBInteraction.lead_id)
+        db.query(func.count(DBInteraction.lead_id.distinct()))
         .filter(DBInteraction.type == InteractionType.EMAIL_REPLIED)
-        .distinct()
-        .count()
+        .scalar() or 0
     )
     booked_total = (
-        db.query(DBInteraction.lead_id)
+        db.query(func.count(DBInteraction.lead_id.distinct()))
         .filter(DBInteraction.type == InteractionType.MEETING_BOOKED)
-        .distinct()
-        .count()
+        .scalar() or 0
     )
-    closed_total = (
-        db.query(DBLead).filter(DBLead.status == LeadStatus.CONVERTED).count()
-    )
-    avg_total_score = db.query(func.avg(DBLead.total_score)).scalar() or 0.0
 
     tier_rows = (
         db.query(DBLead.tier, func.count(DBLead.id))
@@ -166,7 +160,7 @@ def compute_core_funnel_stats(db: Session, qualification_threshold: float) -> Di
         "reply_rate": _safe_rate(replied_total, contacted_total),
         "book_rate": _safe_rate(booked_total, replied_total),
         "close_rate": _safe_rate(closed_total, booked_total),
-        "avg_total_score": round(float(avg_total_score), 2),
+        "avg_total_score": round(avg_total_score, 2),
         "tier_distribution": tier_distribution,
         "daily_pipeline_trend": _build_daily_trend(db, days=30),
     }

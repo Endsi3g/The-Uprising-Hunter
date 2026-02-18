@@ -120,6 +120,11 @@ class ApifyMapsClient(SourcingClient):
             mobile_signals_bad = True
 
         has_map_or_direction = any(token in html for token in ("google.com/maps", "itineraire", "directions"))
+        has_fb_pixel = any(token in html for token in ["fbevents.js", "connect.facebook.net", "facebook-jssdk"])
+        
+        # Design quality heuristics
+        design_quality_high = any(token in html for token in ["tailwind", "next.js", "wp-content", "elementor", "webflow"])
+        design_quality_low = any(token in html for token in ["table border=", "frameset", "font face=", "ms-outlook"])
 
         result = {
             "website_has_faq": has_faq,
@@ -128,6 +133,9 @@ class ApifyMapsClient(SourcingClient):
             "website_no_fold_cta": no_fold_cta,
             "website_mobile_signals_bad": mobile_signals_bad,
             "website_has_map_or_directions": has_map_or_direction,
+            "has_fb_pixel": has_fb_pixel,
+            "design_quality_high": design_quality_high,
+            "design_quality_low": design_quality_low,
         }
 
         if domain:
@@ -182,6 +190,9 @@ class ApifyMapsClient(SourcingClient):
                 text_blob,
                 ["new service", "nouveau service", "now offering", "offre desormais", "nouveaute"],
             ),
+            "has_fb_pixel": bool(website_probe.get("has_fb_pixel", False)),
+            "high_design_quality": bool(website_probe.get("design_quality_high", False)),
+            "low_design_quality": bool(website_probe.get("design_quality_low", False)),
             # Optional site telemetry bucket used by heat scoring.
             "site_events": [
                 {
@@ -276,3 +287,32 @@ class ApifyMapsClient(SourcingClient):
         For now, returns basic info or we could daisy-chain to Apollo if we had hybrid setup.
         """
         return {"domain": company_domain, "source": "Apify"}
+
+class MockApifyMapsClient(SourcingClient):
+    """
+    Mock implementation for development.
+    """
+    def search_leads(self, criteria: Dict[str, Any]) -> List[Dict[str, Any]]:
+        logger.info("Using mock Apify search.", extra={"criteria": criteria})
+        return [
+            {
+                "first_name": "Dr. Jean",
+                "last_name": "Tremblay",
+                "email": "jtremblay@cliniquedunord.ca",
+                "company_name": "Clinique du Nord",
+                "company_domain": "cliniquedunord.ca",
+                "location": "Montreal, QC",
+                "source": "Mock Apify"
+            }
+        ]
+
+    def enrich_company(self, company_domain: str) -> Dict[str, Any]:
+        logger.info("Using mock company enrichment (Apify).", extra={"domain": company_domain})
+        return {
+            "name": "Clinique Dentaire Mock",
+            "industry": "Medical Practice",
+            "size_range": "11-50",
+            "description": "Une clinique dentaire moderne au coeur de Montreal.",
+            "tech_stack": ["WordPress", "Google Analytics"],
+            "location": "Montreal, QC"
+        }

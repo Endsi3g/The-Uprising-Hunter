@@ -19,6 +19,7 @@ export interface Messages {
     projects: string
     campaigns: string
     systems: string
+    siteBuilder: string
     research: string
     assistantAi: string
     settings: string

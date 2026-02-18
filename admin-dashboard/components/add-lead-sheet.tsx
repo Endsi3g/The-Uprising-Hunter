@@ -71,6 +71,16 @@ export function AddLeadSheet() {
     setErrors({})
   }
 
+  const isFormValid = React.useMemo(() => {
+    return (
+      form.firstName.trim().length > 0 &&
+      form.lastName.trim().length > 0 &&
+      isValidLeadEmail(form.email) &&
+      form.company.trim().length > 0 &&
+      (form.phone === "" || isValidLeadPhone(form.phone))
+    )
+  }, [form])
+
   function validate(): boolean {
     const nextErrors: Record<string, string> = {}
     if (!form.firstName.trim()) nextErrors.firstName = "Prenom obligatoire."
@@ -269,7 +279,7 @@ export function AddLeadSheet() {
             <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>
               Annuler
             </Button>
-            <Button type="submit" disabled={isLoading}>
+            <Button type="submit" disabled={isLoading || !isFormValid}>
               {isLoading ? "Creation..." : "Enregistrer"}
             </Button>
           </SheetFooter>

@@ -13,6 +13,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Button } from "@/components/ui/button"
+import { IconRocket } from "@tabler/icons-react"
 import { useLoadingTimeout } from "@/hooks/use-loading-timeout"
 import { fetchApi } from "@/lib/api"
 
@@ -32,6 +34,7 @@ type ApiLead = {
   heat_status?: string | null
   tags?: string[]
   total_score?: number
+  personalized_hook?: string
 }
 
 type LeadsResponse = {
@@ -53,6 +56,7 @@ function toBooleanQueryValue(value: TriStateFilter): string {
 
 export default function LeadsPage() {
   const [view, setView] = React.useState<"table" | "kanban">("table")
+  const [isSniperMode, setIsSniperMode] = React.useState(false)
   const [page, setPage] = React.useState(1)
   const pageSize = 25
   const [search, setSearch] = React.useState("")
@@ -180,6 +184,7 @@ export default function LeadsPage() {
       status: item.status,
       score: Number(item.total_score || 0),
       segment: item.segment || "General",
+      personalized_hook: item.personalized_hook,
     }))
     : []
 
@@ -188,6 +193,28 @@ export default function LeadsPage() {
       <div className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-3xl font-bold tracking-tight">Leads</h2>
         <div className="flex items-center gap-2">
+          <Button 
+            variant={isSniperMode ? "default" : "outline"} 
+            size="sm" 
+            className={isSniperMode ? "bg-orange-600 hover:bg-orange-700" : ""}
+            onClick={() => {
+              const next = !isSniperMode
+              setIsSniperMode(next)
+              if (next) {
+                setMinScore("70")
+                setSort("total_score")
+                setOrder("desc")
+              } else {
+                setMinScore("")
+                setSort("created_at")
+                setOrder("desc")
+              }
+              setPage(1)
+            }}
+          >
+            <IconRocket className={`size-4 mr-2 ${isSniperMode ? "animate-pulse" : ""}`} />
+            Sniper Mode
+          </Button>
           <Tabs value={view} onValueChange={(v) => setView(v as "table" | "kanban")} className="mr-2">
             <TabsList>
               <TabsTrigger value="table">Liste</TabsTrigger>

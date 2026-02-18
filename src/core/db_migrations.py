@@ -262,6 +262,20 @@ def ensure_sqlite_schema_compatibility(engine) -> None:
             connection.execute(text("CREATE INDEX IF NOT EXISTS ix_leads_playbook_id ON leads (playbook_id)"))
             connection.execute(text("CREATE INDEX IF NOT EXISTS ix_leads_handoff_required ON leads (handoff_required)"))
             connection.execute(text("CREATE INDEX IF NOT EXISTS ix_leads_handoff_completed_at ON leads (handoff_completed_at)"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_leads_total_score ON leads (total_score)"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_leads_last_scored_at ON leads (last_scored_at)"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_leads_created_at ON leads (created_at)"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_leads_updated_at ON leads (updated_at)"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_leads_status ON leads (status)"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_leads_tier ON leads (tier)"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_leads_email ON leads (email)"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_leads_segment ON leads (segment)"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_leads_heat_status ON leads (heat_status)"))
+            
+            # Interactions indexes
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_interactions_lead_id ON interactions (lead_id)"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_interactions_type ON interactions (type)"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_interactions_timestamp ON interactions (timestamp)"))
         connection.execute(
             text("CREATE INDEX IF NOT EXISTS ix_opportunities_lead_id ON opportunities (lead_id)")
         )

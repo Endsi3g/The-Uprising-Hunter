@@ -12,25 +12,23 @@ import {
 import { useI18n } from "@/lib/i18n"
 
 interface Stats {
-  sourced_total: number
-  qualified_total: number
-  contacted_total: number
-  closed_total: number
-  qualified_rate: number
-  contact_rate?: number
-  close_rate: number
+  total_leads: number
+  new_leads_today: number
+  qualified_leads: number
+  hot_leads: number
+  pending_tasks: number
+  conversion_rate: number
 }
 
 export function SectionCards({ stats }: { stats?: Stats }) {
   const { messages } = useI18n()
   const safeStats = stats || {
-    sourced_total: 0,
-    qualified_total: 0,
-    contacted_total: 0,
-    closed_total: 0,
-    qualified_rate: 0,
-    contact_rate: 0,
-    close_rate: 0,
+    total_leads: 0,
+    new_leads_today: 0,
+    qualified_leads: 0,
+    hot_leads: 0,
+    pending_tasks: 0,
+    conversion_rate: 0,
   }
 
   function formatPercent(value: number | undefined): string {
@@ -44,7 +42,7 @@ export function SectionCards({ stats }: { stats?: Stats }) {
         <CardHeader>
           <CardDescription>{messages.dashboard.stats.sourcedLeads}</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            {safeStats.sourced_total}
+            {safeStats.total_leads}
           </CardTitle>
           <CardAction>
             <IconUsers />
@@ -52,7 +50,7 @@ export function SectionCards({ stats }: { stats?: Stats }) {
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="line-clamp-1 flex gap-2 font-medium">
-            {messages.dashboard.stats.activeBase}
+            Aujourd&apos;hui: +{safeStats.new_leads_today}
           </div>
         </CardFooter>
       </Card>
@@ -61,57 +59,57 @@ export function SectionCards({ stats }: { stats?: Stats }) {
         <CardHeader>
           <CardDescription>{messages.dashboard.stats.qualifiedLeads}</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            {safeStats.qualified_total}
+            {safeStats.qualified_leads}
           </CardTitle>
           <CardAction>
             <Badge variant="outline">
               <IconUserPlus />
-              {formatPercent(safeStats.qualified_rate)}
+              {formatPercent((safeStats.qualified_leads / safeStats.total_leads) * 100)}
             </Badge>
           </CardAction>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="line-clamp-1 flex gap-2 font-medium">
-            {messages.dashboard.stats.qualificationRate}: {formatPercent(safeStats.qualified_rate)}
+            Leads prioritaires
           </div>
         </CardFooter>
       </Card>
 
       <Card className="@container/card">
         <CardHeader>
-          <CardDescription>{messages.dashboard.stats.contactedLeads}</CardDescription>
+          <CardDescription>Leads Chauds</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            {safeStats.contacted_total}
+            {safeStats.hot_leads}
           </CardTitle>
           <CardAction>
             <Badge variant="outline">
               <IconListCheck />
-              {formatPercent(safeStats.contact_rate)}
+              Hot
             </Badge>
           </CardAction>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="line-clamp-1 flex gap-2 font-medium">
-            {messages.dashboard.stats.contactRate}: {formatPercent(safeStats.contact_rate)}
+            Score d&apos;engagement élevé
           </div>
         </CardFooter>
       </Card>
 
       <Card className="@container/card">
         <CardHeader>
-          <CardDescription>{messages.dashboard.stats.wonOpportunities}</CardDescription>
+          <CardDescription>Tâches en attente</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            {safeStats.closed_total}
+            {safeStats.pending_tasks}
           </CardTitle>
           <CardAction>
             <Badge variant="outline">
-              {formatPercent(safeStats.close_rate)}
+              {safeStats.conversion_rate}% conv.
             </Badge>
           </CardAction>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="line-clamp-1 flex gap-2 font-medium">
-            {messages.dashboard.stats.winRate}: {formatPercent(safeStats.close_rate)}
+            Actions à traiter
           </div>
         </CardFooter>
       </Card>

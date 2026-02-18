@@ -1,7 +1,7 @@
 import type { Messages } from "./types"
 
 export const en: Messages = {
-  appName: "Prospect",
+  appName: "The Uprising Hunter",
   locale: {
     switchAriaLabel: "Switch language",
   },
@@ -18,6 +18,7 @@ export const en: Messages = {
     analytics: "Analytics",
     projects: "Projects",
     campaigns: "Campaigns",
+    siteBuilder: "Site Builder",
     systems: "Configuration",
     research: "Research",
     assistantAi: "AI Assistant",
@@ -43,7 +44,7 @@ export const en: Messages = {
     search: "Search",
     help: "Help",
     settings: "Settings",
-    titleDefault: "Prospect",
+    titleDefault: "The Uprising Hunter",
     titleLeadDetail: "Lead details",
     titleProjectDetail: "Project details",
     titleTaskDetail: "Task details",
@@ -54,6 +55,7 @@ export const en: Messages = {
       analytics: "Analytics",
       projects: "Projects",
       campaigns: "Campaigns",
+      siteBuilder: "Site Builder",
       research: "Research",
       systems: "Configuration",
       settings: "Settings",
@@ -76,7 +78,7 @@ export const en: Messages = {
   auth: {
     hero: {
       title: "Sales intelligence, without friction",
-      description: "Access the Prospect control center, sign in, or test the full app in local demo mode.",
+      description: "Access The Uprising Hunter control center, sign in, or test the full app in local demo mode.",
       loginCta: "Sign in",
       createAccountCta: "Create account",
       demoCta: "Try without account",

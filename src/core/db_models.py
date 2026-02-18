@@ -48,6 +48,7 @@ class DBLead(Base):
     status = Column(SqlEnum(LeadStatus), default=LeadStatus.NEW, index=True)
     segment = Column(String, nullable=True, index=True)
     source = Column(String, nullable=True, index=True)
+    personalized_hook = Column(String, nullable=True)
     stage = Column(SqlEnum(LeadStage), default=LeadStage.NEW, index=True)
     outcome = Column(SqlEnum(LeadOutcome), nullable=True, index=True)
     lead_owner_user_id = Column(String, ForeignKey("admin_users.id"), nullable=True, index=True)
@@ -572,3 +573,18 @@ class DBEnrichmentJob(Base):
     error_message = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.now, nullable=False, index=True)
     finished_at = Column(DateTime, nullable=True)
+
+
+class DBLandingPage(Base):
+    __tablename__ = "landing_pages"
+
+    id = Column(String, primary_key=True, index=True)
+    name = Column(String, nullable=False, index=True)
+    slug = Column(String, nullable=False, unique=True, index=True)
+    title = Column(String, nullable=False)
+    description = Column(String, nullable=True)
+    content_json = Column(JSON, default=dict, nullable=False) # Store blocks, text, images
+    theme_json = Column(JSON, default=dict, nullable=False) # Colors, fonts
+    is_published = Column(Boolean, default=False, index=True)
+    created_at = Column(DateTime, default=datetime.now, index=True)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)

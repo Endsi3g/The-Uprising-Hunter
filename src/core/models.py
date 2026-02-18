@@ -81,6 +81,7 @@ class Lead(BaseModel):
     company: Company
     status: LeadStatus = LeadStatus.NEW
     segment: Optional[str] = None
+    personalized_hook: Optional[str] = None
     
     total_score: float = 0.0 # Added for easy root access
     score: ScoringData = Field(default_factory=ScoringData)
@@ -150,3 +151,17 @@ class Project(BaseModel):
     updated_at: datetime = Field(default_factory=datetime.now)
 
     model_config = ConfigDict(from_attributes=True, use_enum_values=True)
+
+class LandingPage(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    slug: str
+    title: str
+    description: Optional[str] = None
+    content: Dict[str, Any] = Field(default_factory=dict)
+    theme: Dict[str, Any] = Field(default_factory=dict)
+    is_published: bool = False
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
+
+    model_config = ConfigDict(from_attributes=True)

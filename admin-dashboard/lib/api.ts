@@ -182,6 +182,13 @@ async function refreshAdminSession(): Promise<boolean> {
   }
 }
 
+const MAX_API_RETRIES = 2
+const RETRY_DELAY_BASE = 500
+
+async function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
 export async function requestApiWithMeta<T>(
   path: string,
   init?: RequestInit,
@@ -204,67 +211,81 @@ export async function requestApiWithMeta<T>(
   const url = path.startsWith("http") ? path : `${getApiBaseUrl()}${normalizedPath}`
   const headers = new Headers(init?.headers || undefined)
 
-  let response: Response
-  try {
-    response = await fetch(url, {
-      ...init,
-      headers,
-      cache: "no-store",
-      credentials: "same-origin",
-    })
-  } catch {
-    const fallback = await tryMockJsonFallback<T>(path, init)
-    if (fallback !== null) {
-      return {
-        data: fallback,
-        meta: reportMeta("dev-fallback", 200),
+  let lastResponse: Response | null = null
+  let lastError: Error | null = null
+
+  for (let attempt = 0; attempt <= MAX_API_RETRIES; attempt++) {
+    try {
+      if (attempt > 0) {
+        await sleep(RETRY_DELAY_BASE * attempt)
       }
-    }
-    throw new Error(`Connexion API impossible (${normalizedPath}). ${friendlyProxyHint()}`)
-  }
 
-  const isAuthEndpoint = normalizedPath.startsWith("/api/v1/admin/auth/")
-  if (response.status === 401 && !isAuthEndpoint && !options?.skipAuthRetry) {
-    const refreshed = await refreshAdminSession()
-    if (refreshed) {
-      return requestApiWithMeta<T>(path, init, { skipAuthRetry: true })
-    }
-  }
+      const response = await fetch(url, {
+        ...init,
+        headers,
+        cache: "no-store",
+        credentials: "same-origin",
+      })
+      lastResponse = response
 
-  if (!response.ok) {
-    if (isRecoverableProxyStatus(response.status)) {
-      const fallback = await tryMockJsonFallback<T>(path, init)
-      if (fallback !== null) {
-        return {
-          data: fallback,
-          meta: reportMeta("dev-fallback", 200),
+      const isAuthEndpoint = normalizedPath.startsWith("/api/v1/admin/auth/")
+      if (response.status === 401 && !isAuthEndpoint && !options?.skipAuthRetry) {
+        const refreshed = await refreshAdminSession()
+        if (refreshed) {
+          return requestApiWithMeta<T>(path, init, { skipAuthRetry: true })
         }
       }
-    }
-    const message = await parseErrorMessage(response, normalizedPath)
-    if (response.status === 401 && typeof window !== "undefined" && !isAuthEndpoint) {
-      window.location.href = "/login"
-      return {
-        data: undefined as T,
-        meta: reportMeta("unknown", response.status),
+
+      if (!response.ok) {
+        if (isRecoverableProxyStatus(response.status) && attempt < MAX_API_RETRIES) {
+          continue
+        }
+        
+        const message = await parseErrorMessage(response, normalizedPath)
+        if (response.status === 401 && typeof window !== "undefined" && !isAuthEndpoint) {
+          window.location.href = "/login"
+          return {
+            data: undefined as T,
+            meta: reportMeta("unknown", response.status),
+          }
+        }
+        throw new Error(message)
       }
+
+      const meta = parseMetaFromResponse(response)
+      if (response.status === 204) {
+        return { data: undefined as T, meta }
+      }
+
+      return {
+        data: (await response.json()) as T,
+        meta,
+      }
+    } catch (e) {
+      lastError = e as Error
+      if (attempt < MAX_API_RETRIES && (!(e instanceof Error) || !e.message.includes("401"))) {
+         // Only retry on network errors or recoverable statuses
+         // (If we already got a response that wasn't ok, it was handled above)
+         continue
+      }
+      
+      if (lastResponse && !lastResponse.ok) {
+         // Already handled by throw new Error(message) above, 
+         // but if we're here it might be a JSON parse error or something else.
+      } else {
+        const fallback = await tryMockJsonFallback<T>(path, init)
+        if (fallback !== null) {
+          return {
+            data: fallback,
+            meta: reportMeta("dev-fallback", 200),
+          }
+        }
+      }
+      throw lastError || new Error(`Connexion API impossible (${normalizedPath}). ${friendlyProxyHint()}`)
     }
-    throw new Error(message)
   }
 
-  const meta = parseMetaFromResponse(response)
-
-  if (response.status === 204) {
-    return {
-      data: undefined as T,
-      meta,
-    }
-  }
-
-  return {
-    data: (await response.json()) as T,
-    meta,
-  }
+  throw lastError || new Error(`Requete API en echec apres ${MAX_API_RETRIES} tentatives.`)
 }
 
 export async function requestApi<T>(

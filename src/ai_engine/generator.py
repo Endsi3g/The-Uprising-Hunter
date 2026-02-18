@@ -6,22 +6,59 @@ import os
 class MessageGenerator:
     def __init__(self):
         from ..admin.secrets_manager import secrets_manager
-        api_key = secrets_manager.resolve_secret(None, "OPENAI_API_KEY")
-        self.client = OpenAI(api_key=api_key) if api_key else None
+        
+        self.provider = os.getenv("LLM_PROVIDER", "openai").lower()
+        self.model_name = os.getenv("LLM_MODEL", "gpt-4o-mini")
+        self.client = None
+
+        if self.provider == "ollama":
+            base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
+            # OpenAI client compatible with Ollama
+            self.client = OpenAI(
+                base_url=base_url,
+                api_key="ollama"  # key required but ignored
+            )
+            print(f"AI Engine initialized with Ollama (model: {self.model_name})")
+        else:
+            # Default to OpenAI
+            api_key = secrets_manager.resolve_secret(None, "OPENAI_API_KEY")
+            if api_key:
+                self.client = OpenAI(api_key=api_key)
+            else:
+                print("Warning: OPENAI_API_KEY not found. AI features disabled.")
 
     def generate_gpt_content(self, prompt: str) -> str:
         if not self.client:
             return None
         try:
             response = self.client.chat.completions.create(
-                model="gpt-4o-mini",  # or gpt-4o
+                model=self.model_name,
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=300
             )
             return response.choices[0].message.content.strip()
         except Exception as e:
-            print(f"OpenAI Generation Error: {e}")
+            print(f"AI Generation Error ({self.provider}): {e}")
             return None
+
+    def generate_personalized_hook(self, lead: Lead) -> str:
+        if not self.client:
+            return f"Bonjour {lead.first_name}, j'ai vu votre travail chez {lead.company.name}."
+            
+        prompt = f"""
+        Génère une phrase d'accroche ultra-personnalisée pour un email de prospection B2B.
+        Cible : {lead.first_name} {lead.last_name}, {lead.title} chez {lead.company.name}.
+        Contexte Entreprise : {lead.company.description or 'Secteur ' + (lead.company.industry or 'N/A')}
+        
+        Contraintes :
+        - 1 seule phrase courte (max 15 mots).
+        - Ton : Direct, pas de bla-bla commercial.
+        - Langue : Français.
+        - Angle : "J'ai remarqué votre [élément spécifique lié à leur activité]..." ou "En tant que [Titre], j'imagine que [défi spécifique]..."
+        - Pas de salutations (juste l'accroche).
+        """
+        content = self.generate_gpt_content(prompt)
+        return content or f"Bonjour {lead.first_name}, j'ai vu votre travail chez {lead.company.name}."
 
     def generate_cold_email(self, lead: Lead) -> str:
         # Determine clinic-specific pain points
@@ -118,3 +155,45 @@ class MessageGenerator:
             job_title=lead.title or "Leader"
         )
         return content
+
+    def generate_landing_page_copy(self, business_type: str, target_audience: str) -> Dict[str, str]:
+        if not self.client:
+            return {
+                "hero_title": f"Solution IA pour {business_type}",
+                "hero_subtitle": f"Optimisez votre gestion et gagnez du temps pour vos clients {target_audience}.",
+                "cta_text": "Réserver un appel",
+                "problem_statement": "Les tâches administratives répétitives freinent votre croissance.",
+                "solution_statement": "Notre IA automatise votre workflow pour vous concentrer sur l'essentiel."
+            }
+            
+        prompt = f"""
+        Génère du contenu pour une landing page de vente B2B.
+        Type de business : {business_type}
+        Cible : {target_audience}
+        Produit : Solution d'automatisation par Intelligence Artificielle (automatisation administrative, rappels, facturation, qualification de leads).
+        
+        Retourne UNIQUEMENT un objet JSON avec ces clés :
+        - hero_title : Une accroche percutante axée sur le bénéfice (max 10 mots).
+        - hero_subtitle : Une explication courte de la valeur ajoutée (max 20 mots).
+        - cta_text : Texte du bouton d'action.
+        - problem_statement : Description du problème résolu.
+        - solution_statement : Description de comment l'IA aide.
+        
+        Langue : Français.
+        """
+        
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model_name,
+                messages=[{"role": "user", "content": prompt}],
+                response_format={ "type": "json_object" }
+            )
+            import json
+            return json.loads(response.choices[0].message.content)
+        except Exception as e:
+            print(f"Landing Page Generation Error: {e}")
+            return {
+                "hero_title": f"Solution IA pour {business_type}",
+                "hero_subtitle": f"Optimisez votre gestion et gagnez du temps pour vos clients {target_audience}.",
+                "cta_text": "Réserver un appel"
+            }

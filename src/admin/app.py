@@ -20,8 +20,9 @@ from fastapi import APIRouter, Depends, FastAPI, File, Form, HTTPException, Quer
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, Response
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from sqlalchemy import func, or_, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -48,6 +49,7 @@ from ..core.db_models import (
     DBCompany,
     DBIntegrationConfig,
     DBInteraction,
+    DBLandingPage,
     DBLead,
     DBNotification,
     DBNotificationPreference,
@@ -59,7 +61,7 @@ from ..core.db_models import (
     DBWebhookConfig,
 )
 from ..core.logging import configure_logging, get_logger
-from ..core.models import Company, Interaction, Lead, LeadStage, LeadStatus
+from ..core.models import Company, Interaction, LandingPage, Lead, LeadStage, LeadStatus
 from ..scoring.engine import ScoringEngine
 from . import assistant_service as _ast_svc
 from . import assistant_store as _ast_store
@@ -77,10 +79,13 @@ from .import_service import commit_csv_import, preview_csv_import
 from .research_service import run_web_research
 from . import secrets_manager as _sec_svc
 from .stats_service import compute_core_funnel_stats, list_leads
+from ..ai_engine.rag_service import rag_service
+from ..ai_engine.generator import MessageGenerator
 
 
 templates = Jinja2Templates(directory=str(Path(__file__).with_name("templates")))
 scoring_engine = ScoringEngine()
+message_generator = MessageGenerator()
 logger = get_logger(__name__)
 
 
@@ -102,7 +107,7 @@ else:  # pragma: no cover
     HTTP_422_STATUS = 422
 
 DEFAULT_ADMIN_SETTINGS: dict[str, Any] = {
-    "organization_name": "Prospect",
+    "organization_name": "The Uprising Hunter",
     "locale": "fr-FR",
     "timezone": "Europe/Paris",
     "default_page_size": 25,
@@ -238,6 +243,18 @@ DEFAULT_FUNNEL_CONFIG: dict[str, Any] = {
     "next_action_hours": dict(_funnel_svc.NEXT_ACTION_HOURS),
     "model": "canonical_v1",
 }
+
+
+# Standard Error Codes
+ERR_AUTH_INVALID = "AUTH_001"
+ERR_AUTH_EXPIRED = "AUTH_002"
+ERR_AUTH_FORBIDDEN = "AUTH_003"
+ERR_VALIDATION_FAILED = "VALIDATION_001"
+ERR_RESOURCE_NOT_FOUND = "NOT_FOUND_001"
+ERR_RESOURCE_CONFLICT = "CONFLICT_001"
+ERR_SERVER_INTERNAL = "SERVER_001"
+ERR_DB_ERROR = "DB_001"
+ERR_RATE_LIMIT = "RATE_001"
 
 
 class InMemoryRateLimiter:
@@ -787,6 +804,11 @@ class AdminReportScheduleUpdateRequest(BaseModel):
     enabled: bool | None = None
 
 
+class AdminRAGChatRequest(BaseModel):
+    query: str = Field(min_length=1)
+
+
+
 class CampaignSequenceCreateRequest(BaseModel):
     name: str = Field(min_length=2)
     description: str | None = None
@@ -808,13 +830,33 @@ class CampaignSequenceSimulateRequest(BaseModel):
     start_at: str | None = None
 
 
+class EnrollmentFilter(BaseModel):
+    statuses: list[str] = Field(default_factory=lambda: ["NEW", "ENRICHED", "SCORED", "CONTACTED"])
+    min_total_score: float = Field(default=0.0)
+    min_icp_score: float | None = None
+    days_since_created: int | None = None
+    tiers: list[str] | None = None
+    segments: list[str] | None = None
+    include_archived: bool = False
+
+    @field_validator("min_total_score", "min_icp_score")
+    @classmethod
+    def validate_scores(cls, v: float | None) -> float | None:
+        if v is not None and (v < 0 or v > 100):
+            raise ValueError("Scores must be between 0 and 100")
+        return v
+
+    class Config:
+        extra = "allow"
+
+
 class CampaignCreateRequest(BaseModel):
     name: str = Field(min_length=2)
     description: str | None = None
     status: str = "draft"
     sequence_id: str | None = None
     channel_strategy: dict[str, Any] = Field(default_factory=dict)
-    enrollment_filter: dict[str, Any] = Field(default_factory=dict)
+    enrollment_filter: EnrollmentFilter = Field(default_factory=EnrollmentFilter)
 
 
 class CampaignUpdateRequest(BaseModel):
@@ -823,12 +865,12 @@ class CampaignUpdateRequest(BaseModel):
     status: str | None = None
     sequence_id: str | None = None
     channel_strategy: dict[str, Any] | None = None
-    enrollment_filter: dict[str, Any] | None = None
+    enrollment_filter: EnrollmentFilter | None = None
 
 
 class CampaignEnrollRequest(BaseModel):
     lead_ids: list[str] = Field(default_factory=list)
-    filters: dict[str, Any] = Field(default_factory=dict)
+    filters: EnrollmentFilter = Field(default_factory=EnrollmentFilter)
     max_leads: int = Field(default=50, ge=1, le=500)
 
 
@@ -1215,15 +1257,14 @@ def _error_response(
     headers: dict[str, str] | None = None,
 ) -> JSONResponse:
     request_id = getattr(request.state, "request_id", None) or request.headers.get("x-request-id")
+    # Standardized flat structure as per plan
     payload = {
-        "error": {
-            "code": code or _status_error_code(status_code),
-            "message": message,
-            "details": details or {},
-            "retryable": _is_retryable_status(status_code) if retryable is None else bool(retryable),
-            "request_id": request_id,
-        },
-        "detail": message,
+        "error": code or _status_error_code(status_code),
+        "message": message,
+        "details": details or {},
+        "retryable": _is_retryable_status(status_code) if retryable is None else bool(retryable),
+        "request_id": request_id,
+        "detail": message, # Keep for frontend compatibility
     }
     response = JSONResponse(status_code=status_code, content=payload)
     if request_id:
@@ -4102,10 +4143,28 @@ def _build_project_activity_payload(
 
 
 def _get_stats_payload(db: Session) -> dict[str, Any]:
-    return compute_core_funnel_stats(
-        db=db,
-        qualification_threshold=scoring_engine.qualification_threshold,
-    )
+    total_leads = db.query(DBLead).count()
+    qualified_leads = db.query(DBLead).filter(DBLead.tier.in_(["Tier A", "Tier B"])).count()
+    hot_leads = db.query(DBLead).filter(DBLead.heat_status == "Hot").count()
+    
+    new_leads_today = db.query(DBLead).filter(
+        DBLead.created_at >= datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    ).count()
+    
+    pending_tasks = db.query(DBTask).filter(DBTask.status != "Done").count()
+    
+    contacted = db.query(DBLead).filter(DBLead.status == "CONTACTED").count()
+    conversion_rate = (contacted / total_leads * 100) if total_leads > 0 else 0.0
+
+    return {
+        "total_leads": total_leads,
+        "new_leads_today": new_leads_today,
+        "qualified_leads": qualified_leads,
+        "hot_leads": hot_leads,
+        "pending_tasks": pending_tasks,
+        "conversion_rate": round(conversion_rate, 1),
+        "daily_pipeline_trend": []
+    }
 
 
 def _get_leads_payload(
@@ -4172,7 +4231,10 @@ def _get_tasks_payload(
     sort_by: str = "created_at",
     sort_desc: bool = True,
 ) -> dict[str, Any]:
-    query = db.query(DBTask)
+    query = db.query(DBTask).options(
+        joinedload(DBTask.lead).joinedload(DBLead.company),
+        joinedload(DBTask.project)
+    )
 
     if search and search.strip():
         pattern = f"%{search.strip()}%"
@@ -4227,52 +4289,61 @@ def _get_tasks_payload(
         "page": page,
         "page_size": page_size,
         "total": total,
-        "items": [_serialize_task(task) for task in rows],
+        "items": [_serialize_task(task, lead=task.lead, project=task.project) for task in rows],
     }
 
 
 def _rescore_payload(db: Session) -> dict[str, Any]:
     updated = 0
     failed = 0
-    leads = db.query(DBLead).all()
-    for db_lead in leads:
+    # Process in batches to avoid memory issues
+    batch_size = 100
+    offset = 0
+    
+    while True:
+        leads = db.query(DBLead).offset(offset).limit(batch_size).all()
+        if not leads:
+            break
+            
+        for db_lead in leads:
+            try:
+                lead = _db_to_lead(db_lead)
+                lead = scoring_engine.score_lead(lead)
+            except (ValueError, TypeError, AttributeError) as exc:
+                failed += 1
+                logger.warning(
+                    "Skipping lead during rescore due to malformed payload.",
+                    extra={"lead_id": db_lead.id, "error": str(exc)},
+                )
+                continue
+
+            db_lead.icp_score = lead.score.icp_score
+            db_lead.heat_score = lead.score.heat_score
+            db_lead.total_score = lead.score.total_score
+            db_lead.tier = lead.score.tier
+            db_lead.heat_status = lead.score.heat_status
+            db_lead.next_best_action = lead.score.next_best_action
+            db_lead.icp_breakdown = lead.score.icp_breakdown
+            db_lead.heat_breakdown = lead.score.heat_breakdown
+            db_lead.score_breakdown = {
+                "icp": lead.score.icp_breakdown,
+                "heat": lead.score.heat_breakdown,
+            }
+            db_lead.last_scored_at = lead.score.last_scored_at
+            db_lead.tags = lead.tags
+            db_lead.details = lead.details
+            updated += 1
+
         try:
-            lead = _db_to_lead(db_lead)
-            lead = scoring_engine.score_lead(lead)
-        except (ValueError, TypeError, AttributeError) as exc:
-            failed += 1
-            logger.warning(
-                "Skipping lead during rescore due to malformed payload.",
-                extra={"lead_id": db_lead.id, "error": str(exc)},
-            )
-            continue
+            db.commit()
+        except SQLAlchemyError as exc:
+            db.rollback()
+            logger.exception("Failed to commit lead rescoring batch.", extra={"error": str(exc)})
+            # We continue to next batch if one fails, or we could raise. 
+            # Given it's a bulk operation, we might want to try to finish others.
+        
+        offset += batch_size
 
-        db_lead.icp_score = lead.score.icp_score
-        db_lead.heat_score = lead.score.heat_score
-        db_lead.total_score = lead.score.total_score
-        db_lead.tier = lead.score.tier
-        db_lead.heat_status = lead.score.heat_status
-        db_lead.next_best_action = lead.score.next_best_action
-        db_lead.icp_breakdown = lead.score.icp_breakdown
-        db_lead.heat_breakdown = lead.score.heat_breakdown
-        db_lead.score_breakdown = {
-            "icp": lead.score.icp_breakdown,
-            "heat": lead.score.heat_breakdown,
-        }
-        db_lead.last_scored_at = lead.score.last_scored_at
-        db_lead.tags = lead.tags
-        db_lead.details = lead.details
-        updated += 1
-
-    try:
-        db.commit()
-    except SQLAlchemyError as exc:
-        db.rollback()
-        logger.exception("Failed to commit lead rescoring.", extra={"error": str(exc)})
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to persist rescored leads.",
-        ) from exc
     return {"updated": updated, "failed": failed}
 
 
@@ -6550,23 +6621,6 @@ def create_app() -> FastAPI:
         response.headers["x-request-id"] = request_id
         return response
 
-    @app.exception_handler(HTTPException)
-    async def fastapi_http_exception_handler(request: Request, exc: HTTPException):
-        message, details = _extract_error_message_and_details(exc.detail)
-        code: str | None = None
-        if isinstance(exc.detail, dict):
-            maybe_code = exc.detail.get("code")
-            if isinstance(maybe_code, str) and maybe_code.strip():
-                code = maybe_code.strip().upper()
-        return _error_response(
-            request,
-            status_code=exc.status_code,
-            code=code,
-            message=message,
-            details=details,
-            headers=exc.headers,
-        )
-
     @app.exception_handler(StarletteHTTPException)
     async def starlette_http_exception_handler(request: Request, exc: StarletteHTTPException):
         message, details = _extract_error_message_and_details(exc.detail)
@@ -6583,10 +6637,61 @@ def create_app() -> FastAPI:
         return _error_response(
             request,
             status_code=HTTP_422_STATUS,
-            code="VALIDATION_ERROR",
-            message="Request validation failed.",
+            code=ERR_VALIDATION_FAILED,
+            message="Données de requête invalides.",
             details={"issues": exc.errors()},
             retryable=False,
+        )
+
+    @app.exception_handler(SQLAlchemyError)
+    async def sqlalchemy_exception_handler(request: Request, exc: SQLAlchemyError):
+        logger.exception(
+            "Database error",
+            extra={
+                "path": request.url.path,
+                "method": request.method,
+            },
+        )
+        return _error_response(
+            request,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            code=ERR_DB_ERROR,
+            message="Erreur de base de données. Veuillez réessayer plus tard.",
+            retryable=True,
+        )
+
+    @app.exception_handler(HTTPException)
+    async def http_exception_handler(request: Request, exc: HTTPException):
+        code = ERR_SERVER_INTERNAL
+        if exc.status_code == 401:
+            code = ERR_AUTH_INVALID
+        elif exc.status_code == 403:
+            code = ERR_AUTH_FORBIDDEN
+        elif exc.status_code == 404:
+            code = ERR_RESOURCE_NOT_FOUND
+        elif exc.status_code == 409:
+            code = ERR_RESOURCE_CONFLICT
+        elif exc.status_code == 422:
+            code = ERR_VALIDATION_FAILED
+        elif exc.status_code == 429:
+            code = ERR_RATE_LIMIT
+
+        message, details = _extract_error_message_and_details(exc.detail)
+        
+        # If detail was already a dict with a code, use that instead
+        if isinstance(exc.detail, dict):
+            maybe_code = exc.detail.get("code")
+            if isinstance(maybe_code, str) and maybe_code.strip():
+                code = maybe_code.strip().upper()
+
+        return _error_response(
+            request,
+            status_code=exc.status_code,
+            code=code,
+            message=message,
+            details=details,
+            retryable=_is_retryable_status(exc.status_code),
+            headers=getattr(exc, "headers", None),
         )
 
     @app.exception_handler(Exception)
@@ -6605,8 +6710,8 @@ def create_app() -> FastAPI:
         return _error_response(
             request,
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            code="INTERNAL_ERROR",
-            message="Internal server error.",
+            code=ERR_SERVER_INTERNAL,
+            message="Une erreur inattendue est survenue.",
             details=details,
             retryable=True,
         )
@@ -6629,7 +6734,7 @@ def create_app() -> FastAPI:
         except SQLAlchemyError as exc:
             logger.warning("Healthcheck DB query failed.", extra={"error": str(exc)})
             db_ok = False
-        return {"ok": db_ok, "service": "prospect-admin-api"}
+        return {"ok": db_ok, "service": "uprising-hunter-admin-api"}
 
     @app.get("/admin", response_class=HTMLResponse)
     def admin_dashboard(
@@ -8120,7 +8225,7 @@ def create_app() -> FastAPI:
             status_value=payload.status,
             sequence_id=payload.sequence_id,
             channel_strategy=payload.channel_strategy,
-            enrollment_filter=payload.enrollment_filter,
+            enrollment_filter=payload.enrollment_filter.model_dump() if payload.enrollment_filter else {},
         )
         _audit_log(
             db,
@@ -8169,7 +8274,7 @@ def create_app() -> FastAPI:
             status_value=payload.status,
             sequence_id=payload.sequence_id,
             channel_strategy=payload.channel_strategy,
-            enrollment_filter=payload.enrollment_filter,
+            enrollment_filter=payload.enrollment_filter.model_dump() if payload.enrollment_filter else None,
         )
         _audit_log(
             db,
@@ -8223,7 +8328,7 @@ def create_app() -> FastAPI:
             db,
             campaign_id,
             lead_ids=payload.lead_ids,
-            filters=payload.filters,
+            filters=payload.filters.model_dump() if payload.filters else {},
             max_leads=payload.max_leads,
         )
         _audit_log(
@@ -8729,13 +8834,34 @@ def create_app() -> FastAPI:
         page: int = Query(default=1, ge=1),
         page_size: int = Query(default=24, ge=1, le=100),
     ) -> AdminCompagnieDocsResponse:
-        return _get_compagnie_docs_payload(
-            search=q,
-            status_filter=status,
-            ext_filter=ext,
-            page=page,
-            page_size=page_size
-        )
+        all_docs = rag_service.list_documents()
+        
+        # Filtering
+        filtered = []
+        q_lower = q.lower() if q else None
+        for d in all_docs:
+            if q_lower and q_lower not in d["title"].lower():
+                continue
+            if status and status != "all" and d["status"] != status:
+                continue
+            if ext and ext != "all" and d["ext"].lower() != ext.lower():
+                continue
+            filtered.append(d)
+
+        # Pagination
+        total = len(filtered)
+        start = (page - 1) * page_size
+        end = start + page_size
+        items = filtered[start:end]
+
+        return {
+            "generated_at": datetime.utcnow().isoformat(),
+            "stats": {"total": total, "ingested": sum(1 for d in all_docs if d["status"] == "processed")},
+            "page": page,
+            "page_size": page_size,
+            "total": total,
+            "items": items
+        }
 
     @admin_v1.get("/help", response_model=AdminHelpPayload)
     def get_help_v1(db: Session = Depends(get_db)) -> AdminHelpPayload:
@@ -8969,6 +9095,160 @@ def create_app() -> FastAPI:
             )
             return {"rejected": True, "count": count}
 
+            return {"rejected": True, "count": count}
+
+    # ── RAG / Chatbot ─────────────────────────────────────────────
+    @admin_v1.post("/rag/ingest")
+    def ingest_rag_documents_v1(
+        actor: str = "admin",
+        db: Session = Depends(get_db),
+    ) -> dict[str, Any]:
+        result = rag_service.ingest_documents()
+        _audit_log(
+            db,
+            actor=actor,
+            action="rag_ingestion",
+            entity_type="rag_index",
+            metadata=result,
+        )
+        return result
+
+    @admin_v1.post("/rag/chat")
+    def chat_rag_v1(
+        payload: AdminRAGChatRequest,
+        actor: str = "admin",
+        db: Session = Depends(get_db),
+    ) -> dict[str, Any]:
+        query = payload.query.strip()
+        
+        # 1. Search for context
+        docs = rag_service.search(query, k=3)
+        context_text = "\n\n".join([f"Source ({d['source']}):\n{d['text']}" for d in docs])
+        
+        if not context_text:
+            context_text = "Aucun document pertinent trouvé."
+
+        # 2. Generate answer
+        system_prompt = (
+            "Tu es un assistant IA pour Uprising Studio. "
+            "Réponds à la question en utilisant UNIQUEMENT le contexte fourni ci-dessous. "
+            "Si la réponse n'est pas dans le contexte, dis-le poliment. "
+            "Cite tes sources si possible."
+        )
+        full_prompt = f"{system_prompt}\n\nContexte:\n{context_text}\n\nQuestion: {query}\n\nRéponse:"
+        
+        answer = message_generator.generate_gpt_content(full_prompt) or "Désolé, je n'ai pas pu générer de réponse."
+
+        _audit_log(
+            db,
+            actor=actor,
+            action="rag_chat",
+            entity_type="rag_conversation",
+            metadata={"query": query, "sources": [d["source"] for d in docs]},
+        )
+
+        return {
+            "query": query,
+            "answer": answer,
+            "sources": docs
+        }
+
+    @admin_v1.get("/rag/documents")
+    def list_rag_documents_v1() -> dict[str, Any]:
+        return {"items": rag_service.vector_store, "total": len(rag_service.vector_store)}
+
+    # --- LANDING PAGE BUILDER ---
+
+    @app.get("/api/v1/builder/pages", response_model=list[LandingPage])
+    def get_landing_pages(db: Session = Depends(get_db)):
+        return db.query(DBLandingPage).all()
+
+    @app.post("/api/v1/builder/pages", response_model=LandingPage)
+    def create_landing_page(page: LandingPage, db: Session = Depends(get_db)):
+        db_page = DBLandingPage(
+            id=page.id,
+            name=page.name,
+            slug=page.slug,
+            title=page.title,
+            description=page.description,
+            content_json=page.content,
+            theme_json=page.theme,
+            is_published=page.is_published
+        )
+        db.add(db_page)
+        db.commit()
+        db.refresh(db_page)
+        return db_page
+
+    @app.get("/api/v1/builder/pages/{page_id}", response_model=LandingPage)
+    def get_landing_page(page_id: str, db: Session = Depends(get_db)):
+        page = db.query(DBLandingPage).filter(DBLandingPage.id == page_id).first()
+        if not page:
+            raise HTTPException(status_code=404, detail="Page not found")
+        return LandingPage(
+            id=page.id,
+            name=page.name,
+            slug=page.slug,
+            title=page.title,
+            description=page.description,
+            content=page.content_json,
+            theme=page.theme_json,
+            is_published=page.is_published,
+            created_at=page.created_at,
+            updated_at=page.updated_at
+        )
+
+    @app.patch("/api/v1/builder/pages/{page_id}", response_model=LandingPage)
+    def update_landing_page(page_id: str, page_update: dict, db: Session = Depends(get_db)):
+        db_page = db.query(DBLandingPage).filter(DBLandingPage.id == page_id).first()
+        if not db_page:
+            raise HTTPException(status_code=404, detail="Page not found")
+        
+        for key, value in page_update.items():
+            if key == "content":
+                db_page.content_json = value
+            elif key == "theme":
+                db_page.theme_json = value
+            elif hasattr(db_page, key):
+                setattr(db_page, key, value)
+        
+        db.commit()
+        db.refresh(db_page)
+        return db_page
+
+    @app.get("/api/v1/public/pages/{slug}", response_model=LandingPage)
+    def get_public_landing_page(slug: str, db: Session = Depends(get_db)):
+        page = db.query(DBLandingPage).filter(DBLandingPage.slug == slug, DBLandingPage.is_published == True).first()
+        if not page:
+            raise HTTPException(status_code=404, detail="Page not found or not published")
+        return LandingPage(
+            id=page.id,
+            name=page.name,
+            slug=page.slug,
+            title=page.title,
+            description=page.description,
+            content=page.content_json,
+            theme=page.theme_json,
+            is_published=page.is_published,
+            created_at=page.created_at,
+            updated_at=page.updated_at
+        )
+
+    @app.post("/api/v1/builder/generate")
+    def generate_builder_content(config: dict):
+        business_type = config.get("business_type", "Clinique")
+        target_audience = config.get("target_audience", "Patients")
+        content = message_generator.generate_landing_page_copy(business_type, target_audience)
+        if not isinstance(content, dict):
+            return {
+                "hero_title": f"Solution IA pour {business_type}",
+                "hero_subtitle": f"Optimisez votre gestion et gagnez du temps pour vos clients {target_audience}.",
+                "cta_text": "Réserver un appel",
+                "problem_statement": "Les tâches administratives répétitives freinent votre croissance.",
+                "solution_statement": "Notre IA automatise votre workflow."
+            }
+        return content
+
     @app.post("/api/v1/capture/lead", dependencies=[Depends(require_rate_limit)])
     def capture_lead_public(
         payload: LeadCaptureRequest,
@@ -9000,6 +9280,39 @@ def create_app() -> FastAPI:
             )
             _funnel_svc.ensure_lead_funnel_defaults(db, db_lead)
             db.add(db_lead)
+            db.flush()
+
+            # Process through Workflow (Scoring & Enrichment)
+            try:
+                from src.enrichment.apify_client import ApifyMapsClient, MockApifyMapsClient
+                apify_token = os.getenv("APIFY_API_TOKEN")
+                if apify_token and apify_token != "your_apify_token_here":
+                    sourcing_client = ApifyMapsClient(apify_token)
+                else:
+                    sourcing_client = MockApifyMapsClient()
+                
+                lead_model = Lead.model_validate(db_lead)
+                
+                # Basic Enrichment
+                if company.domain:
+                    enriched = sourcing_client.enrich_company(company.domain)
+                    db_lead.industry = enriched.get("industry")
+                    db_lead.description = enriched.get("description")
+                    lead_model.company.industry = db_lead.industry
+                
+                # Scoring
+                scored_lead = scoring_engine.score_lead(lead_model)
+                db_lead.icp_score = scored_lead.score.icp_score
+                db_lead.heat_score = scored_lead.score.heat_score
+                db_lead.total_score = scored_lead.score.total_score
+                db_lead.tier = scored_lead.score.tier
+                db_lead.heat_status = scored_lead.score.heat_status
+                db_lead.personalized_hook = message_generator.generate_personalized_hook(scored_lead)
+                db_lead.details["draft_email"] = message_generator.generate_cold_email(scored_lead)
+                db_lead.status = "SCORED"
+            except Exception as e:
+                logger.error("Error processing public lead: %s", e)
+
             db.commit()
 
             _emit_event_notification(
@@ -9021,6 +9334,12 @@ def create_app() -> FastAPI:
     api_v1.include_router(auth_v1)
     api_v1.include_router(admin_v1)
     app.include_router(api_v1)
+
+    # Mount static files for docs
+    if os.path.exists("docs"):
+        app.mount("/docs", StaticFiles(directory="docs"), name="docs")
+    if os.path.exists("CompagnieDocs"):
+        app.mount("/CompagnieDocs", StaticFiles(directory="CompagnieDocs"), name="CompagnieDocs")
 
     return app
 

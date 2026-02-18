@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Prospect - Console admin",
-  description: "Console de pilotage commercial en francais",
+  title: "The Uprising Hunter - CRM Sniper",
+  description: "Console de pilotage commercial alimentée par l'IA",
 };
 
 export default function RootLayout({
