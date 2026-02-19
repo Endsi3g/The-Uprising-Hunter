@@ -4567,60 +4567,35 @@ def _get_analytics_payload(db: Session) -> dict[str, Any]:
         "pipeline_value": pipeline_value,
         "new_leads_today": new_leads_today,
     }
-                    
-                        @admin_v1.get("/opportunities/forecast")
-                        def get_opportunities_forecast_v1(db: Session = Depends(get_db)) -> dict[str, Any]:
-                            opportunities = db.query(DBOpportunity).filter(
-                                DBOpportunity.status == "open",
-                                DBOpportunity.expected_close_date.isnot(None)
-                            ).all()
-                            
-                            forecast = {}
-                            for opp in opportunities:
-                                if not opp.expected_close_date:
-                                    continue
-                                month_key = opp.expected_close_date.strftime("%Y-%m")
-                                if month_key not in forecast:
-                                    forecast[month_key] = {"expected_revenue": 0.0, "weighted_revenue": 0.0, "count": 0}
-                                
-                                amount = float(opp.amount or 0.0)
-                                prob = float(opp.probability or 0) / 100.0
-                                
-                                forecast[month_key]["expected_revenue"] += amount
-                                forecast[month_key]["weighted_revenue"] += (amount * prob)
-                                forecast[month_key]["count"] += 1
-                                
-                            forecast_list = [{"month": k, **v} for k, v in forecast.items()]
-                            forecast_list.sort(key=lambda x: x["month"])
-                            
-                            return {"forecast_monthly": forecast_list}
-                                    @admin_v1.get("/opportunities/forecast")
-                                    def get_opportunities_forecast_v1(db: Session = Depends(get_db)) -> dict[str, Any]:
-                                        opportunities = db.query(DBOpportunity).filter(
-                                            DBOpportunity.status == "open",
-                                            DBOpportunity.expected_close_date.isnot(None)
-                                        ).all()
-                                
-                                        forecast = {}
-                                        for opp in opportunities:
-                                            if not opp.expected_close_date:
-                                                continue
-                                            month_key = opp.expected_close_date.strftime("%Y-%m")
-                                            if month_key not in forecast:
-                                                forecast[month_key] = {"expected_revenue": 0.0, "weighted_revenue": 0.0, "count": 0}
-                                
-                                            amount = float(opp.amount or 0.0)
-                                            prob = float(opp.probability or 0) / 100.0
-                                
-                                            forecast[month_key]["expected_revenue"] += amount
-                                            forecast[month_key]["weighted_revenue"] += (amount * prob)
-                                            forecast[month_key]["count"] += 1
-                                
-                                        forecast_list = [{"month": k, **v} for k, v in forecast.items()]
-                                        forecast_list.sort(key=lambda x: x["month"])
-                                
-                                        return {"forecast_monthly": forecast_list}
-                                def _search_payload(db: Session, query: str, limit: int) -> dict[str, Any]:
+
+@admin_v1.get("/opportunities/forecast")
+def get_opportunities_forecast_v1(db: Session = Depends(get_db)) -> dict[str, Any]:
+    opportunities = db.query(DBOpportunity).filter(
+        DBOpportunity.status == "open",
+        DBOpportunity.expected_close_date.isnot(None)
+    ).all()
+    
+    forecast = {}
+    for opp in opportunities:
+        if not opp.expected_close_date:
+            continue
+        month_key = opp.expected_close_date.strftime("%Y-%m")
+        if month_key not in forecast:
+            forecast[month_key] = {"expected_revenue": 0.0, "weighted_revenue": 0.0, "count": 0}
+        
+        amount = float(opp.amount or 0.0)
+        prob = float(opp.probability or 0) / 100.0
+        
+        forecast[month_key]["expected_revenue"] += amount
+        forecast[month_key]["weighted_revenue"] += (amount * prob)
+        forecast[month_key]["count"] += 1
+        
+    forecast_list = [{"month": k, **v} for k, v in forecast.items()]
+    forecast_list.sort(key=lambda x: x["month"])
+    
+    return {"forecast_monthly": forecast_list}
+
+def _search_payload(db: Session, query: str, limit: int) -> dict[str, Any]:
     clean_query = query.strip()
     if not clean_query:
         return {"query": query, "total": 0, "items": []}

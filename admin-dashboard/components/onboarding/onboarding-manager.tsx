@@ -62,31 +62,31 @@ export function OnboardingManager() {
     () => [
       {
         id: "dashboard",
-        title: messages.onboarding.steps.dashboard.title,
-        description: messages.onboarding.steps.dashboard.description,
+        title: messages?.onboarding?.steps?.dashboard?.title || "Dashboard",
+        description: messages?.onboarding?.steps?.dashboard?.description || "Track your global pipeline health.",
         href: "/dashboard",
-        ctaLabel: messages.onboarding.steps.dashboard.cta,
+        ctaLabel: messages?.onboarding?.steps?.dashboard?.cta || "Open dashboard",
       },
       {
         id: "leads",
-        title: messages.onboarding.steps.leads.title,
-        description: messages.onboarding.steps.leads.description,
+        title: messages?.onboarding?.steps?.leads?.title || "Leads",
+        description: messages?.onboarding?.steps?.leads?.description || "Organize your leads.",
         href: "/leads",
-        ctaLabel: messages.onboarding.steps.leads.cta,
+        ctaLabel: messages?.onboarding?.steps?.leads?.cta || "Open leads",
       },
       {
         id: "tasks",
-        title: messages.onboarding.steps.tasks.title,
-        description: messages.onboarding.steps.tasks.description,
+        title: messages?.onboarding?.steps?.tasks?.title || "Tasks",
+        description: messages?.onboarding?.steps?.tasks?.description || "Prioritize execution.",
         href: "/tasks",
-        ctaLabel: messages.onboarding.steps.tasks.cta,
+        ctaLabel: messages?.onboarding?.steps?.tasks?.cta || "Open tasks",
       },
       {
         id: "opportunities",
-        title: messages.onboarding.steps.opportunities.title,
-        description: messages.onboarding.steps.opportunities.description,
+        title: messages?.onboarding?.steps?.opportunities?.title || "Pipeline",
+        description: messages?.onboarding?.steps?.opportunities?.description || "Manage your pipeline.",
         href: "/opportunities",
-        ctaLabel: messages.onboarding.steps.opportunities.cta,
+        ctaLabel: messages?.onboarding?.steps?.opportunities?.cta || "Open pipeline",
       },
     ],
     [messages],
@@ -117,7 +117,7 @@ export function OnboardingManager() {
   const persistAccountPreferences = React.useCallback(
     async (nextPreferences: Record<string, unknown>): Promise<boolean> => {
       if (!account) {
-        toast.error(messages.onboarding.saveError)
+        toast.error(messages?.onboarding?.saveError || "Error saving onboarding.")
         return false
       }
 
@@ -138,39 +138,40 @@ export function OnboardingManager() {
         toast.error(
           submitError instanceof Error
             ? submitError.message
-            : messages.onboarding.saveError,
+            : messages?.onboarding?.saveError || "Error saving onboarding.",
         )
         return false
       } finally {
         setSaving(false)
       }
     },
-    [account, messages.onboarding.saveError, mutate],
+    [account, messages?.onboarding?.saveError, mutate],
   )
 
   const onSkip = React.useCallback(async () => {
     const nextPreferences = markOnboardingSkipped(account?.preferences)
     const ok = await persistAccountPreferences(nextPreferences)
     if (!ok) return
-    toast.success(messages.onboarding.skippedToast)
+    toast.success(messages?.onboarding?.skippedToast || "Skipped")
     setOpen(false)
-  }, [account?.preferences, messages.onboarding.skippedToast, persistAccountPreferences])
+  }, [account?.preferences, messages?.onboarding?.skippedToast, persistAccountPreferences])
 
   const onFinish = React.useCallback(async () => {
     const nextPreferences = markOnboardingCompleted(account?.preferences)
     const ok = await persistAccountPreferences(nextPreferences)
     if (!ok) return
-    toast.success(messages.onboarding.completedToast)
+    toast.success(messages?.onboarding?.completedToast || "Finished")
     setOpen(false)
-  }, [account?.preferences, messages.onboarding.completedToast, persistAccountPreferences])
+  }, [account?.preferences, messages?.onboarding?.completedToast, persistAccountPreferences])
 
   const progressLabel = React.useMemo(() => {
     const safeTotal = Math.max(steps.length, 1)
     const safeCurrent = Math.min(stepIndex + 1, safeTotal)
-    return messages.onboarding.stepProgress
+    const format = messages?.onboarding?.stepProgress || "Step {current} of {total}"
+    return format
       .replace("{current}", String(safeCurrent))
       .replace("{total}", String(safeTotal))
-  }, [messages.onboarding.stepProgress, stepIndex, steps.length])
+  }, [messages?.onboarding?.stepProgress, stepIndex, steps.length])
 
   const onNavigate = React.useCallback(
     (href: string) => {
@@ -189,10 +190,10 @@ export function OnboardingManager() {
       stepIndex={stepIndex}
       steps={steps}
       progressLabel={progressLabel}
-      previousLabel={messages.onboarding.previous}
-      nextLabel={messages.onboarding.next}
-      skipLabel={messages.onboarding.skip}
-      finishLabel={messages.onboarding.finish}
+      previousLabel={messages?.onboarding?.previous || "Previous"}
+      nextLabel={messages?.onboarding?.next || "Next"}
+      skipLabel={messages?.onboarding?.skip || "Skip"}
+      finishLabel={messages?.onboarding?.finish || "Finish"}
       onOpenChange={(nextOpen) => {
         if (nextOpen) {
           setOpen(true)

@@ -1,6 +1,6 @@
 # Implementation Plan - Appointment Booking System
 
-This plan outlines the steps to implement a complete Appointment Booking system within the Uprising Prospect CRM, including backend models, API endpoints, and a frontend calendar interface.
+This plan outlines the steps to implement a complete Appointment Booking system within The Uprising Hunter CRM, including backend models, API endpoints, and a frontend calendar interface.
 
 ## 1. Backend Development
 

@@ -1,6 +1,11 @@
-# Changelog - Uprising Prospect
+# Changelog - The Uprising Hunter
 
 All notable changes to this project will be documented in this file.
+
+## [1.1.1] - 2026-02-19
+
+### 🔄 Brand Refresh
+- **Rebranding**: Renamed the application from "Uprising Prospect" to **"The Uprising Hunter"** across all documentation, startup scripts, and frontend titles.
 
 ## [1.1.0] - 2026-02-18
 

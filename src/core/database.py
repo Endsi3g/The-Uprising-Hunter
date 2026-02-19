@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./prospect.db")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./uprising_hunter.db")
 
 # Render.com gives postgres:// but SQLAlchemy 2.x requires postgresql://
 if DATABASE_URL.startswith("postgres://"):

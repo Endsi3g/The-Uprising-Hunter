@@ -1,5 +1,5 @@
 Write-Host "===================================================" -ForegroundColor Cyan
-Write-Host "  Starting Prospect App (Backend + Frontend)" -ForegroundColor Cyan
+Write-Host "  Starting The Uprising Hunter (Backend + Frontend)" -ForegroundColor Cyan
 Write-Host "===================================================" -ForegroundColor Cyan
 
 # Check for .venv
@@ -12,7 +12,7 @@ else {
 }
 
 # Start Backend
-Write-Host "[INFO] Starting Prospect Unified Backend (Port 8000)..." -ForegroundColor Green
+Write-Host "[INFO] Starting The Uprising Hunter Backend (Port 8000)..." -ForegroundColor Green
 Start-Process -FilePath "cmd" -ArgumentList "/k python -m uvicorn src.admin.app:app --port 8000 --reload" -WindowStyle Normal
 
 # Start Frontend

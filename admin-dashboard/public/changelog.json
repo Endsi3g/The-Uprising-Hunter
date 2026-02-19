@@ -1,5 +1,11 @@
 [
   {
+    "hash": "4395697",
+    "date": "2026-02-18",
+    "author": "Quebec SaaS",
+    "message": "fix: stabilize app connectivity, implement account api, redesign landing page, and enforce auth flow"
+  },
+  {
     "hash": "7cffeed",
     "date": "2026-02-18",
     "author": "Quebec SaaS",
@@ -292,11 +298,5 @@
     "date": "2026-02-12",
     "author": "Quebec SaaS",
     "message": "fix(deploy): strict TS fix for admin-dashboard + pin Python 3.11 for Render"
-  },
-  {
-    "hash": "cbc335a",
-    "date": "2026-02-12",
-    "author": "Quebec SaaS",
-    "message": "fix(deploy): batch fixes for Netlify and Render (Node 20, psycopg2, API paths)"
   }
 ]

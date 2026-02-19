@@ -1,4 +1,4 @@
-# 🚀 Uprising Prospect
+# 🚀 The Uprising Hunter
 
 **Growth Automation Studio & Sales Intelligence B2B**
 
