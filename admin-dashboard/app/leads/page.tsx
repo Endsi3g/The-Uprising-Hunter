@@ -228,13 +228,7 @@ export default function LeadsPage() {
         </div>
       </div>
       <SyncStatus updatedAt={updatedAt} onRefresh={() => void mutate()} />
-      {isLoading && !loadingTimedOut ? (
-        <div className="space-y-3">
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-10 w-full" />
-        </div>
-      ) : error || loadingTimedOut ? (
+      {error || loadingTimedOut ? (
         <ErrorState
           title="Impossible de charger les leads."
           description={
@@ -248,7 +242,7 @@ export default function LeadsPage() {
           secondaryHref="/settings"
           onRetry={() => void mutate()}
         />
-      ) : (data?.total || 0) === 0 ? (
+      ) : !isLoading && (data?.total || 0) === 0 ? (
         <EmptyState
           title="Aucun lead disponible"
           description="Utilisez 'Creation rapide de lead' dans la sidebar ou importez un CSV pour demarrer."
@@ -279,6 +273,7 @@ export default function LeadsPage() {
               hasLinkedin={hasLinkedin}
               sort={sort}
               order={order}
+              isLoading={isLoading}
               onSearchChange={(val) => {
                 setSearch(val)
                 setPage(1)

@@ -4,6 +4,7 @@ import * as React from "react"
 import Link from "next/link"
 import { IconDotsVertical, IconFolderPlus, IconPlus, IconRocket, IconEye, IconTrash, IconPhone, IconCopy } from "@tabler/icons-react"
 import { toast } from "sonner"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
   AlertDialog,
@@ -439,8 +440,9 @@ export function LeadsTable({
   onHasLinkedinChange: (value: TriStateFilter) => void
   onPageChange: (page: number) => void
   onSortChange: (sort: string, order: string) => void
-  onDataChanged?: () => void
-}) {
+  onDataChanged,
+  isLoading
+}: {
   const { openProjectForm } = useModalSystem()
   const maxPage = Math.ceil(total / pageSize) || 1
 
@@ -451,404 +453,454 @@ export function LeadsTable({
 
   const [enrollCampaignId, setEnrollCampaignId] = React.useState("")
   const [isEnrolling, setIsEnrolling] = React.useState(false)
+  const [isUpdatingStatus, setIsUpdatingStatus] = React.useState(false)
+
   const { data: campaignsData } = useSWR<{ items: { id: string; name: string; status: string }[] }>("/api/v1/admin/campaigns?limit=100", fetcher)
   const activeCampaigns = React.useMemo(() => (campaignsData?.items || []).filter(c => c.status === "active"), [campaignsData])
 
   // Reset selection on page change or search change
   React.useEffect(() => {
-    setSelectedLeads(new Set())
-  }, [page, search, status, segment, tier, heatStatus, company, industry, location, tag, minScore, maxScore, createdFrom, createdTo, hasEmail, hasPhone, hasLinkedin])
+  setSelectedLeads(new Set())
+}, [page, search, status, segment, tier, heatStatus, company, industry, location, tag, minScore, maxScore, createdFrom, createdTo, hasEmail, hasPhone, hasLinkedin])
 
-  const toggleSelectAll = () => {
-    if (selectedLeads.size === data.length) {
-      setSelectedLeads(new Set())
-    } else {
-      setSelectedLeads(new Set(data.map(l => l.id)))
-    }
-  }
-
-  const toggleSelectRow = (id: string) => {
-    const next = new Set(selectedLeads)
-    if (next.has(id)) {
-      next.delete(id)
-    } else {
-      next.add(id)
-    }
-    setSelectedLeads(next)
-  }
-
-  const confirmDelete = (id: string) => {
-    setLeadToDelete(id)
-    setDeleteDialogOpen(true)
-  }
-
-  const executeBulkEnroll = async () => {
-    if (!enrollCampaignId || selectedLeads.size === 0) return
-    setIsEnrolling(true)
-    try {
-      const result = await requestApi<{ created: number; skipped: number }>(`/api/v1/admin/campaigns/${enrollCampaignId}/enroll`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lead_ids: Array.from(selectedLeads) })
-      })
-      toast.success(`${result.created} leads ajoutés à la campagne, ${result.skipped} déjà présents.`)
-      setSelectedLeads(new Set())
-      setEnrollCampaignId("")
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Erreur lors de l'ajout")
-    } finally {
-      setIsEnrolling(false)
-    }
-  }
-
-  const executeDelete = async () => {
-    if (!leadToDelete && selectedLeads.size === 0) return
-
-    setIsDeleting(true)
-    try {
-      if (leadToDelete) {
-        // Single delete
-        await requestApi(`/api/v1/admin/leads/${leadToDelete}`, { method: "DELETE" })
-        toast.success("Lead supprime avec succes")
-      } else {
-        // Bulk delete
-        await requestApi("/api/v1/admin/leads/bulk-delete", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ids: Array.from(selectedLeads) })
-        })
-        toast.success(`${selectedLeads.size} leads supprimes`)
-        setSelectedLeads(new Set())
-      }
-      onDataChanged?.()
-    } catch {
-      toast.error("Erreur lors de la suppression")
-    } finally {
-      setIsDeleting(false)
-      setDeleteDialogOpen(false)
-      setLeadToDelete(null)
-    }
-  }
-
-  async function createTaskFromLead(lead: Lead) {
-    const payload = {
-      title: `Suivi lead - ${lead.name}`,
-      status: "To Do",
-      priority: "Medium",
-      assigned_to: "Vous",
-      lead_id: lead.id,
-    }
-    try {
-      await requestApi("/api/v1/admin/tasks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      })
-      toast.success("Tache creee depuis le lead.")
-      onDataChanged?.()
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Creation de tache impossible")
-    }
-  }
-
-  function createProjectFromLead(lead: Lead) {
-    openProjectForm({
-      mode: "create",
-      project: {
-        name: `Projet - ${lead.company.name}`,
-        description: `Projet cree depuis le lead ${lead.name}`,
-        status: "Planning",
-        lead_id: lead.id,
-      },
-      onSuccess: () => {
-        toast.success("Projet cree depuis le lead.")
-        onDataChanged?.()
-      },
+const executeBulkStatusChange = async (newStatus: string) => {
+  setIsUpdatingStatus(true)
+  try {
+    await requestApi("/api/v1/admin/leads/bulk-status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids: Array.from(selectedLeads), status: newStatus })
     })
+    toast.success(`${selectedLeads.size} leads mis à jour`)
+    setSelectedLeads(new Set())
+    onDataChanged?.()
+  } catch {
+    toast.error("Erreur mise à jour statut")
+  } finally {
+    setIsUpdatingStatus(false)
   }
+}
 
-  const handleSort = (column: string) => {
-    if (sort === column) {
-      onSortChange(column, order === "asc" ? "desc" : "asc")
+const toggleSelectAll = () => {
+  if (selectedLeads.size === data.length) {
+    setSelectedLeads(new Set())
+  } else {
+    setSelectedLeads(new Set(data.map(l => l.id)))
+  }
+}
+
+const toggleSelectRow = (id: string) => {
+  const next = new Set(selectedLeads)
+  if (next.has(id)) {
+    next.delete(id)
+  } else {
+    next.add(id)
+  }
+  setSelectedLeads(next)
+}
+
+const confirmDelete = (id: string) => {
+  setLeadToDelete(id)
+  setDeleteDialogOpen(true)
+}
+
+const executeBulkEnroll = async () => {
+  if (!enrollCampaignId || selectedLeads.size === 0) return
+  setIsEnrolling(true)
+  try {
+    const result = await requestApi<{ created: number; skipped: number }>(`/api/v1/admin/campaigns/${enrollCampaignId}/enroll`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lead_ids: Array.from(selectedLeads) })
+    })
+    toast.success(`${result.created} leads ajoutés à la campagne, ${result.skipped} déjà présents.`)
+    setSelectedLeads(new Set())
+    setEnrollCampaignId("")
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : "Erreur lors de l'ajout")
+  } finally {
+    setIsEnrolling(false)
+  }
+}
+
+const executeDelete = async () => {
+  if (!leadToDelete && selectedLeads.size === 0) return
+
+  setIsDeleting(true)
+  try {
+    if (leadToDelete) {
+      // Single delete
+      await requestApi(`/api/v1/admin/leads/${leadToDelete}`, { method: "DELETE" })
+      toast.success("Lead supprime avec succes")
     } else {
-      onSortChange(column, "asc")
+      // Bulk delete
+      await requestApi("/api/v1/admin/leads/bulk-delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: Array.from(selectedLeads) })
+      })
+      toast.success(`${selectedLeads.size} leads supprimes`)
+      setSelectedLeads(new Set())
     }
+    onDataChanged?.()
+  } catch {
+    toast.error("Erreur lors de la suppression")
+  } finally {
+    setIsDeleting(false)
+    setDeleteDialogOpen(false)
+    setLeadToDelete(null)
   }
+}
 
-  return (
-    <TooltipProvider>
-      <div className="space-y-4">
-        {selectedLeads.size > 0 && (
-          <div className="bg-muted/50 rounded-md border border-blue-200 p-2">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                <span className="ml-2 text-sm font-medium">{selectedLeads.size} selectionne(s)</span>
-                <div className="flex items-center gap-2 ml-4">
-                  <Select value={enrollCampaignId} onValueChange={setEnrollCampaignId} disabled={activeCampaigns.length === 0}>
-                    <SelectTrigger className="h-8 w-[200px]">
-                      <SelectValue placeholder={activeCampaigns.length === 0 ? "Aucune campagne active" : "Choisir campagne"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {activeCampaigns.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button size="sm" onClick={executeBulkEnroll} disabled={!enrollCampaignId || isEnrolling || activeCampaigns.length === 0}>
-                    {isEnrolling ? "Ajout..." : "Lancer automation"}
-                  </Button>
-                </div>
+async function createTaskFromLead(lead: Lead) {
+  const payload = {
+    title: `Suivi lead - ${lead.name}`,
+    status: "To Do",
+    priority: "Medium",
+    assigned_to: "Vous",
+    lead_id: lead.id,
+  }
+  try {
+    await requestApi("/api/v1/admin/tasks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+    toast.success("Tache creee depuis le lead.")
+    onDataChanged?.()
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : "Creation de tache impossible")
+  }
+}
+
+function createProjectFromLead(lead: Lead) {
+  openProjectForm({
+    mode: "create",
+    project: {
+      name: `Projet - ${lead.company.name}`,
+      description: `Projet cree depuis le lead ${lead.name}`,
+      status: "Planning",
+      lead_id: lead.id,
+    },
+    onSuccess: () => {
+      toast.success("Projet cree depuis le lead.")
+      onDataChanged?.()
+    },
+  })
+}
+
+const handleSort = (column: string) => {
+  if (sort === column) {
+    onSortChange(column, order === "asc" ? "desc" : "asc")
+  } else {
+    onSortChange(column, "asc")
+  }
+}
+
+return (
+  <TooltipProvider>
+    <div className="space-y-4">
+      {selectedLeads.size > 0 && (
+        <div className="bg-muted/50 rounded-md border border-blue-200 p-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <span className="ml-2 text-sm font-medium">{selectedLeads.size} selectionne(s)</span>
+              <div className="flex items-center gap-2 ml-4">
+                <Select value={enrollCampaignId} onValueChange={setEnrollCampaignId} disabled={activeCampaigns.length === 0}>
+                  <SelectTrigger className="h-8 w-[200px]">
+                    <SelectValue placeholder={activeCampaigns.length === 0 ? "Aucune campagne active" : "Choisir campagne"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {activeCampaigns.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button size="sm" onClick={executeBulkEnroll} disabled={!enrollCampaignId || isEnrolling || activeCampaigns.length === 0}>
+                  {isEnrolling ? "Ajout..." : "Lancer automation"}
+                </Button>
+                <Select onValueChange={executeBulkStatusChange} disabled={isUpdatingStatus}>
+                  <SelectTrigger className="h-8 w-[150px] ml-2">
+                    <SelectValue placeholder="Changer statut" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="NEW">Nouveau</SelectItem>
+                    <SelectItem value="SCORED">Qualifié</SelectItem>
+                    <SelectItem value="CONTACTED">En cours</SelectItem>
+                    <SelectItem value="INTERESTED">Intéressé</SelectItem>
+                    <SelectItem value="CONVERTED">Signé</SelectItem>
+                    <SelectItem value="LOST">Perdu</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              <Button
-                size="sm"
-                variant="destructive"
-                className="w-full sm:w-auto"
-                onClick={() => setDeleteDialogOpen(true)}
-              >
-                <IconTrash className="size-4 mr-2" />
-                Supprimer
-              </Button>
             </div>
-          </div>
-        )}
-
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="grid flex-1 gap-2 sm:flex sm:items-center">
-            <Input
-              placeholder="Rechercher..."
-              value={search}
-              onChange={(event) => onSearchChange(event.target.value)}
-              className="w-full sm:max-w-xs"
-            />
-            <Select
-              value={status}
-              onValueChange={(val) => {
-                onStatusChange(val)
-                toast.info(`Filtre applique: ${val === "ALL" ? "Tous" : val}`)
-              }}
+            <Button
+              size="sm"
+              variant="destructive"
+              className="w-full sm:w-auto"
+              onClick={() => setDeleteDialogOpen(true)}
             >
-              <SelectTrigger className="w-full sm:w-[180px]">
-                <SelectValue placeholder="Statut" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">Tous les statuts</SelectItem>
-                <SelectItem value="NEW">À contacter (Nouveau)</SelectItem>
-                <SelectItem value="SCORED">Qualifié (Score &gt; 40)</SelectItem>
-                <SelectItem value="CONTACTED">En cours</SelectItem>
-                <SelectItem value="INTERESTED">RDV pris / Intéressé</SelectItem>
-                <SelectItem value="CONVERTED">Signé (Won)</SelectItem>
-                <SelectItem value="LOST">Pas intéressé / Perdu</SelectItem>
-              </SelectContent>
-            </Select>
+              <IconTrash className="size-4 mr-2" />
+              Supprimer
+            </Button>
           </div>
-          <p className="text-sm text-muted-foreground sm:text-right">{total} lead(s)</p>
         </div>
+      )}
 
-        <details className="rounded-lg border p-3">
-          <summary className="cursor-pointer text-sm font-medium">Filtres avances</summary>
-          <div className="mt-3 grid gap-3 md:grid-cols-3">
-            <Input
-              placeholder="Segment"
-              value={segment}
-              onChange={(event) => onSegmentChange(event.target.value)}
-            />
-            <Select value={tier} onValueChange={onTierChange}>
-              <SelectTrigger>
-                <SelectValue placeholder="Tier" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">Tous les tiers</SelectItem>
-                <SelectItem value="Tier A">Tier A</SelectItem>
-                <SelectItem value="Tier B">Tier B</SelectItem>
-                <SelectItem value="Tier C">Tier C</SelectItem>
-                <SelectItem value="Tier D">Tier D</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={heatStatus} onValueChange={onHeatStatusChange}>
-              <SelectTrigger>
-                <SelectValue placeholder="Heat status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">Tous les heat status</SelectItem>
-                <SelectItem value="Hot">Hot</SelectItem>
-                <SelectItem value="Warm">Warm</SelectItem>
-                <SelectItem value="Cold">Cold</SelectItem>
-              </SelectContent>
-            </Select>
-            <Input
-              placeholder="Entreprise"
-              value={company}
-              onChange={(event) => onCompanyChange(event.target.value)}
-            />
-            <Input
-              placeholder="Industrie"
-              value={industry}
-              onChange={(event) => onIndustryChange(event.target.value)}
-            />
-            <Input
-              placeholder="Localisation"
-              value={location}
-              onChange={(event) => onLocationChange(event.target.value)}
-            />
-            <Input
-              placeholder="Tag"
-              value={tag}
-              onChange={(event) => onTagChange(event.target.value)}
-            />
-            <Input
-              type="number"
-              min={0}
-              max={100}
-              placeholder="Score min"
-              value={minScore}
-              onChange={(event) => onMinScoreChange(event.target.value)}
-            />
-            <Input
-              type="number"
-              min={0}
-              max={100}
-              placeholder="Score max"
-              value={maxScore}
-              onChange={(event) => onMaxScoreChange(event.target.value)}
-            />
-            <Input
-              type="date"
-              value={createdFrom}
-              onChange={(event) => onCreatedFromChange(event.target.value)}
-            />
-            <Input
-              type="date"
-              value={createdTo}
-              onChange={(event) => onCreatedToChange(event.target.value)}
-            />
-            <Select value={hasEmail} onValueChange={(value) => onHasEmailChange(value as TriStateFilter)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Email" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ANY">Email: tous</SelectItem>
-                <SelectItem value="YES">Email: oui</SelectItem>
-                <SelectItem value="NO">Email: non</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={hasPhone} onValueChange={(value) => onHasPhoneChange(value as TriStateFilter)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Telephone" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ANY">Telephone: tous</SelectItem>
-                <SelectItem value="YES">Telephone: oui</SelectItem>
-                <SelectItem value="NO">Telephone: non</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={hasLinkedin} onValueChange={(value) => onHasLinkedinChange(value as TriStateFilter)}>
-              <SelectTrigger>
-                <SelectValue placeholder="LinkedIn" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ANY">LinkedIn: tous</SelectItem>
-                <SelectItem value="YES">LinkedIn: oui</SelectItem>
-                <SelectItem value="NO">LinkedIn: non</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </details>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="grid flex-1 gap-2 sm:flex sm:items-center">
+          <Input
+            placeholder="Rechercher..."
+            value={search}
+            onChange={(event) => onSearchChange(event.target.value)}
+            className="w-full sm:max-w-xs"
+          />
+          <Select
+            value={status}
+            onValueChange={(val) => {
+              onStatusChange(val)
+              toast.info(`Filtre applique: ${val === "ALL" ? "Tous" : val}`)
+            }}
+          >
+            <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectValue placeholder="Statut" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Tous les statuts</SelectItem>
+              <SelectItem value="NEW">À contacter (Nouveau)</SelectItem>
+              <SelectItem value="SCORED">Qualifié (Score &gt; 40)</SelectItem>
+              <SelectItem value="CONTACTED">En cours</SelectItem>
+              <SelectItem value="INTERESTED">RDV pris / Intéressé</SelectItem>
+              <SelectItem value="CONVERTED">Signé (Won)</SelectItem>
+              <SelectItem value="LOST">Pas intéressé / Perdu</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <p className="text-sm text-muted-foreground sm:text-right">{total} lead(s)</p>
+      </div>
 
-        <ResponsiveDataView
-          mobileCards={
-            data.length === 0 ? (
-              <div className="rounded-lg border py-8 text-center text-sm text-muted-foreground">
-                Aucun lead ne correspond a votre recherche.
+      <details className="rounded-lg border p-3">
+        <summary className="cursor-pointer text-sm font-medium">Filtres avances</summary>
+        <div className="mt-3 grid gap-3 md:grid-cols-3">
+          <Input
+            placeholder="Segment"
+            value={segment}
+            onChange={(event) => onSegmentChange(event.target.value)}
+          />
+          <Select value={tier} onValueChange={onTierChange}>
+            <SelectTrigger>
+              <SelectValue placeholder="Tier" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Tous les tiers</SelectItem>
+              <SelectItem value="Tier A">Tier A</SelectItem>
+              <SelectItem value="Tier B">Tier B</SelectItem>
+              <SelectItem value="Tier C">Tier C</SelectItem>
+              <SelectItem value="Tier D">Tier D</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={heatStatus} onValueChange={onHeatStatusChange}>
+            <SelectTrigger>
+              <SelectValue placeholder="Heat status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Tous les heat status</SelectItem>
+              <SelectItem value="Hot">Hot</SelectItem>
+              <SelectItem value="Warm">Warm</SelectItem>
+              <SelectItem value="Cold">Cold</SelectItem>
+            </SelectContent>
+          </Select>
+          <Input
+            placeholder="Entreprise"
+            value={company}
+            onChange={(event) => onCompanyChange(event.target.value)}
+          />
+          <Input
+            placeholder="Industrie"
+            value={industry}
+            onChange={(event) => onIndustryChange(event.target.value)}
+          />
+          <Input
+            placeholder="Localisation"
+            value={location}
+            onChange={(event) => onLocationChange(event.target.value)}
+          />
+          <Input
+            placeholder="Tag"
+            value={tag}
+            onChange={(event) => onTagChange(event.target.value)}
+          />
+          <Input
+            type="number"
+            min={0}
+            max={100}
+            placeholder="Score min"
+            value={minScore}
+            onChange={(event) => onMinScoreChange(event.target.value)}
+          />
+          <Input
+            type="number"
+            min={0}
+            max={100}
+            placeholder="Score max"
+            value={maxScore}
+            onChange={(event) => onMaxScoreChange(event.target.value)}
+          />
+          <Input
+            type="date"
+            value={createdFrom}
+            onChange={(event) => onCreatedFromChange(event.target.value)}
+          />
+          <Input
+            type="date"
+            value={createdTo}
+            onChange={(event) => onCreatedToChange(event.target.value)}
+          />
+          <Select value={hasEmail} onValueChange={(value) => onHasEmailChange(value as TriStateFilter)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Email" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ANY">Email: tous</SelectItem>
+              <SelectItem value="YES">Email: oui</SelectItem>
+              <SelectItem value="NO">Email: non</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={hasPhone} onValueChange={(value) => onHasPhoneChange(value as TriStateFilter)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Telephone" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ANY">Telephone: tous</SelectItem>
+              <SelectItem value="YES">Telephone: oui</SelectItem>
+              <SelectItem value="NO">Telephone: non</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={hasLinkedin} onValueChange={(value) => onHasLinkedinChange(value as TriStateFilter)}>
+            <SelectTrigger>
+              <SelectValue placeholder="LinkedIn" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ANY">LinkedIn: tous</SelectItem>
+              <SelectItem value="YES">LinkedIn: oui</SelectItem>
+              <SelectItem value="NO">LinkedIn: non</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </details>
+
+      <ResponsiveDataView
+        mobileCards={
+          data.length === 0 ? (
+            <div className="rounded-lg border py-8 text-center text-sm text-muted-foreground">
+              Aucun lead ne correspond a votre recherche.
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between rounded-lg border px-3 py-2">
+                <span className="text-sm font-medium">Selection</span>
+                <Checkbox
+                  checked={data.length > 0 && selectedLeads.size === data.length}
+                  onCheckedChange={toggleSelectAll}
+                  aria-label="Tout selectionner"
+                />
               </div>
-            ) : (
-              <>
-                <div className="flex items-center justify-between rounded-lg border px-3 py-2">
-                  <span className="text-sm font-medium">Selection</span>
-                  <Checkbox
-                    checked={data.length > 0 && selectedLeads.size === data.length}
-                    onCheckedChange={toggleSelectAll}
-                    aria-label="Tout selectionner"
-                  />
-                </div>
-                {data.map((lead) => (
-                  <LeadCard
-                    key={lead.id}
-                    lead={lead}
-                    isSelected={selectedLeads.has(lead.id)}
-                    onSelect={toggleSelectRow}
-                    onDelete={confirmDelete}
-                    onCreateProject={createProjectFromLead}
-                    onCreateTask={createTaskFromLead}
-                  />
-                ))}
-              </>
-            )
-          }
-          desktopTable={
-            <div className="rounded-lg border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[50px]">
-                      <Checkbox
-                        checked={data.length > 0 && selectedLeads.size === data.length}
-                        onCheckedChange={toggleSelectAll}
-                        aria-label="Tout selectionner"
-                      />
-                    </TableHead>
-                    <TableHead
-                      className="cursor-pointer hover:bg-muted/50"
-                      onClick={() => handleSort("first_name")}
-                    >
-                      Lead <SortIcon column="first_name" sort={sort} order={order} />
-                    </TableHead>
-                    <TableHead>Entreprise</TableHead>
-                    <TableHead
-                      className="cursor-pointer hover:bg-muted/50"
-                      onClick={() => handleSort("status")}
-                    >
-                      Statut <SortIcon column="status" sort={sort} order={order} />
-                    </TableHead>
-                    <TableHead className="w-[200px]">Accroche IA</TableHead>
-                    <TableHead
-                      className="cursor-pointer hover:bg-muted/50"
-                      onClick={() => handleSort("total_score")}
-                    >
-                      <div className="flex items-center gap-1">
-                        Score
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <IconInfoCircle className="size-3 text-muted-foreground" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="max-w-[200px]">
-                              Le score de qualite (0-100) calcule par l&apos;IA en fonction de l&apos;interet et du profil du lead.
-                            </p>
-                          </TooltipContent>
-                        </Tooltip>
-                        <SortIcon column="total_score" sort={sort} order={order} />
-                      </div>
-                    </TableHead>
-                    <TableHead>
-                      <div className="flex items-center gap-1">
-                        Segment
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <IconInfoCircle className="size-3 text-muted-foreground" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="max-w-[200px]">
-                              Groupe de leads ayant des caracteristiques similaires (secteur, taille, etc.).
-                            </p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
-                    </TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {data.map((lead) => (
+              {data.map((lead) => (
+                <LeadCard
+                  key={lead.id}
+                  lead={lead}
+                  isSelected={selectedLeads.has(lead.id)}
+                  onSelect={toggleSelectRow}
+                  onDelete={confirmDelete}
+                  onCreateProject={createProjectFromLead}
+                  onCreateTask={createTaskFromLead}
+                />
+              ))}
+            </>
+          )
+        }
+        desktopTable={
+          <div className="rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[50px]">
+                    <Checkbox
+                      checked={data.length > 0 && selectedLeads.size === data.length}
+                      onCheckedChange={toggleSelectAll}
+                      aria-label="Tout selectionner"
+                    />
+                  </TableHead>
+                  <TableHead
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => handleSort("first_name")}
+                  >
+                    Lead <SortIcon column="first_name" sort={sort} order={order} />
+                  </TableHead>
+                  <TableHead>Entreprise</TableHead>
+                  <TableHead
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => handleSort("status")}
+                  >
+                    Statut <SortIcon column="status" sort={sort} order={order} />
+                  </TableHead>
+                  <TableHead className="w-[200px]">Accroche IA</TableHead>
+                  <TableHead
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => handleSort("total_score")}
+                  >
+                    <div className="flex items-center gap-1">
+                      Score
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <IconInfoCircle className="size-3 text-muted-foreground" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="max-w-[200px]">
+                            Le score de qualite (0-100) calcule par l&apos;IA en fonction de l&apos;interet et du profil du lead.
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                      <SortIcon column="total_score" sort={sort} order={order} />
+                    </div>
+                  </TableHead>
+                  <TableHead>
+                    <div className="flex items-center gap-1">
+                      Segment
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <IconInfoCircle className="size-3 text-muted-foreground" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="max-w-[200px]">
+                            Groupe de leads ayant des caracteristiques similaires (secteur, taille, etc.).
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <TableRow key={i}>
+                      <TableCell><Skeleton className="h-4 w-4" /></TableCell>
+                      <TableCell>
+                        <Skeleton className="h-4 w-[150px]" />
+                        <Skeleton className="h-3 w-[100px] mt-1" />
+                      </TableCell>
+                      <TableCell><Skeleton className="h-4 w-[100px]" /></TableCell>
+                      <TableCell><Skeleton className="h-5 w-[80px]" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-[200px]" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-[40px]" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-[80px]" /></TableCell>
+                      <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  data.map((lead) => (
                     <LeadRow
                       key={lead.id}
                       lead={lead}
@@ -858,68 +910,69 @@ export function LeadsTable({
                       onCreateProject={createProjectFromLead}
                       onCreateTask={createTaskFromLead}
                     />
-                  ))}
-                  {data.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="py-8 text-center text-sm text-muted-foreground">
-                        Aucun lead ne correspond a votre recherche.
-                      </TableCell>
-                    </TableRow>
-                  ) : null}
-                </TableBody>
-              </Table>
-            </div>
-          }
-        />
-
-        <div className="flex flex-col gap-2 py-2 sm:flex-row sm:items-center sm:justify-end sm:space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full sm:w-auto"
-            onClick={() => onPageChange(page - 1)}
-            disabled={page <= 1}
-          >
-            Precedent
-          </Button>
-          <div className="text-center text-sm text-muted-foreground sm:flex-1">
-            Page {page} sur {maxPage}
+                  ))
+                )}
+                {!isLoading && data.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="py-8 text-center text-sm text-muted-foreground">
+                      Aucun lead ne correspond a votre recherche.
+                    </TableCell>
+                  </TableRow>
+                ) : null}
+              </TableBody>
+            </Table>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full sm:w-auto"
-            onClick={() => onPageChange(page + 1)}
-            disabled={page >= maxPage}
-          >
-            Suivant
-          </Button>
+        }
+      />
+
+      <div className="flex flex-col gap-2 py-2 sm:flex-row sm:items-center sm:justify-end sm:space-x-2">
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full sm:w-auto"
+          onClick={() => onPageChange(page - 1)}
+          disabled={page <= 1}
+        >
+          Precedent
+        </Button>
+        <div className="text-center text-sm text-muted-foreground sm:flex-1">
+          Page {page} sur {maxPage}
         </div>
-        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Etes-vous absolument sur ?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Cette action est irreversible.
-                {leadToDelete ? " Ce lead sera definitivement supprime." : ` ${selectedLeads.size} leads seront definitivement supprimes.`}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={isDeleting}>Annuler</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={(e) => {
-                  e.preventDefault()
-                  void executeDelete()
-                }}
-                disabled={isDeleting}
-                className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
-              >
-                {isDeleting ? "Suppression..." : "Supprimer"}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full sm:w-auto"
+          onClick={() => onPageChange(page + 1)}
+          disabled={page >= maxPage}
+        >
+          Suivant
+        </Button>
       </div>
-    </TooltipProvider>
-  )
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Etes-vous absolument sur ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette action est irreversible.
+              {leadToDelete ? " Ce lead sera definitivement supprime." : ` ${selectedLeads.size} leads seront definitivement supprimes.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault()
+                void executeDelete()
+              }}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+            >
+              {isDeleting ? "Suppression..." : "Supprimer"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  </TooltipProvider>
+)
 }

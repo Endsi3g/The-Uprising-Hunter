@@ -178,13 +178,13 @@ class WorkflowRule(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     name: str
     trigger_type: str
-    criteria: Dict[str, Any] = Field(default_factory=dict)
+    criteria: Dict[str, Any] = Field(default_factory=dict, alias="criteria_json")
     action_type: str
-    action_config: Dict[str, Any] = Field(default_factory=dict)
+    action_config: Dict[str, Any] = Field(default_factory=dict, alias="action_config_json")
     is_active: bool = True
     created_at: datetime = Field(default_factory=datetime.now)
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 class LandingPage(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))

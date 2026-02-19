@@ -21,6 +21,7 @@ from src.scoring.engine import ScoringEngine
 from src.enrichment.service import EnrichmentService
 from src.enrichment.apify_client import ApifyMapsClient, MockApifyMapsClient
 from src.workflows.manager import WorkflowManager
+from src.workflows.rules_engine import RulesEngine
 
 # Create tables if they don't exist
 Base.metadata.create_all(bind=engine)
@@ -309,6 +310,11 @@ def create_lead(lead: Lead, db: Session = Depends(get_db)):
     db.add(db_lead)
     db.commit()
     db.refresh(db_lead)
+    
+    # Trigger Workflows
+    rules = RulesEngine(db)
+    rules.evaluate_and_execute(db_lead, "lead_created")
+
     return db_lead
 
 @app.get("/api/v1/admin/leads/{lead_id}", response_model=Lead)
@@ -342,6 +348,11 @@ def update_lead(lead_id: str, lead_update: dict, db: Session = Depends(get_db)):
     
     db.commit()
     db.refresh(db_lead)
+
+    # Trigger Workflows
+    rules = RulesEngine(db)
+    rules.evaluate_and_execute(db_lead, "lead_updated")
+
     return db_lead
 
 @app.get("/api/v1/admin/leads/{lead_id}/tasks", response_model=List[Task])
@@ -439,6 +450,17 @@ def delete_appointment(appointment_id: str, db: Session = Depends(get_db)):
     db.commit()
     return {"status": "success"}
 
+@app.post("/api/v1/admin/leads/bulk-status")
+def bulk_status_update(payload: dict, db: Session = Depends(get_db)):
+    ids = payload.get("ids", [])
+    status = payload.get("status")
+    if not ids or not status:
+        raise HTTPException(status_code=400, detail="Missing ids or status")
+    
+    db.query(DBLead).filter(DBLead.id.in_(ids)).update({DBLead.status: status}, synchronize_session=False)
+    db.commit()
+    return {"status": "success"}
+
 
 # --- WORKFLOWS ---
 
@@ -461,7 +483,44 @@ def create_workflow(workflow: WorkflowRule, db: Session = Depends(get_db)):
     db.add(db_workflow)
     db.commit()
     db.refresh(db_workflow)
-    return db_workflow
+    return WorkflowRule(
+        id=db_workflow.id,
+        name=db_workflow.name,
+        trigger_type=db_workflow.trigger_type,
+        criteria=db_workflow.criteria_json,
+        action_type=db_workflow.action_type,
+        action_config=db_workflow.action_config_json,
+        is_active=db_workflow.is_active,
+        created_at=db_workflow.created_at
+    )
+
+@app.patch("/api/v1/admin/workflows/{workflow_id}", response_model=WorkflowRule)
+def update_workflow(workflow_id: str, workflow_update: dict, db: Session = Depends(get_db)):
+    db_workflow = db.query(DBWorkflowRule).filter(DBWorkflowRule.id == workflow_id).first()
+    if not db_workflow:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+    
+    for key, value in workflow_update.items():
+        if key == "criteria":
+            db_workflow.criteria_json = value
+        elif key == "action_config":
+            db_workflow.action_config_json = value
+        elif hasattr(db_workflow, key):
+            setattr(db_workflow, key, value)
+    
+    db.commit()
+    db.refresh(db_workflow)
+    
+    return WorkflowRule(
+        id=db_workflow.id,
+        name=db_workflow.name,
+        trigger_type=db_workflow.trigger_type,
+        criteria=db_workflow.criteria_json,
+        action_type=db_workflow.action_type,
+        action_config=db_workflow.action_config_json,
+        is_active=db_workflow.is_active,
+        created_at=db_workflow.created_at
+    )
 
 @app.delete("/api/v1/admin/workflows/{workflow_id}")
 def delete_workflow(workflow_id: str, db: Session = Depends(get_db)):

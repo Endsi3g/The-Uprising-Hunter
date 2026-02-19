@@ -4,6 +4,7 @@ import * as React from "react"
 import { usePathname } from "next/navigation"
 import useSWR from "swr"
 import {
+  IconCalendar,
   IconChartBar,
   IconDashboard,
   IconDatabase,
@@ -108,7 +109,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           {
             title: messages.sidebar.appointments,
             url: "/appointments",
-            icon: IconListDetails,
+            icon: IconCalendar,
           },
           {
             title: messages.sidebar.workflows,

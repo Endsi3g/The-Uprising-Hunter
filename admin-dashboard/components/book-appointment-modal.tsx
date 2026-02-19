@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { IconCalendar, IconCheck, IconLoader2, IconMapPin, IconLink } from "@tabler/icons-react"
+import { IconCalendar, IconCheck, IconLoader2, IconMapPin, IconLink, IconVideo } from "@tabler/icons-react"
 import { toast } from "sonner"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
@@ -45,6 +45,13 @@ export function BookAppointmentModal({
   const [location, setLocation] = React.useState("")
   const [meetingLink, setMeetingLink] = React.useState("")
   const [isBooking, setIsBooking] = React.useState(false)
+
+  function handleGenerateMeetLink() {
+    const randomId = Math.random().toString(36).substring(2, 6) + "-" + Math.random().toString(36).substring(2, 6)
+    const link = `https://meet.google.com/plh-${randomId}`
+    setMeetingLink(link)
+    toast.success("Lien Google Meet (placeholder) généré")
+  }
 
   async function handleBook() {
     if (!date) {
@@ -174,7 +181,19 @@ export function BookAppointmentModal({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="apt-link">Lien de réunion (Google Meet, Zoom...)</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="apt-link">Lien de réunion</Label>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-6 px-2 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                onClick={handleGenerateMeetLink}
+                type="button"
+              >
+                <IconVideo className="mr-1.5 h-3 w-3" />
+                Générer Google Meet
+              </Button>
+            </div>
             <div className="relative">
               <IconLink className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input 

@@ -18,6 +18,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@radix-ui/react-popover": "^1.1.15",
     "@radix-ui/react-scroll-area": "^1.2.10",
+    "@radix-ui/react-switch": "^1.2.6",
     "@tabler/icons-react": "^3.36.1",
     "@tanstack/react-table": "^8.21.3",
     "class-variance-authority": "^0.7.1",

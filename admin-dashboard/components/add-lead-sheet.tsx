@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { IconCirclePlusFilled } from "@tabler/icons-react"
+import { IconCirclePlusFilled, IconLoader2 } from "@tabler/icons-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -280,7 +280,14 @@ export function AddLeadSheet() {
               Annuler
             </Button>
             <Button type="submit" disabled={isLoading || !isFormValid}>
-              {isLoading ? "Creation..." : "Enregistrer"}
+              {isLoading ? (
+                <>
+                  <IconLoader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creation...
+                </>
+              ) : (
+                "Enregistrer"
+              )}
             </Button>
           </SheetFooter>
         </form>
