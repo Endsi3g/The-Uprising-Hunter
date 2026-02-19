@@ -146,7 +146,7 @@ export function AddLeadSheet() {
           className="bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground h-11 w-full rounded-xl px-4 font-bold shadow-lg transition-all duration-200"
           aria-label={messages.addLead.quickButtonAria}
         >
-          <IconCirclePlusFilled className="!size-5" />
+          <IconCirclePlusFilled className="size-5!" />
           <span>{messages.sidebar.quickLead}</span>
         </Button>
       </SheetTrigger>

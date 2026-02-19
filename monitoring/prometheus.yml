@@ -1,0 +1,18 @@
+global:
+  scrape_interval: 60s # Match Supabase's refresh cadence
+
+scrape_configs:
+  - job_name: "supabase"
+    scrape_interval: 60s
+    metrics_path: /customer/v1/privileged/metrics
+    scheme: https
+    basic_auth:
+      username: service_role
+      password: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZyY2ZheGNrdnFvaml6d2hiYWFjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTQ2NDQ5OCwiZXhwIjoyMDg3MDQwNDk4fQ.QM5fBpQQtI74I3WxxQ_Yorygtwr1RlKXiD96qLSdokQ" # Replace with your SERVICE_ROLE key
+    static_configs:
+      - targets:
+          - "frcfaxckvqojizwhbaac.supabase.co:443"
+        labels:
+          project: "frcfaxckvqojizwhbaac"
+          env: "production"
+

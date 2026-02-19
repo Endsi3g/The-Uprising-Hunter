@@ -4144,24 +4144,28 @@ def _build_project_activity_payload(
 
 
 def _get_stats_payload(db: Session) -> dict[str, Any]:
-    total_leads = db.query(DBLead).count()
-    qualified_leads = db.query(DBLead).filter(DBLead.tier.in_(["Tier A", "Tier B"])).count()
-    hot_leads = db.query(DBLead).filter(DBLead.heat_status == "Hot").count()
+    today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     
-    new_leads_today = db.query(DBLead).filter(
-        DBLead.created_at >= datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    ).count()
+    # Unified query for leads stats
+    l_stats = db.query(
+        func.count(DBLead.id).label("total"),
+        func.sum(case((DBLead.tier.in_(["Tier A", "Tier B"]), 1), else_=0)).label("qualified"),
+        func.sum(case((DBLead.heat_status == "Hot", 1), else_=0)).label("hot"),
+        func.sum(case((DBLead.created_at >= today_start, 1), else_=0)).label("new_today"),
+        func.sum(case((DBLead.status == LeadStatus.CONTACTED, 1), else_=0)).label("contacted")
+    ).first()
+    
+    total_leads = l_stats.total or 0
+    contacted = int(l_stats.contacted or 0)
     
     pending_tasks = db.query(DBTask).filter(DBTask.status != "Done").count()
-    
-    contacted = db.query(DBLead).filter(DBLead.status == "CONTACTED").count()
     conversion_rate = (contacted / total_leads * 100) if total_leads > 0 else 0.0
 
     return {
         "total_leads": total_leads,
-        "new_leads_today": new_leads_today,
-        "qualified_leads": qualified_leads,
-        "hot_leads": hot_leads,
+        "new_leads_today": int(l_stats.new_today or 0),
+        "qualified_leads": int(l_stats.qualified or 0),
+        "hot_leads": int(l_stats.hot or 0),
         "pending_tasks": pending_tasks,
         "conversion_rate": round(conversion_rate, 1),
         "daily_pipeline_trend": []
@@ -4527,22 +4531,34 @@ def _save_funnel_config_payload(db: Session, payload: AdminFunnelConfigUpdatePay
 
 
 def _get_analytics_payload(db: Session) -> dict[str, Any]:
-    total_leads = db.query(DBLead).count()
+    today_start = datetime.combine(datetime.now().date(), datetime_time.min)
+    
+    # Unified query for leads stats
+    l_stats = db.query(
+        func.count(DBLead.id).label("total"),
+        func.sum(case((DBLead.created_at >= today_start, 1), else_=0)).label("new_today"),
+        func.sum(DBLead.total_score).label("pipeline_raw")
+    ).first()
+    
+    total_leads = l_stats.total or 0
+    new_leads_today = int(l_stats.new_today or 0)
+    pipeline_value = round(float(l_stats.pipeline_raw or 0.0) * 1000, 2)
+
     status_rows = db.query(DBLead.status, func.count(DBLead.id)).group_by(DBLead.status).all()
     leads_by_status: dict[str, int] = {}
     for status_value, count in status_rows:
         key = status_value.value if hasattr(status_value, "value") else str(status_value)
         leads_by_status[key] = int(count)
 
-    total_tasks = db.query(DBTask).count()
-    completed_tasks = db.query(DBTask).filter(DBTask.status == "Done").count()
+    # Task stats
+    t_stats = db.query(
+        func.count(DBTask.id).label("total"),
+        func.sum(case((DBTask.status == "Done", 1), else_=0)).label("done")
+    ).first()
+    
+    total_tasks = t_stats.total or 0
+    completed_tasks = int(t_stats.done or 0)
     task_completion_rate = round((completed_tasks / total_tasks) * 100, 2) if total_tasks else 0.0
-
-    pipeline_raw = db.query(func.sum(DBLead.total_score)).scalar() or 0.0
-    pipeline_value = round(float(pipeline_raw) * 1000, 2)
-
-    today_start = datetime.combine(datetime.now().date(), datetime_time.min)
-    new_leads_today = db.query(DBLead).filter(DBLead.created_at >= today_start).count()
 
     return {
         "total_leads": total_leads,
@@ -4551,9 +4567,60 @@ def _get_analytics_payload(db: Session) -> dict[str, Any]:
         "pipeline_value": pipeline_value,
         "new_leads_today": new_leads_today,
     }
-
-
-def _search_payload(db: Session, query: str, limit: int) -> dict[str, Any]:
+                    
+                        @admin_v1.get("/opportunities/forecast")
+                        def get_opportunities_forecast_v1(db: Session = Depends(get_db)) -> dict[str, Any]:
+                            opportunities = db.query(DBOpportunity).filter(
+                                DBOpportunity.status == "open",
+                                DBOpportunity.expected_close_date.isnot(None)
+                            ).all()
+                            
+                            forecast = {}
+                            for opp in opportunities:
+                                if not opp.expected_close_date:
+                                    continue
+                                month_key = opp.expected_close_date.strftime("%Y-%m")
+                                if month_key not in forecast:
+                                    forecast[month_key] = {"expected_revenue": 0.0, "weighted_revenue": 0.0, "count": 0}
+                                
+                                amount = float(opp.amount or 0.0)
+                                prob = float(opp.probability or 0) / 100.0
+                                
+                                forecast[month_key]["expected_revenue"] += amount
+                                forecast[month_key]["weighted_revenue"] += (amount * prob)
+                                forecast[month_key]["count"] += 1
+                                
+                            forecast_list = [{"month": k, **v} for k, v in forecast.items()]
+                            forecast_list.sort(key=lambda x: x["month"])
+                            
+                            return {"forecast_monthly": forecast_list}
+                                    @admin_v1.get("/opportunities/forecast")
+                                    def get_opportunities_forecast_v1(db: Session = Depends(get_db)) -> dict[str, Any]:
+                                        opportunities = db.query(DBOpportunity).filter(
+                                            DBOpportunity.status == "open",
+                                            DBOpportunity.expected_close_date.isnot(None)
+                                        ).all()
+                                
+                                        forecast = {}
+                                        for opp in opportunities:
+                                            if not opp.expected_close_date:
+                                                continue
+                                            month_key = opp.expected_close_date.strftime("%Y-%m")
+                                            if month_key not in forecast:
+                                                forecast[month_key] = {"expected_revenue": 0.0, "weighted_revenue": 0.0, "count": 0}
+                                
+                                            amount = float(opp.amount or 0.0)
+                                            prob = float(opp.probability or 0) / 100.0
+                                
+                                            forecast[month_key]["expected_revenue"] += amount
+                                            forecast[month_key]["weighted_revenue"] += (amount * prob)
+                                            forecast[month_key]["count"] += 1
+                                
+                                        forecast_list = [{"month": k, **v} for k, v in forecast.items()]
+                                        forecast_list.sort(key=lambda x: x["month"])
+                                
+                                        return {"forecast_monthly": forecast_list}
+                                def _search_payload(db: Session, query: str, limit: int) -> dict[str, Any]:
     clean_query = query.strip()
     if not clean_query:
         return {"query": query, "total": 0, "items": []}

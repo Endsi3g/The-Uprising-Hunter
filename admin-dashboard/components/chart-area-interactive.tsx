@@ -165,7 +165,7 @@ export default function ChartAreaInteractive({ trend = [] }: ChartAreaInteractiv
               }
             }}
             variant="outline"
-            className="hidden *:data-[slot=toggle-group-item]:!px-4 @[767px]/card:flex"
+            className="hidden *:data-[slot=toggle-group-item]:px-4! @[767px]/card:flex"
           >
             <ToggleGroupItem value="90d">{messages.dashboard.chart.range90d}</ToggleGroupItem>
             <ToggleGroupItem value="30d">{messages.dashboard.chart.range30d}</ToggleGroupItem>

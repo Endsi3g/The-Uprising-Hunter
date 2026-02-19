@@ -6,6 +6,7 @@ import { IconChartBar, IconCurrencyEuro, IconTarget, IconUsers } from "@tabler/i
 
 import { AppSidebar } from "@/components/app-sidebar"
 import ChartAreaInteractive, { type TrendPoint } from "@/components/chart-area-interactive"
+import RevenueForecastChart, { type ForecastPoint } from "@/components/revenue-forecast-chart"
 import { SiteHeader } from "@/components/site-header"
 import { SyncStatus } from "@/components/sync-status"
 import {
@@ -43,6 +44,7 @@ export default function AnalyticsPage() {
   } = useSWR<AnalyticsData>("/api/v1/admin/analytics", fetcher)
   const loadingTimedOut = useLoadingTimeout(analyticsLoading, 12_000)
   const { data: stats } = useSWR<DashboardStats>("/api/v1/admin/stats", fetcher)
+  const { data: forecastData } = useSWR<{ forecast_monthly: ForecastPoint[] }>("/api/v1/admin/opportunities/forecast", fetcher)
   const [updatedAt, setUpdatedAt] = React.useState<Date | null>(null)
 
   React.useEffect(() => {
@@ -153,8 +155,9 @@ export default function AnalyticsPage() {
               </div>
 
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-                <div className="lg:col-span-4">
+                <div className="lg:col-span-4 space-y-4">
                   <ChartAreaInteractive trend={stats?.daily_pipeline_trend || []} />
+                  <RevenueForecastChart data={forecastData?.forecast_monthly || []} />
                 </div>
                 <Card className="lg:col-span-3 rounded-xl border shadow-sm">
                   <CardHeader>

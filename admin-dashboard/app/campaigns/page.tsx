@@ -594,7 +594,7 @@ export default function CampaignsPage() {
   return (
     <AppShell>
       <div className="flex flex-1 flex-col gap-4">
-        <div className="rounded-2xl border bg-gradient-to-r from-slate-900 via-slate-800 to-slate-700 p-5 text-slate-50">
+        <div className="rounded-2xl border bg-linear-to-r from-slate-900 via-slate-800 to-slate-700 p-5 text-slate-50">
           <h2 className="text-3xl font-bold tracking-tight">The Uprising Hunter</h2>
           <p className="mt-2 text-sm text-slate-200">
             Campagnes, sequences, generation de contenu et enrichment dans une vue unifiee.
@@ -685,73 +685,51 @@ export default function CampaignsPage() {
                   <div className="space-y-3 md:col-span-2">
                     <div className="flex items-center justify-between">
                       <Label className="text-base font-semibold">Channel Strategy</Label>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 text-[10px]"
-                        onClick={() => setUseFormForStrategy(!useFormForStrategy)}
-                        type="button"
-                      >
-                        {useFormForStrategy ? "Advanced Mode (JSON)" : "Simple Mode (Form)"}
-                      </Button>
                     </div>
 
-                    {useFormForStrategy ? (
-                      <div className="grid gap-4 rounded-lg border p-3">
-                        <div className="flex items-center gap-4">
-                          <Checkbox
-                            id="strategy-email"
-                            checked={strategyEmail}
-                            onCheckedChange={(checked) => setStrategyEmail(checked === true)}
-                          />
-                          <div className="grid gap-1.5 leading-none">
-                            <Label htmlFor="strategy-email">Email Outreach</Label>
-                          </div>
-                          <div className="ml-auto flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground">Delay (hrs):</span>
-                            <Input
-                              type="number"
-                              className="h-7 w-16"
-                              value={strategyEmailDelay}
-                              onChange={(e) => setStrategyEmailDelay(e.target.value)}
-                              disabled={!strategyEmail}
-                            />
-                          </div>
+                    <div className="grid gap-4 rounded-lg border p-3">
+                      <div className="flex items-center gap-4">
+                        <Checkbox
+                          id="strategy-email"
+                          checked={strategyEmail}
+                          onCheckedChange={(checked) => setStrategyEmail(checked === true)}
+                        />
+                        <div className="grid gap-1.5 leading-none">
+                          <Label htmlFor="strategy-email">Email Outreach</Label>
                         </div>
-
-                        <div className="flex items-center gap-4">
-                          <Checkbox
-                            id="strategy-linkedin"
-                            checked={strategyLinkedin}
-                            onCheckedChange={(checked) => setStrategyLinkedin(checked === true)}
+                        <div className="ml-auto flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">Delay (hrs):</span>
+                          <Input
+                            type="number"
+                            className="h-7 w-16"
+                            value={strategyEmailDelay}
+                            onChange={(e) => setStrategyEmailDelay(e.target.value)}
+                            disabled={!strategyEmail}
                           />
-                          <div className="grid gap-1.5 leading-none">
-                            <Label htmlFor="strategy-linkedin">LinkedIn Message</Label>
-                          </div>
-                          <div className="ml-auto flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground">Delay (hrs):</span>
-                            <Input
-                              type="number"
-                              className="h-7 w-16"
-                              value={strategyLinkedinDelay}
-                              onChange={(e) => setStrategyLinkedinDelay(e.target.value)}
-                              disabled={!strategyLinkedin}
-                            />
-                          </div>
                         </div>
                       </div>
-                    ) : (
-                      <textarea
-                        id="campaign-strategy"
-                        title="Channel strategy JSON"
-                        placeholder='{ "email": { "delay": 24 } }'
-                        value={campaignStrategy}
-                        onChange={(event) => setCampaignStrategy(event.target.value)}
-                        rows={5}
-                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-mono"
-                        disabled={campaignBusy}
-                      />
-                    )}
+
+                      <div className="flex items-center gap-4">
+                        <Checkbox
+                          id="strategy-linkedin"
+                          checked={strategyLinkedin}
+                          onCheckedChange={(checked) => setStrategyLinkedin(checked === true)}
+                        />
+                        <div className="grid gap-1.5 leading-none">
+                          <Label htmlFor="strategy-linkedin">LinkedIn Message</Label>
+                        </div>
+                        <div className="ml-auto flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">Delay (hrs):</span>
+                          <Input
+                            type="number"
+                            className="h-7 w-16"
+                            value={strategyLinkedinDelay}
+                            onChange={(e) => setStrategyLinkedinDelay(e.target.value)}
+                            disabled={!strategyLinkedin}
+                          />
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="space-y-3 md:col-span-2">
@@ -1079,121 +1057,99 @@ export default function CampaignsPage() {
                   <div className="space-y-3 md:col-span-2">
                     <div className="flex items-center justify-between">
                       <Label className="text-base font-semibold">Étapes de la Séquence</Label>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 text-[10px]"
-                        onClick={() => setUseFormForSteps(!useFormForSteps)}
-                        type="button"
-                      >
-                        {useFormForSteps ? "Passer au JSON" : "Passer au Formulaire"}
-                      </Button>
                     </div>
 
-                    {useFormForSteps ? (
-                      <div className="space-y-4 rounded-lg border p-4 bg-muted/20">
-                        {sequenceStepsList.map((step, index) => (
-                          <div key={index} className="relative space-y-3 rounded-md border bg-background p-3 shadow-sm">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="absolute right-1 top-1 h-6 w-6"
-                              onClick={() => {
-                                const newList = [...sequenceStepsList]
-                                newList.splice(index, 1)
-                                setSequenceStepsList(newList)
-                              }}
-                              type="button"
-                            >
-                              <IconTrash className="h-3 w-3 text-red-500" />
-                            </Button>
+                    <div className="space-y-4 rounded-lg border p-4 bg-muted/20">
+                      {sequenceStepsList.map((step, index) => (
+                        <div key={index} className="relative space-y-3 rounded-md border bg-background p-3 shadow-sm">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="absolute right-1 top-1 h-6 w-6"
+                            onClick={() => {
+                              const newList = [...sequenceStepsList]
+                              newList.splice(index, 1)
+                              setSequenceStepsList(newList)
+                            }}
+                            type="button"
+                          >
+                            <IconTrash className="h-3 w-3 text-red-500" />
+                          </Button>
 
-                            <div className="grid gap-3 sm:grid-cols-2">
-                              <div className="space-y-1">
-                                <Label className="text-[10px] uppercase">Canal</Label>
-                                <Select
-                                  value={step.channel as string}
-                                  onValueChange={(val) => {
-                                    const newList = [...sequenceStepsList]
-                                    newList[index] = { ...step, channel: val }
-                                    setSequenceStepsList(newList)
-                                  }}
-                                >
-                                  <SelectTrigger className="h-8">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="email">Email</SelectItem>
-                                    <SelectItem value="call">Appel</SelectItem>
-                                    <SelectItem value="linkedin">LinkedIn</SelectItem>
-                                    <SelectItem value="whatsapp">WhatsApp</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                              <div className="space-y-1">
-                                <Label className="text-[10px] uppercase">Template Key</Label>
-                                <Input
-                                  className="h-8"
-                                  value={step.template_key as string}
-                                  onChange={(e) => {
-                                    const newList = [...sequenceStepsList]
-                                    newList[index] = { ...step, template_key: e.target.value }
-                                    setSequenceStepsList(newList)
-                                  }}
-                                />
-                              </div>
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <div className="space-y-1">
+                              <Label className="text-[10px] uppercase">Canal</Label>
+                              <Select
+                                value={step.channel as string}
+                                onValueChange={(val) => {
+                                  const newList = [...sequenceStepsList]
+                                  newList[index] = { ...step, channel: val }
+                                  setSequenceStepsList(newList)
+                                }}
+                              >
+                                <SelectTrigger className="h-8">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="email">Email</SelectItem>
+                                  <SelectItem value="call">Appel</SelectItem>
+                                  <SelectItem value="linkedin">LinkedIn</SelectItem>
+                                  <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                                </SelectContent>
+                              </Select>
                             </div>
-
-                            <div className="grid gap-3 sm:grid-cols-2">
-                              <div className="space-y-1">
-                                <Label className="text-[10px] uppercase">Délai (jours)</Label>
-                                <Input
-                                  type="number"
-                                  className="h-8"
-                                  min="0"
-                                  value={step.delay_days as number}
-                                  onChange={(e) => {
-                                    const newList = [...sequenceStepsList]
-                                    newList[index] = { ...step, delay_days: Number.parseInt(e.target.value, 10) || 0 }
-                                    setSequenceStepsList(newList)
-                                  }}
-                                />
-                              </div>
-                              <div className="flex items-end">
-                                <Badge variant="outline" className="h-8 w-full justify-center text-[10px] font-normal border-dashed">
-                                  Étape {index + 1}
-                                </Badge>
-                              </div>
+                            <div className="space-y-1">
+                              <Label className="text-[10px] uppercase">Template Key</Label>
+                              <Input
+                                className="h-8"
+                                value={step.template_key as string}
+                                onChange={(e) => {
+                                  const newList = [...sequenceStepsList]
+                                  newList[index] = { ...step, template_key: e.target.value }
+                                  setSequenceStepsList(newList)
+                                }}
+                              />
                             </div>
                           </div>
-                        ))}
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full border-dashed"
-                          onClick={() => {
-                            setSequenceStepsList([
-                              ...sequenceStepsList,
-                              { channel: "email", template_key: "", delay_days: 1, conditions: {} },
-                            ])
-                          }}
-                          type="button"
-                        >
-                          Ajouter une étape
-                        </Button>
-                      </div>
-                    ) : (
-                      <textarea
-                        id="sequence-steps"
-                        title="Sequence steps JSON array"
-                        placeholder='[ { "type": "email", "delay_hours": 2 } ]'
-                        value={sequenceSteps}
-                        onChange={(event) => setSequenceSteps(event.target.value)}
-                        rows={8}
-                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-mono"
-                        disabled={sequenceBusy}
-                      />
-                    )}
+
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <div className="space-y-1">
+                              <Label className="text-[10px] uppercase">Délai (jours)</Label>
+                              <Input
+                                type="number"
+                                className="h-8"
+                                min="0"
+                                value={step.delay_days as number}
+                                onChange={(e) => {
+                                  const newList = [...sequenceStepsList]
+                                  newList[index] = { ...step, delay_days: Number.parseInt(e.target.value, 10) || 0 }
+                                  setSequenceStepsList(newList)
+                                }}
+                              />
+                            </div>
+                            <div className="flex items-end">
+                              <Badge variant="outline" className="h-8 w-full justify-center text-[10px] font-normal border-dashed">
+                                Étape {index + 1}
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full border-dashed"
+                        onClick={() => {
+                          setSequenceStepsList([
+                            ...sequenceStepsList,
+                            { channel: "email", template_key: "", delay_days: 1, conditions: {} },
+                          ])
+                        }}
+                        type="button"
+                      >
+                        Ajouter une étape
+                      </Button>
+                    </div>
                   </div>
                   <div className="md:col-span-2">
                     <Button type="submit" disabled={sequenceBusy}>

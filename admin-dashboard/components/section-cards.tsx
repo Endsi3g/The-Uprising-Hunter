@@ -38,7 +38,7 @@ export function SectionCards({ stats }: { stats?: Stats }) {
 
   return (
     <div className="grid grid-cols-1 gap-4 px-4 lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
-      <Card className="@container/card bg-gradient-to-t from-primary/5 to-card shadow-xs">
+      <Card className="@container/card bg-linear-to-t from-primary/5 to-card shadow-xs">
         <CardHeader>
           <CardDescription>{messages.dashboard.stats.sourcedLeads}</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
@@ -55,7 +55,7 @@ export function SectionCards({ stats }: { stats?: Stats }) {
         </CardFooter>
       </Card>
 
-      <Card className="@container/card bg-gradient-to-t from-primary/5 to-card shadow-xs">
+      <Card className="@container/card bg-linear-to-t from-primary/5 to-card shadow-xs">
         <CardHeader>
           <CardDescription>{messages.dashboard.stats.qualifiedLeads}</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
@@ -75,7 +75,7 @@ export function SectionCards({ stats }: { stats?: Stats }) {
         </CardFooter>
       </Card>
 
-      <Card className="@container/card bg-gradient-to-t from-primary/5 to-card shadow-xs">
+      <Card className="@container/card bg-linear-to-t from-primary/5 to-card shadow-xs">
         <CardHeader>
           <CardDescription>Leads Chauds</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
@@ -95,7 +95,7 @@ export function SectionCards({ stats }: { stats?: Stats }) {
         </CardFooter>
       </Card>
 
-      <Card className="@container/card bg-gradient-to-t from-primary/5 to-card shadow-xs">
+      <Card className="@container/card bg-linear-to-t from-primary/5 to-card shadow-xs">
         <CardHeader>
           <CardDescription>Tâches en attente</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">

@@ -1,6 +1,8 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from sqlalchemy.orm import Session
+from sqlalchemy import func, case, desc, extract
 from typing import List
 import uuid
 
@@ -13,8 +15,8 @@ root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fil
 sys.path.append(root_dir)
 
 from src.core.database import SessionLocal, engine, Base
-from src.core.db_models import DBLead, DBTask, DBProject, DBCompany, DBLandingPage, DBAppointment, DBWorkflowRule
-from src.core.models import Lead, Task, TaskStatus, TaskPriority, Project, ProjectStatus, LandingPage, Appointment, WorkflowRule
+from src.core.db_models import DBLead, DBTask, DBProject, DBCompany, DBLandingPage, DBAppointment, DBWorkflowRule, DBOpportunity
+from src.core.models import Lead, Task, TaskStatus, TaskPriority, Project, ProjectStatus, LandingPage, Appointment, WorkflowRule, LeadStatus
 from datetime import datetime
 from src.ai_engine.generator import MessageGenerator
 from src.scoring.engine import ScoringEngine
@@ -26,7 +28,14 @@ from src.workflows.rules_engine import RulesEngine
 # Create tables if they don't exist
 Base.metadata.create_all(bind=engine)
 
+class DataSourceMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        response.headers["x-prospect-data-source"] = "upstream"
+        return response
+
 app = FastAPI(title="Prospect Sales Machine API")
+app.add_middleware(DataSourceMiddleware)
 
 # Dependency
 def get_db():
@@ -250,12 +259,12 @@ def capture_lead(payload: dict, db: Session = Depends(get_db)):
     db_lead.details = scored_lead.details
     db_lead.status = "SCORED"
     
-        db.commit()
-        
-        # 4. Trigger Workflows
-        trigger_workflow(db_lead, "lead_scored", db)
-        
-        return {"status": "success", "lead_id": db_lead.id, "tier": db_lead.tier}
+    db.commit()
+    
+    # 4. Trigger Workflows
+    trigger_workflow(db_lead, "lead_scored", db)
+    
+    return {"status": "success", "lead_id": db_lead.id, "tier": db_lead.tier}
     
     
     # Configure CORS for Next.js frontend
@@ -533,51 +542,75 @@ def delete_workflow(workflow_id: str, db: Session = Depends(get_db)):
 
 
 @app.get("/api/v1/admin/analytics")
-
 def get_analytics(db: Session = Depends(get_db)):
-    # Aggregate data for analytics page
-    total_leads = db.query(DBLead).count()
-    leads_by_status = {}
-    for status in ["NEW", "SCORED", "CONTACTED", "INTERESTED", "CONVERTED"]:
-        leads_by_status[status] = db.query(DBLead).filter(DBLead.status == status).count()
+    # Aggregate data for analytics page with optimized query
+    today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     
-    total_tasks = db.query(DBTask).count()
-    done_tasks = db.query(DBTask).filter(DBTask.status == "Done").count()
+    # Single query for leads stats
+    leads_stats = db.query(
+        func.count(DBLead.id).label("total"),
+        func.sum(case((DBLead.status == "NEW", 1), else_=0)).label("new"),
+        func.sum(case((DBLead.status == "SCORED", 1), else_=0)).label("scored"),
+        func.sum(case((DBLead.status == "CONTACTED", 1), else_=0)).label("contacted"),
+        func.sum(case((DBLead.status == "INTERESTED", 1), else_=0)).label("interested"),
+        func.sum(case((DBLead.status == "CONVERTED", 1), else_=0)).label("converted"),
+        func.sum(case((DBLead.created_at >= today_start, 1), else_=0)).label("new_today")
+    ).first()
     
-    new_leads_today = db.query(DBLead).filter(
-        DBLead.created_at >= datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    ).count()
+    # Single query for task stats
+    tasks_stats = db.query(
+        func.count(DBTask.id).label("total"),
+        func.sum(case((DBTask.status == "Done", 1), else_=0)).label("done")
+    ).first()
+    
+    leads_by_status = {
+        "NEW": leads_stats.new or 0,
+        "SCORED": leads_stats.scored or 0,
+        "CONTACTED": leads_stats.contacted or 0,
+        "INTERESTED": leads_stats.interested or 0,
+        "CONVERTED": leads_stats.converted or 0
+    }
+    
+    total_leads = leads_stats.total or 0
+    total_tasks = tasks_stats.total or 0
+    done_tasks = tasks_stats.done or 0
+    
+    task_completion_rate = (done_tasks / total_tasks * 100) if total_tasks > 0 else 0
+    pipeline_value = (leads_stats.interested or 0) * 1000
     
     return {
         "leads_by_status": leads_by_status,
         "total_leads": total_leads,
-        "task_completion_rate": (done_tasks / total_tasks * 100) if total_tasks > 0 else 0,
-        "pipeline_value": db.query(DBLead).filter(DBLead.status == "INTERESTED").count() * 1000,
-        "new_leads_today": new_leads_today
+        "task_completion_rate": task_completion_rate,
+        "pipeline_value": pipeline_value,
+        "new_leads_today": leads_stats.new_today or 0
     }
 
 @app.get("/api/v1/admin/stats")
 def get_stats(db: Session = Depends(get_db)):
     # Optimized counters for dashboard
-    total_leads = db.query(DBLead).count()
-    qualified_leads = db.query(DBLead).filter(DBLead.tier.in_(["Tier A", "Tier B"])).count()
-    hot_leads = db.query(DBLead).filter(DBLead.heat_status == "Hot").count()
+    today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     
-    new_leads_today = db.query(DBLead).filter(
-        DBLead.created_at >= datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    ).count()
+    stats = db.query(
+        func.count(DBLead.id).label("total"),
+        func.sum(case((DBLead.tier.in_(["Tier A", "Tier B"]), 1), else_=0)).label("qualified"),
+        func.sum(case((DBLead.heat_status == "Hot", 1), else_=0)).label("hot"),
+        func.sum(case((DBLead.created_at >= today_start, 1), else_=0)).label("new_today"),
+        func.sum(case((DBLead.status == "CONTACTED", 1), else_=0)).label("contacted")
+    ).first()
     
     pending_tasks = db.query(DBTask).filter(DBTask.status != "Done").count()
     
-    # Calculate a simple conversion rate if possible
-    contacted = db.query(DBLead).filter(DBLead.status == "CONTACTED").count()
+    total_leads = stats.total or 0
+    contacted = stats.contacted or 0
+    
     conversion_rate = (contacted / total_leads * 100) if total_leads > 0 else 0.0
     
     return {
         "total_leads": total_leads,
-        "new_leads_today": new_leads_today,
-        "qualified_leads": qualified_leads,
-        "hot_leads": hot_leads,
+        "new_leads_today": stats.new_today or 0,
+        "qualified_leads": stats.qualified or 0,
+        "hot_leads": stats.hot or 0,
         "pending_tasks": pending_tasks,
         "conversion_rate": round(conversion_rate, 1)
     }

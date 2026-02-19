@@ -66,7 +66,7 @@ export function NavMain({
                     className="h-10 rounded-lg px-3 transition-colors hover:bg-accent/50 focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-1"
                   >
                     <Link href={item.url} className="flex items-center gap-3">
-                      {item.icon ? <item.icon className="!size-5" /> : null}
+                      {item.icon ? <item.icon className="size-5!" /> : null}
                       <span className="font-medium">{item.title}</span>
                     </Link>
                   </SidebarMenuButton>

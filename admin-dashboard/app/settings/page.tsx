@@ -280,536 +280,539 @@ export default function SettingsPage() {
   return (
     <AppShell contentClassName="gap-6">
       <div className="flex flex-1 flex-col gap-6">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <h2 className="text-3xl font-bold tracking-tight">Parametres</h2>
-            <div className="flex flex-wrap items-center gap-2">
-              <Button onClick={() => setSecretsModalOpen(true)} variant="secondary">
-                Gerer cles ENV
-              </Button>
-              <ExportCsvButton entity="systems" label="Export systemes" />
-              <Button asChild variant="outline">
-                <Link href="/systems">Console systemes</Link>
-              </Button>
-              <Button asChild variant="outline">
-                <Link href="/settings/dev">Mode dev</Link>
-              </Button>
-              <Button asChild variant="outline">
-                <Link href="/settings/team">Gerer equipe</Link>
-              </Button>
-            </div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="text-3xl font-bold tracking-tight">Parametres</h2>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button onClick={() => setSecretsModalOpen(true)} variant="secondary">
+              Gerer cles ENV
+            </Button>
+            <ExportCsvButton entity="systems" label="Export systemes" />
+            <Button asChild variant="outline">
+              <Link href="/systems">Console systemes</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/settings/dev">Mode dev</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/settings/team">Gerer equipe</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/settings/changelog">Changelog</Link>
+            </Button>
           </div>
-          {error ? (
-            <ErrorState title="Impossible de charger les parametres." onRetry={() => void mutate()} />
-          ) : null}
-          {isLoading ? (
-            <div className="space-y-3">
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
-            </div>
-          ) : (
-            <form onSubmit={onSubmit} className="max-w-4xl space-y-6 rounded-xl border p-5">
-              <h3 className="text-lg font-semibold">Configuration generale</h3>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="organization_name">Organisation</Label>
-                  <Input
-                    id="organization_name"
-                    value={form.organization_name}
-                    onChange={(event) => updateField("organization_name", event.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="support_email">Email support</Label>
-                  <Input
-                    id="support_email"
-                    type="email"
-                    value={form.support_email}
-                    onChange={(event) => updateField("support_email", event.target.value)}
-                    required
-                  />
-                </div>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="locale">Locale</Label>
-                  <Input
-                    id="locale"
-                    value={form.locale}
-                    onChange={(event) => updateField("locale", event.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="timezone">Fuseau horaire</Label>
-                  <Input
-                    id="timezone"
-                    value={form.timezone}
-                    onChange={(event) => updateField("timezone", event.target.value)}
-                    required
-                  />
-                </div>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <div className="space-y-2">
-                  <Label htmlFor="default_page_size">Taille page</Label>
-                  <Input
-                    id="default_page_size"
-                    type="number"
-                    min={5}
-                    max={200}
-                    value={form.default_page_size}
-                    onChange={(event) => updateField("default_page_size", Number(event.target.value))}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="dashboard_refresh_seconds">Refresh dashboard (s)</Label>
-                  <Input
-                    id="dashboard_refresh_seconds"
-                    type="number"
-                    min={10}
-                    max={3600}
-                    value={form.dashboard_refresh_seconds}
-                    onChange={(event) =>
-                      updateField("dashboard_refresh_seconds", Number(event.target.value))
-                    }
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Theme</Label>
-                  <Select
-                    value={form.theme}
-                    onValueChange={(value) => updateField("theme", value as SettingsPayload["theme"])}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="system">Systeme</SelectItem>
-                      <SelectItem value="light">Clair</SelectItem>
-                      <SelectItem value="dark">Sombre</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Mode refresh</Label>
-                  <Select
-                    value={form.default_refresh_mode}
-                    onValueChange={(value) =>
-                      updateField("default_refresh_mode", value as SettingsPayload["default_refresh_mode"])
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="polling">Automatique</SelectItem>
-                      <SelectItem value="manual">Manuel</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="notif-email"
-                    checked={form.notifications.email}
-                    onCheckedChange={(checked) =>
-                      updateField("notifications", {
-                        ...form.notifications,
-                        email: Boolean(checked),
-                      })
-                    }
-                  />
-                  <Label htmlFor="notif-email">Notifications email</Label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="notif-app"
-                    checked={form.notifications.in_app}
-                    onCheckedChange={(checked) =>
-                      updateField("notifications", {
-                        ...form.notifications,
-                        in_app: Boolean(checked),
-                      })
-                    }
-                  />
-                  <Label htmlFor="notif-app">Notifications in-app</Label>
-                </div>
-              </div>
-              <div className="flex justify-end">
-                <Button type="submit" disabled={isSaving}>
-                  {isSaving ? "Enregistrement..." : "Enregistrer"}
-                </Button>
-              </div>
-            </form>
-          )}
-
-          <div className="max-w-4xl space-y-4 rounded-xl border p-5">
-            <h3 className="text-lg font-semibold">Integrations</h3>
-            <p className="text-sm text-muted-foreground">
-              Focus gratuit / free tier: DuckDuckGo (gratuit), Perplexity (credits d&apos;essai), Firecrawl (free tier).
-            </p>
+        </div>
+        {error ? (
+          <ErrorState title="Impossible de charger les parametres." onRetry={() => void mutate()} />
+        ) : null}
+        {isLoading ? (
+          <div className="space-y-3">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+        ) : (
+          <form onSubmit={onSubmit} className="max-w-4xl space-y-6 rounded-xl border p-5">
+            <h3 className="text-lg font-semibold">Configuration generale</h3>
             <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-3 rounded-lg border p-3">
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="slack-enabled"
-                    checked={integrationForm.slackEnabled}
-                    onCheckedChange={(checked) =>
-                      setIntegrationForm((current) => ({
-                        ...current,
-                        slackEnabled: Boolean(checked),
-                      }))
-                    }
-                  />
-                  <Label htmlFor="slack-enabled">Slack active</Label>
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="organization_name">Organisation</Label>
                 <Input
-                  placeholder="Slack webhook URL"
-                  value={integrationForm.slackWebhook}
-                  disabled={!integrationForm.slackEnabled}
-                  className={!integrationForm.slackEnabled ? "opacity-60" : ""}
+                  id="organization_name"
+                  value={form.organization_name}
+                  onChange={(event) => updateField("organization_name", event.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="support_email">Email support</Label>
+                <Input
+                  id="support_email"
+                  type="email"
+                  value={form.support_email}
+                  onChange={(event) => updateField("support_email", event.target.value)}
+                  required
+                />
+              </div>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="locale">Locale</Label>
+                <Input
+                  id="locale"
+                  value={form.locale}
+                  onChange={(event) => updateField("locale", event.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="timezone">Fuseau horaire</Label>
+                <Input
+                  id="timezone"
+                  value={form.timezone}
+                  onChange={(event) => updateField("timezone", event.target.value)}
+                  required
+                />
+              </div>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="space-y-2">
+                <Label htmlFor="default_page_size">Taille page</Label>
+                <Input
+                  id="default_page_size"
+                  type="number"
+                  min={5}
+                  max={200}
+                  value={form.default_page_size}
+                  onChange={(event) => updateField("default_page_size", Number(event.target.value))}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="dashboard_refresh_seconds">Refresh dashboard (s)</Label>
+                <Input
+                  id="dashboard_refresh_seconds"
+                  type="number"
+                  min={10}
+                  max={3600}
+                  value={form.dashboard_refresh_seconds}
                   onChange={(event) =>
+                    updateField("dashboard_refresh_seconds", Number(event.target.value))
+                  }
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Theme</Label>
+                <Select
+                  value={form.theme}
+                  onValueChange={(value) => updateField("theme", value as SettingsPayload["theme"])}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="system">Systeme</SelectItem>
+                    <SelectItem value="light">Clair</SelectItem>
+                    <SelectItem value="dark">Sombre</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Mode refresh</Label>
+                <Select
+                  value={form.default_refresh_mode}
+                  onValueChange={(value) =>
+                    updateField("default_refresh_mode", value as SettingsPayload["default_refresh_mode"])
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="polling">Automatique</SelectItem>
+                    <SelectItem value="manual">Manuel</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="notif-email"
+                  checked={form.notifications.email}
+                  onCheckedChange={(checked) =>
+                    updateField("notifications", {
+                      ...form.notifications,
+                      email: Boolean(checked),
+                    })
+                  }
+                />
+                <Label htmlFor="notif-email">Notifications email</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="notif-app"
+                  checked={form.notifications.in_app}
+                  onCheckedChange={(checked) =>
+                    updateField("notifications", {
+                      ...form.notifications,
+                      in_app: Boolean(checked),
+                    })
+                  }
+                />
+                <Label htmlFor="notif-app">Notifications in-app</Label>
+              </div>
+            </div>
+            <div className="flex justify-end">
+              <Button type="submit" disabled={isSaving}>
+                {isSaving ? "Enregistrement..." : "Enregistrer"}
+              </Button>
+            </div>
+          </form>
+        )}
+
+        <div className="max-w-4xl space-y-4 rounded-xl border p-5">
+          <h3 className="text-lg font-semibold">Integrations</h3>
+          <p className="text-sm text-muted-foreground">
+            Focus gratuit / free tier: DuckDuckGo (gratuit), Perplexity (credits d&apos;essai), Firecrawl (free tier).
+          </p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-3 rounded-lg border p-3">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="slack-enabled"
+                  checked={integrationForm.slackEnabled}
+                  onCheckedChange={(checked) =>
                     setIntegrationForm((current) => ({
                       ...current,
-                      slackWebhook: event.target.value,
+                      slackEnabled: Boolean(checked),
                     }))
                   }
                 />
-                {!integrationForm.slackEnabled ? (
-                  <p className="text-xs text-muted-foreground">Activez Slack pour editer ce champ.</p>
-                ) : null}
+                <Label htmlFor="slack-enabled">Slack active</Label>
               </div>
-              <div className="space-y-3 rounded-lg border p-3">
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="zapier-enabled"
-                    checked={integrationForm.zapierEnabled}
-                    onCheckedChange={(checked) =>
-                      setIntegrationForm((current) => ({
-                        ...current,
-                        zapierEnabled: Boolean(checked),
-                      }))
-                    }
-                  />
-                  <Label htmlFor="zapier-enabled">Zapier actif</Label>
-                </div>
-                <Input
-                  placeholder="Zap ID"
-                  value={integrationForm.zapierZapId}
-                  disabled={!integrationForm.zapierEnabled}
-                  className={!integrationForm.zapierEnabled ? "opacity-60" : ""}
-                  onChange={(event) =>
+              <Input
+                placeholder="Slack webhook URL"
+                value={integrationForm.slackWebhook}
+                disabled={!integrationForm.slackEnabled}
+                className={!integrationForm.slackEnabled ? "opacity-60" : ""}
+                onChange={(event) =>
+                  setIntegrationForm((current) => ({
+                    ...current,
+                    slackWebhook: event.target.value,
+                  }))
+                }
+              />
+              {!integrationForm.slackEnabled ? (
+                <p className="text-xs text-muted-foreground">Activez Slack pour editer ce champ.</p>
+              ) : null}
+            </div>
+            <div className="space-y-3 rounded-lg border p-3">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="zapier-enabled"
+                  checked={integrationForm.zapierEnabled}
+                  onCheckedChange={(checked) =>
                     setIntegrationForm((current) => ({
                       ...current,
-                      zapierZapId: event.target.value,
+                      zapierEnabled: Boolean(checked),
                     }))
                   }
                 />
-                {!integrationForm.zapierEnabled ? (
-                  <p className="text-xs text-muted-foreground">Activez Zapier pour editer ce champ.</p>
-                ) : null}
+                <Label htmlFor="zapier-enabled">Zapier actif</Label>
               </div>
-              <div className="space-y-3 rounded-lg border p-3">
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="duckduckgo-enabled"
-                    checked={integrationForm.duckduckgoEnabled}
-                    onCheckedChange={(checked) =>
-                      setIntegrationForm((current) => ({
-                        ...current,
-                        duckduckgoEnabled: Boolean(checked),
-                      }))
-                    }
-                  />
-                  <Label htmlFor="duckduckgo-enabled">DuckDuckGo web search (gratuit)</Label>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Aucun token requis. Fournit la base de recherche web avancee.
-                </p>
-              </div>
-              <div className="space-y-3 rounded-lg border p-3">
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="perplexity-enabled"
-                    checked={integrationForm.perplexityEnabled}
-                    onCheckedChange={(checked) =>
-                      setIntegrationForm((current) => ({
-                        ...current,
-                        perplexityEnabled: Boolean(checked),
-                      }))
-                    }
-                  />
-                  <Label htmlFor="perplexity-enabled">Perplexity (research competitor)</Label>
-                </div>
-                <Input
-                  placeholder="Perplexity API key (optionnel)"
-                  value={integrationForm.perplexityApiKey}
-                  disabled={!integrationForm.perplexityEnabled}
-                  className={!integrationForm.perplexityEnabled ? "opacity-60" : ""}
-                  onChange={(event) =>
+              <Input
+                placeholder="Zap ID"
+                value={integrationForm.zapierZapId}
+                disabled={!integrationForm.zapierEnabled}
+                className={!integrationForm.zapierEnabled ? "opacity-60" : ""}
+                onChange={(event) =>
+                  setIntegrationForm((current) => ({
+                    ...current,
+                    zapierZapId: event.target.value,
+                  }))
+                }
+              />
+              {!integrationForm.zapierEnabled ? (
+                <p className="text-xs text-muted-foreground">Activez Zapier pour editer ce champ.</p>
+              ) : null}
+            </div>
+            <div className="space-y-3 rounded-lg border p-3">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="duckduckgo-enabled"
+                  checked={integrationForm.duckduckgoEnabled}
+                  onCheckedChange={(checked) =>
                     setIntegrationForm((current) => ({
                       ...current,
-                      perplexityApiKey: event.target.value,
+                      duckduckgoEnabled: Boolean(checked),
                     }))
                   }
                 />
-                <Input
-                  placeholder="Modele (ex: sonar)"
-                  value={integrationForm.perplexityModel}
-                  disabled={!integrationForm.perplexityEnabled}
-                  className={!integrationForm.perplexityEnabled ? "opacity-60" : ""}
-                  onChange={(event) =>
+                <Label htmlFor="duckduckgo-enabled">DuckDuckGo web search (gratuit)</Label>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Aucun token requis. Fournit la base de recherche web avancee.
+              </p>
+            </div>
+            <div className="space-y-3 rounded-lg border p-3">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="perplexity-enabled"
+                  checked={integrationForm.perplexityEnabled}
+                  onCheckedChange={(checked) =>
                     setIntegrationForm((current) => ({
                       ...current,
-                      perplexityModel: event.target.value,
+                      perplexityEnabled: Boolean(checked),
                     }))
                   }
                 />
-                {!integrationForm.perplexityEnabled ? (
-                  <p className="text-xs text-muted-foreground">Activez Perplexity pour editer ces champs.</p>
-                ) : null}
+                <Label htmlFor="perplexity-enabled">Perplexity (research competitor)</Label>
               </div>
-              <div className="space-y-3 rounded-lg border p-3">
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="firecrawl-enabled"
-                    checked={integrationForm.firecrawlEnabled}
-                    onCheckedChange={(checked) =>
-                      setIntegrationForm((current) => ({
-                        ...current,
-                        firecrawlEnabled: Boolean(checked),
-                      }))
-                    }
-                  />
-                  <Label htmlFor="firecrawl-enabled">Firecrawl (crawler competitor)</Label>
-                </div>
+              <Input
+                placeholder="Perplexity API key (optionnel)"
+                value={integrationForm.perplexityApiKey}
+                disabled={!integrationForm.perplexityEnabled}
+                className={!integrationForm.perplexityEnabled ? "opacity-60" : ""}
+                onChange={(event) =>
+                  setIntegrationForm((current) => ({
+                    ...current,
+                    perplexityApiKey: event.target.value,
+                  }))
+                }
+              />
+              <Input
+                placeholder="Modele (ex: sonar)"
+                value={integrationForm.perplexityModel}
+                disabled={!integrationForm.perplexityEnabled}
+                className={!integrationForm.perplexityEnabled ? "opacity-60" : ""}
+                onChange={(event) =>
+                  setIntegrationForm((current) => ({
+                    ...current,
+                    perplexityModel: event.target.value,
+                  }))
+                }
+              />
+              {!integrationForm.perplexityEnabled ? (
+                <p className="text-xs text-muted-foreground">Activez Perplexity pour editer ces champs.</p>
+              ) : null}
+            </div>
+            <div className="space-y-3 rounded-lg border p-3">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="firecrawl-enabled"
+                  checked={integrationForm.firecrawlEnabled}
+                  onCheckedChange={(checked) =>
+                    setIntegrationForm((current) => ({
+                      ...current,
+                      firecrawlEnabled: Boolean(checked),
+                    }))
+                  }
+                />
+                <Label htmlFor="firecrawl-enabled">Firecrawl (crawler competitor)</Label>
+              </div>
+              <Input
+                placeholder="Firecrawl API key (optionnel)"
+                value={integrationForm.firecrawlApiKey}
+                disabled={!integrationForm.firecrawlEnabled}
+                className={!integrationForm.firecrawlEnabled ? "opacity-60" : ""}
+                onChange={(event) =>
+                  setIntegrationForm((current) => ({
+                    ...current,
+                    firecrawlApiKey: event.target.value,
+                  }))
+                }
+              />
+              <div className="grid grid-cols-2 gap-2">
                 <Input
-                  placeholder="Firecrawl API key (optionnel)"
-                  value={integrationForm.firecrawlApiKey}
+                  placeholder="Country (us)"
+                  value={integrationForm.firecrawlCountry}
                   disabled={!integrationForm.firecrawlEnabled}
                   className={!integrationForm.firecrawlEnabled ? "opacity-60" : ""}
                   onChange={(event) =>
                     setIntegrationForm((current) => ({
                       ...current,
-                      firecrawlApiKey: event.target.value,
-                    }))
-                  }
-                />
-                <div className="grid grid-cols-2 gap-2">
-                  <Input
-                    placeholder="Country (us)"
-                    value={integrationForm.firecrawlCountry}
-                    disabled={!integrationForm.firecrawlEnabled}
-                    className={!integrationForm.firecrawlEnabled ? "opacity-60" : ""}
-                    onChange={(event) =>
-                      setIntegrationForm((current) => ({
-                        ...current,
-                        firecrawlCountry: event.target.value,
-                      }))
-                    }
-                  />
-                  <Input
-                    placeholder="Lang (en)"
-                    value={integrationForm.firecrawlLang}
-                    disabled={!integrationForm.firecrawlEnabled}
-                    className={!integrationForm.firecrawlEnabled ? "opacity-60" : ""}
-                    onChange={(event) =>
-                      setIntegrationForm((current) => ({
-                        ...current,
-                        firecrawlLang: event.target.value,
-                      }))
-                    }
-                  />
-                </div>
-                {!integrationForm.firecrawlEnabled ? (
-                  <p className="text-xs text-muted-foreground">Activez Firecrawl pour editer ces champs.</p>
-                ) : null}
-              </div>
-              <div className="space-y-3 rounded-lg border p-3 sm:col-span-2">
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="ollama-enabled"
-                    checked={integrationForm.ollamaEnabled}
-                    onCheckedChange={(checked) =>
-                      setIntegrationForm((current) => ({
-                        ...current,
-                        ollamaEnabled: Boolean(checked),
-                      }))
-                    }
-                  />
-                  <Label htmlFor="ollama-enabled">Ollama heberge (open source AI)</Label>
-                </div>
-                <Input
-                  placeholder="Base URL privee (ex: http://ollama.internal:11434)"
-                  value={integrationForm.ollamaBaseUrl}
-                  disabled={!integrationForm.ollamaEnabled}
-                  className={!integrationForm.ollamaEnabled ? "opacity-60" : ""}
-                  onChange={(event) =>
-                    setIntegrationForm((current) => ({
-                      ...current,
-                      ollamaBaseUrl: event.target.value,
+                      firecrawlCountry: event.target.value,
                     }))
                   }
                 />
                 <Input
-                  placeholder="API key Ollama (optionnel)"
-                  value={integrationForm.ollamaApiKey}
-                  disabled={!integrationForm.ollamaEnabled}
-                  className={!integrationForm.ollamaEnabled ? "opacity-60" : ""}
+                  placeholder="Lang (en)"
+                  value={integrationForm.firecrawlLang}
+                  disabled={!integrationForm.firecrawlEnabled}
+                  className={!integrationForm.firecrawlEnabled ? "opacity-60" : ""}
                   onChange={(event) =>
                     setIntegrationForm((current) => ({
                       ...current,
-                      ollamaApiKey: event.target.value,
+                      firecrawlLang: event.target.value,
                     }))
                   }
                 />
-                <div className="grid gap-2 sm:grid-cols-3">
-                  <Input
-                    placeholder="Modele research"
-                    value={integrationForm.ollamaModelResearch}
-                    disabled={!integrationForm.ollamaEnabled}
-                    className={!integrationForm.ollamaEnabled ? "opacity-60" : ""}
-                    onChange={(event) =>
-                      setIntegrationForm((current) => ({
-                        ...current,
-                        ollamaModelResearch: event.target.value,
-                      }))
-                    }
-                  />
-                  <Input
-                    placeholder="Modele content"
-                    value={integrationForm.ollamaModelContent}
-                    disabled={!integrationForm.ollamaEnabled}
-                    className={!integrationForm.ollamaEnabled ? "opacity-60" : ""}
-                    onChange={(event) =>
-                      setIntegrationForm((current) => ({
-                        ...current,
-                        ollamaModelContent: event.target.value,
-                      }))
-                    }
-                  />
-                  <Input
-                    placeholder="Modele assistant"
-                    value={integrationForm.ollamaModelAssistant}
-                    disabled={!integrationForm.ollamaEnabled}
-                    className={!integrationForm.ollamaEnabled ? "opacity-60" : ""}
-                    onChange={(event) =>
-                      setIntegrationForm((current) => ({
-                        ...current,
-                        ollamaModelAssistant: event.target.value,
-                      }))
-                    }
-                  />
-                </div>
-                <div className="grid gap-2 sm:grid-cols-3">
-                  <Input
-                    placeholder="Temperature (0.2)"
-                    value={integrationForm.ollamaTemperature}
-                    disabled={!integrationForm.ollamaEnabled}
-                    className={!integrationForm.ollamaEnabled ? "opacity-60" : ""}
-                    onChange={(event) =>
-                      setIntegrationForm((current) => ({
-                        ...current,
-                        ollamaTemperature: event.target.value,
-                      }))
-                    }
-                  />
-                  <Input
-                    placeholder="Max tokens (700)"
-                    value={integrationForm.ollamaMaxTokens}
-                    disabled={!integrationForm.ollamaEnabled}
-                    className={!integrationForm.ollamaEnabled ? "opacity-60" : ""}
-                    onChange={(event) =>
-                      setIntegrationForm((current) => ({
-                        ...current,
-                        ollamaMaxTokens: event.target.value,
-                      }))
-                    }
-                  />
-                  <Input
-                    placeholder="Timeout sec (25)"
-                    value={integrationForm.ollamaTimeoutSeconds}
-                    disabled={!integrationForm.ollamaEnabled}
-                    className={!integrationForm.ollamaEnabled ? "opacity-60" : ""}
-                    onChange={(event) =>
-                      setIntegrationForm((current) => ({
-                        ...current,
-                        ollamaTimeoutSeconds: event.target.value,
-                      }))
-                    }
-                  />
-                </div>
-                {!integrationForm.ollamaEnabled ? (
-                  <p className="text-xs text-muted-foreground">Activez Ollama pour editer ces champs.</p>
-                ) : null}
               </div>
+              {!integrationForm.firecrawlEnabled ? (
+                <p className="text-xs text-muted-foreground">Activez Firecrawl pour editer ces champs.</p>
+              ) : null}
             </div>
-            <Button variant="outline" onClick={saveIntegrations} disabled={savingIntegrations}>
-              {savingIntegrations ? "Sauvegarde..." : "Sauvegarder integrations"}
-            </Button>
-          </div>
-
-          <div className="max-w-4xl space-y-4 rounded-xl border p-5">
-            <h3 className="text-lg font-semibold">Webhooks</h3>
-            <form onSubmit={createWebhook} className="grid gap-3 sm:grid-cols-3">
-              <Input
-                placeholder="Nom"
-                value={webhookForm.name}
-                onChange={(event) =>
-                  setWebhookForm((current) => ({ ...current, name: event.target.value }))
-                }
-                required
-              />
-              <Input
-                placeholder="https://..."
-                value={webhookForm.url}
-                onChange={(event) =>
-                  setWebhookForm((current) => ({ ...current, url: event.target.value }))
-                }
-                required
-              />
-              <Input
-                placeholder="events separes par des virgules"
-                value={webhookForm.events}
-                onChange={(event) =>
-                  setWebhookForm((current) => ({ ...current, events: event.target.value }))
-                }
-                required
-              />
-              <div className="sm:col-span-3">
-                <Button type="submit" disabled={creatingWebhook}>
-                  {creatingWebhook ? "Creation..." : "Ajouter webhook"}
-                </Button>
+            <div className="space-y-3 rounded-lg border p-3 sm:col-span-2">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="ollama-enabled"
+                  checked={integrationForm.ollamaEnabled}
+                  onCheckedChange={(checked) =>
+                    setIntegrationForm((current) => ({
+                      ...current,
+                      ollamaEnabled: Boolean(checked),
+                    }))
+                  }
+                />
+                <Label htmlFor="ollama-enabled">Ollama heberge (open source AI)</Label>
               </div>
-            </form>
-            <div className="space-y-2">
-              {(webhooks?.items || []).map((webhook) => (
-                <div
-                  key={webhook.id}
-                  className="flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div>
-                    <p className="text-sm font-medium">{webhook.name}</p>
-                    <p className="text-xs text-muted-foreground">{webhook.url}</p>
-                    <p className="text-xs text-muted-foreground">
-                      events: {webhook.events.join(", ")} | {webhook.enabled ? "active" : "desactive"}
-                    </p>
-                  </div>
-                  <Button variant="destructive" size="sm" onClick={() => void deleteWebhook(webhook.id)}>
-                    Supprimer
-                  </Button>
-                </div>
-              ))}
-              {!webhooks || webhooks.items.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Aucun webhook configure.</p>
+              <Input
+                placeholder="Base URL privee (ex: http://ollama.internal:11434)"
+                value={integrationForm.ollamaBaseUrl}
+                disabled={!integrationForm.ollamaEnabled}
+                className={!integrationForm.ollamaEnabled ? "opacity-60" : ""}
+                onChange={(event) =>
+                  setIntegrationForm((current) => ({
+                    ...current,
+                    ollamaBaseUrl: event.target.value,
+                  }))
+                }
+              />
+              <Input
+                placeholder="API key Ollama (optionnel)"
+                value={integrationForm.ollamaApiKey}
+                disabled={!integrationForm.ollamaEnabled}
+                className={!integrationForm.ollamaEnabled ? "opacity-60" : ""}
+                onChange={(event) =>
+                  setIntegrationForm((current) => ({
+                    ...current,
+                    ollamaApiKey: event.target.value,
+                  }))
+                }
+              />
+              <div className="grid gap-2 sm:grid-cols-3">
+                <Input
+                  placeholder="Modele research"
+                  value={integrationForm.ollamaModelResearch}
+                  disabled={!integrationForm.ollamaEnabled}
+                  className={!integrationForm.ollamaEnabled ? "opacity-60" : ""}
+                  onChange={(event) =>
+                    setIntegrationForm((current) => ({
+                      ...current,
+                      ollamaModelResearch: event.target.value,
+                    }))
+                  }
+                />
+                <Input
+                  placeholder="Modele content"
+                  value={integrationForm.ollamaModelContent}
+                  disabled={!integrationForm.ollamaEnabled}
+                  className={!integrationForm.ollamaEnabled ? "opacity-60" : ""}
+                  onChange={(event) =>
+                    setIntegrationForm((current) => ({
+                      ...current,
+                      ollamaModelContent: event.target.value,
+                    }))
+                  }
+                />
+                <Input
+                  placeholder="Modele assistant"
+                  value={integrationForm.ollamaModelAssistant}
+                  disabled={!integrationForm.ollamaEnabled}
+                  className={!integrationForm.ollamaEnabled ? "opacity-60" : ""}
+                  onChange={(event) =>
+                    setIntegrationForm((current) => ({
+                      ...current,
+                      ollamaModelAssistant: event.target.value,
+                    }))
+                  }
+                />
+              </div>
+              <div className="grid gap-2 sm:grid-cols-3">
+                <Input
+                  placeholder="Temperature (0.2)"
+                  value={integrationForm.ollamaTemperature}
+                  disabled={!integrationForm.ollamaEnabled}
+                  className={!integrationForm.ollamaEnabled ? "opacity-60" : ""}
+                  onChange={(event) =>
+                    setIntegrationForm((current) => ({
+                      ...current,
+                      ollamaTemperature: event.target.value,
+                    }))
+                  }
+                />
+                <Input
+                  placeholder="Max tokens (700)"
+                  value={integrationForm.ollamaMaxTokens}
+                  disabled={!integrationForm.ollamaEnabled}
+                  className={!integrationForm.ollamaEnabled ? "opacity-60" : ""}
+                  onChange={(event) =>
+                    setIntegrationForm((current) => ({
+                      ...current,
+                      ollamaMaxTokens: event.target.value,
+                    }))
+                  }
+                />
+                <Input
+                  placeholder="Timeout sec (25)"
+                  value={integrationForm.ollamaTimeoutSeconds}
+                  disabled={!integrationForm.ollamaEnabled}
+                  className={!integrationForm.ollamaEnabled ? "opacity-60" : ""}
+                  onChange={(event) =>
+                    setIntegrationForm((current) => ({
+                      ...current,
+                      ollamaTimeoutSeconds: event.target.value,
+                    }))
+                  }
+                />
+              </div>
+              {!integrationForm.ollamaEnabled ? (
+                <p className="text-xs text-muted-foreground">Activez Ollama pour editer ces champs.</p>
               ) : null}
             </div>
           </div>
+          <Button variant="outline" onClick={saveIntegrations} disabled={savingIntegrations}>
+            {savingIntegrations ? "Sauvegarde..." : "Sauvegarder integrations"}
+          </Button>
+        </div>
+
+        <div className="max-w-4xl space-y-4 rounded-xl border p-5">
+          <h3 className="text-lg font-semibold">Webhooks</h3>
+          <form onSubmit={createWebhook} className="grid gap-3 sm:grid-cols-3">
+            <Input
+              placeholder="Nom"
+              value={webhookForm.name}
+              onChange={(event) =>
+                setWebhookForm((current) => ({ ...current, name: event.target.value }))
+              }
+              required
+            />
+            <Input
+              placeholder="https://..."
+              value={webhookForm.url}
+              onChange={(event) =>
+                setWebhookForm((current) => ({ ...current, url: event.target.value }))
+              }
+              required
+            />
+            <Input
+              placeholder="events separes par des virgules"
+              value={webhookForm.events}
+              onChange={(event) =>
+                setWebhookForm((current) => ({ ...current, events: event.target.value }))
+              }
+              required
+            />
+            <div className="sm:col-span-3">
+              <Button type="submit" disabled={creatingWebhook}>
+                {creatingWebhook ? "Creation..." : "Ajouter webhook"}
+              </Button>
+            </div>
+          </form>
+          <div className="space-y-2">
+            {(webhooks?.items || []).map((webhook) => (
+              <div
+                key={webhook.id}
+                className="flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div>
+                  <p className="text-sm font-medium">{webhook.name}</p>
+                  <p className="text-xs text-muted-foreground">{webhook.url}</p>
+                  <p className="text-xs text-muted-foreground">
+                    events: {webhook.events.join(", ")} | {webhook.enabled ? "active" : "desactive"}
+                  </p>
+                </div>
+                <Button variant="destructive" size="sm" onClick={() => void deleteWebhook(webhook.id)}>
+                  Supprimer
+                </Button>
+              </div>
+            ))}
+            {!webhooks || webhooks.items.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Aucun webhook configure.</p>
+            ) : null}
+          </div>
+        </div>
       </div>
       <SecretsModal open={secretsModalOpen} onOpenChange={setSecretsModalOpen} />
     </AppShell>

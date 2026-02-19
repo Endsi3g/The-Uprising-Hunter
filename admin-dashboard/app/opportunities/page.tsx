@@ -464,7 +464,7 @@ export default function OpportunitiesPage() {
             <DndContext sensors={sensors} onDragEnd={(event) => void drop(event)}>
               <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1 md:grid md:gap-4 md:overflow-visible xl:grid-cols-5">
                 {STAGES.map((stage) => (
-                  <div key={stage} className="min-w-[280px] snap-start space-y-2 md:min-w-0">
+                  <div key={stage} className="flex min-h-48 flex-col rounded-lg bg-muted/50 p-2 md:min-w-0">
                     <div className="flex items-center justify-between"><h3 className="font-semibold">{stage}</h3><Badge variant="outline">{byStage[stage].length}</Badge></div>
                     <DropCol stage={stage}>
                       <div className="space-y-3">
@@ -481,6 +481,7 @@ export default function OpportunitiesPage() {
                                 <div className="flex items-center gap-1.5">
                                   <button
                                     type="button"
+                                    title="WhatsApp"
                                     className="rounded p-1 hover:bg-accent disabled:opacity-30"
                                     disabled={!row.prospect?.phone}
                                     onClick={() => {
@@ -492,6 +493,7 @@ export default function OpportunitiesPage() {
                                   </button>
                                   <button
                                     type="button"
+                                    title="SMS"
                                     className="rounded p-1 hover:bg-accent disabled:opacity-30"
                                     disabled={!row.prospect?.phone}
                                     onClick={() => {
@@ -503,6 +505,7 @@ export default function OpportunitiesPage() {
                                   </button>
                                   <button
                                     type="button"
+                                    title="Email"
                                     className="rounded p-1 hover:bg-accent disabled:opacity-30"
                                     disabled={!row.prospect?.email}
                                     onClick={() => {
@@ -514,6 +517,7 @@ export default function OpportunitiesPage() {
                                   </button>
                                   <button
                                     type="button"
+                                    title="Call"
                                     className="rounded p-1 hover:bg-accent disabled:opacity-30"
                                     disabled={!row.prospect?.phone}
                                     onClick={() => {

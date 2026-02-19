@@ -45,9 +45,30 @@ Bienvenue dans le cockpit **Uprising**. Cette plateforme full-stack automatise l
 
 ---
 
-## 🚦 Activation Système
+## 🚀 Activation Système (Full Stack)
 
-### Cockpit (Frontend)
+Le cockpit complet (Frontend + Backend + Supabase + Monitoring) se lance avec une seule commande :
+
+```powershell
+./launch_full_stack.ps1
+```
+
+Cela démarrera automatiquement :
+
+- **Supabase** (Docker local)
+- **Monitoring** (Prometheus & Grafana)
+- **Backend API** (FastAPI sur port 8000)
+- **Frontend** (Next.js sur port 3000)
+
+### Gestion Git
+
+Le script vous proposera également de `commit` et `push` vos changements, ce qui mettra à jour automatiquement le fichier `CHANGELOG.md`.
+
+---
+
+### Démarrage Manuel (Legacy)
+
+#### Cockpit (Frontend)
 
 ```bash
 cd admin-dashboard
@@ -55,13 +76,13 @@ npm install
 npm run dev
 ```
 
-### Réacteur (Backend)
+#### Réacteur (Backend)
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate
 pip install -r requirements.txt
-uvicorn src.admin.app:app --reload
+uvicorn src.api.server:app --reload
 ```
 
 ---

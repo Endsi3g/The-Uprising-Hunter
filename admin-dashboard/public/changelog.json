@@ -1,0 +1,302 @@
+[
+  {
+    "hash": "6a08a29",
+    "date": "2026-02-18",
+    "author": "Quebec SaaS",
+    "message": "test: add unit tests for workflow rules engine"
+  },
+  {
+    "hash": "d36be88",
+    "date": "2026-02-18",
+    "author": "Quebec SaaS",
+    "message": "feat: add appointment booking system, workflows engine, i18n updates and core architecture fixes"
+  },
+  {
+    "hash": "fee6f35",
+    "date": "2026-02-18",
+    "author": "Endsi3g",
+    "message": "feat: implement workflow engine and UX enhancements with toasts/spinners"
+  },
+  {
+    "hash": "8633d25",
+    "date": "2026-02-18",
+    "author": "Endsi3g",
+    "message": "feat: implement appointment booking system and i18n support"
+  },
+  {
+    "hash": "bea98f3",
+    "date": "2026-02-18",
+    "author": "Endsi3g",
+    "message": "fix(builder): implement missing landing page API routes"
+  },
+  {
+    "hash": "a8b8a50",
+    "date": "2026-02-18",
+    "author": "Quebec SaaS",
+    "message": "fix: resolve linting errors and mobile responsiveness issues"
+  },
+  {
+    "hash": "c008ea5",
+    "date": "2026-02-17",
+    "author": "Quebec SaaS",
+    "message": "feat: enhance RAG chatbot with UI redesign, source code indexing, and landing page builder"
+  },
+  {
+    "hash": "cfddd7a",
+    "date": "2026-02-17",
+    "author": "Endsi3g",
+    "message": "fix(env): update dev scripts, requirements, and verify funnel logic"
+  },
+  {
+    "hash": "d15dd11",
+    "date": "2026-02-17",
+    "author": "Quebec SaaS",
+    "message": "chore: organize root folder and update project navigation"
+  },
+  {
+    "hash": "07a9861",
+    "date": "2026-02-17",
+    "author": "Quebec SaaS",
+    "message": "mise a jour"
+  },
+  {
+    "hash": "f503a8b",
+    "date": "2026-02-17",
+    "author": "Quebec SaaS",
+    "message": "fix: improve system stability, communication tools, and UX consistency"
+  },
+  {
+    "hash": "c6a61cb",
+    "date": "2026-02-17",
+    "author": "Quebec SaaS",
+    "message": "docs: upgrade README to highlight Growth Automation Studio and new UX features"
+  },
+  {
+    "hash": "4702dc3",
+    "date": "2026-02-17",
+    "author": "Quebec SaaS",
+    "message": "feat: stable production build with UX refinements, Kanban view, and enhanced communication tools"
+  },
+  {
+    "hash": "5b20052",
+    "date": "2026-02-16",
+    "author": "Quebec SaaS",
+    "message": "refactor: optimize backend performance and simplify campaign UX"
+  },
+  {
+    "hash": "c78cd28",
+    "date": "2026-02-16",
+    "author": "Quebec SaaS",
+    "message": "resolve merge conflicts"
+  },
+  {
+    "hash": "7e1e094",
+    "date": "2026-02-16",
+    "author": "Quebec SaaS",
+    "message": "local updates before pull"
+  },
+  {
+    "hash": "a9a0b49",
+    "date": "2026-02-16",
+    "author": "Endsi3g",
+    "message": "mise a jour copmplete"
+  },
+  {
+    "hash": "155c518",
+    "date": "2026-02-16",
+    "author": "Endsi3g",
+    "message": "feat(onboarding): add post-auth onboarding flow and help relaunch"
+  },
+  {
+    "hash": "65e8a3f",
+    "date": "2026-02-16",
+    "author": "Endsi3g",
+    "message": "docs: add complete implementation plan for env keys modal, help center, and CompagnieDocs"
+  },
+  {
+    "hash": "b5ef295",
+    "date": "2026-02-16",
+    "author": "Ensieg",
+    "message": "Update README to remove introductory section"
+  },
+  {
+    "hash": "1983586",
+    "date": "2026-02-16",
+    "author": "Ensieg",
+    "message": "Revise README.md for improved structure and clarity"
+  },
+  {
+    "hash": "8b9241d",
+    "date": "2026-02-16",
+    "author": "Endsi3g",
+    "message": "Update admin dashboard and system playground components"
+  },
+  {
+    "hash": "69872f3",
+    "date": "2026-02-16",
+    "author": "Quebec SaaS",
+    "message": "feat: implement funnel system, ollama integration, and admin dashboard enhancements"
+  },
+  {
+    "hash": "c6cbe63",
+    "date": "2026-02-15",
+    "author": "Quebec SaaS",
+    "message": "mises a jours majeures ajout de beaucoup de fonctionnalitée"
+  },
+  {
+    "hash": "8a34ba6",
+    "date": "2026-02-13",
+    "author": "Endsi3g",
+    "message": "docs: add root continuation plan"
+  },
+  {
+    "hash": "d504813",
+    "date": "2026-02-13",
+    "author": "Endsi3g",
+    "message": "fix: add production render API fallback for vercel previews"
+  },
+  {
+    "hash": "77f981d",
+    "date": "2026-02-13",
+    "author": "Endsi3g",
+    "message": "chore: deploy-ready vercel frontends and render compatibility"
+  },
+  {
+    "hash": "df1f62e",
+    "date": "2026-02-13",
+    "author": "Endsi3g",
+    "message": "chore: clean root structure and document mock/testing workflow"
+  },
+  {
+    "hash": "c36c841",
+    "date": "2026-02-13",
+    "author": "Endsi3g",
+    "message": "fix: stabilize assistant request parsing and pytest temp collection"
+  },
+  {
+    "hash": "d7e7cc9",
+    "date": "2026-02-13",
+    "author": "Endsi3g",
+    "message": "chore: cleanup repo artifacts and refresh project docs"
+  },
+  {
+    "hash": "8f8861f",
+    "date": "2026-02-13",
+    "author": "Quebec SaaS",
+    "message": "docs: add frontend refactor guide"
+  },
+  {
+    "hash": "c2e0d69",
+    "date": "2026-02-13",
+    "author": "Quebec SaaS",
+    "message": "ajout fichier"
+  },
+  {
+    "hash": "1f5d2f2",
+    "date": "2026-02-13",
+    "author": "Quebec SaaS",
+    "message": "fix: implement robust region detection for supabase connection"
+  },
+  {
+    "hash": "f5b8c91",
+    "date": "2026-02-13",
+    "author": "Quebec SaaS",
+    "message": "fix(db): safer URL encoding, flush logs, and error handling for engine creation [skip netlify]"
+  },
+  {
+    "hash": "c9fa202",
+    "date": "2026-02-13",
+    "author": "Quebec SaaS",
+    "message": "fix(db): import urlunparse for Supavisor fallback logic [skip netlify]"
+  },
+  {
+    "hash": "da753b0",
+    "date": "2026-02-12",
+    "author": "Quebec SaaS",
+    "message": "fix(db): rewrite username and host for Supavisor IPv4 fallback [skip netlify]"
+  },
+  {
+    "hash": "efed476",
+    "date": "2026-02-12",
+    "author": "Quebec SaaS",
+    "message": "fix(db): add fallback to generic pooler for IPv4 forcing [skip netlify]"
+  },
+  {
+    "hash": "8db331c",
+    "date": "2026-02-12",
+    "author": "Quebec SaaS",
+    "message": "fix(db): restore db init & use hostaddr for IPv4 forcing [skip netlify]"
+  },
+  {
+    "hash": "f68cb69",
+    "date": "2026-02-12",
+    "author": "Quebec SaaS",
+    "message": "fix(db): force IPv4 resolution for Supabase to resolve Network Unreachable [skip netlify]"
+  },
+  {
+    "hash": "34e4785",
+    "date": "2026-02-12",
+    "author": "Quebec SaaS",
+    "message": "fix(cors): allow all netlify subdomains via regex & updates docs for port 6543"
+  },
+  {
+    "hash": "b28b01d",
+    "date": "2026-02-12",
+    "author": "Quebec SaaS",
+    "message": "fix(build): correct next-themes import & update supabase credentials"
+  },
+  {
+    "hash": "64ff34f",
+    "date": "2026-02-12",
+    "author": "Quebec SaaS",
+    "message": "docs: add OPERATIONS_MANUAL.md to root"
+  },
+  {
+    "hash": "b6bb10a",
+    "date": "2026-02-12",
+    "author": "Quebec SaaS",
+    "message": "fix(theme): implement next-themes to prevent flickering on login"
+  },
+  {
+    "hash": "4bdfdb7",
+    "date": "2026-02-12",
+    "author": "Quebec SaaS",
+    "message": "fix(deploy): fix second circular reference in assistant-prospect-panel.tsx (runDetail)"
+  },
+  {
+    "hash": "5a9c94d",
+    "date": "2026-02-12",
+    "author": "Quebec SaaS",
+    "message": "fix(deploy): fix circular reference in useSWR options"
+  },
+  {
+    "hash": "3fab110",
+    "date": "2026-02-12",
+    "author": "Quebec SaaS",
+    "message": "fix(deploy): hardening API client (remove double slash) + ensure strict TS fix"
+  },
+  {
+    "hash": "3425812",
+    "date": "2026-02-12",
+    "author": "Quebec SaaS",
+    "message": "fix(deploy): strict TS fix for admin-dashboard + pin Python 3.11 for Render"
+  },
+  {
+    "hash": "cbc335a",
+    "date": "2026-02-12",
+    "author": "Quebec SaaS",
+    "message": "fix(deploy): batch fixes for Netlify and Render (Node 20, psycopg2, API paths)"
+  },
+  {
+    "hash": "baa23c9",
+    "date": "2026-02-12",
+    "author": "Quebec SaaS",
+    "message": "fix: batch fixes across config, backend, frontend, and tests"
+  },
+  {
+    "hash": "2e325f0",
+    "date": "2026-02-12",
+    "author": "Quebec SaaS",
+    "message": "feat: integrate Perplexity AI research capabilities"
+  }
+]

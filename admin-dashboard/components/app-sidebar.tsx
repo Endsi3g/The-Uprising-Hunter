@@ -223,7 +223,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarMenuItem>
             <SidebarMenuButton
               asChild
-              className="data-[slot=sidebar-menu-button]:!p-1.5 hover:bg-transparent"
+              className="data-[slot=sidebar-menu-button]:p-1.5! hover:bg-transparent"
             >
               <a href="/dashboard">
                 <div className="flex aspect-square size-6 items-center justify-center rounded-lg bg-black text-white">
