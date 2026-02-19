@@ -1,5 +1,11 @@
 [
   {
+    "hash": "11ad951",
+    "date": "2026-02-18",
+    "author": "Quebec SaaS",
+    "message": "feat: add full stack launch script and monitoring"
+  },
+  {
     "hash": "6a08a29",
     "date": "2026-02-18",
     "author": "Quebec SaaS",
@@ -292,11 +298,5 @@
     "date": "2026-02-12",
     "author": "Quebec SaaS",
     "message": "fix: batch fixes across config, backend, frontend, and tests"
-  },
-  {
-    "hash": "2e325f0",
-    "date": "2026-02-12",
-    "author": "Quebec SaaS",
-    "message": "feat: integrate Perplexity AI research capabilities"
   }
 ]

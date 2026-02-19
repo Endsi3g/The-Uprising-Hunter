@@ -123,7 +123,7 @@ Nous avons mis en place une stack d'observabilité locale pour suivre les métri
     ```
 
 3. **Accès**
-    * **Grafana** : `http://localhost:3000` (Login: `admin` / Password: `admin`)
+    * **Grafana** : `http://localhost:3001` (Login: `admin` / Password: `admin`)
     * **Prometheus** : `http://localhost:9090`
 
 4. **Tableaux de bord**

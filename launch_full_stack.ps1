@@ -91,7 +91,7 @@ Write-Host "🎉 System Operational!" -ForegroundColor Green
 Write-Host "   Frontend:   http://localhost:3000"
 Write-Host "   Backend:    http://localhost:8000/docs"
 Write-Host "   Supabase:   http://localhost:54323"
-Write-Host "   Grafana:    http://localhost:3000"
+Write-Host "   Grafana:    http://localhost:3001"
 Write-Host "   Prometheus: http://localhost:9090"
 Write-Host "--------------------------------" -ForegroundColor Cyan
 Read-Host "Press Enter to exit..."

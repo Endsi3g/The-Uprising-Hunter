@@ -43,7 +43,7 @@ try {
     Write-Host "✅ Monitoring stack started!" -ForegroundColor Green
     Write-Host ""
     Write-Host "📊 Acces dashboards:" -ForegroundColor Yellow
-    Write-Host "   Grafana:    http://localhost:3000 (admin/admin)"
+    Write-Host "   Grafana:    http://localhost:3001 (admin/admin)"
     Write-Host "   Prometheus: http://localhost:9090"
 }
 finally {

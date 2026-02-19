@@ -56,7 +56,7 @@ Le cockpit complet (Frontend + Backend + Supabase + Monitoring) se lance avec un
 Cela démarrera automatiquement :
 
 - **Supabase** (Docker local)
-- **Monitoring** (Prometheus & Grafana)
+- **Monitoring** (Prometheus & Grafana :3001)
 - **Backend API** (FastAPI sur port 8000)
 - **Frontend** (Next.js sur port 3000)
 
