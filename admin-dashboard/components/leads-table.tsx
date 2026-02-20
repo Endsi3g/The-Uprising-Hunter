@@ -184,7 +184,7 @@ const LeadRow = React.memo(({
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="size-8">
+              <Button variant="ghost" size="icon" className="size-8" aria-label="Actions du lead">
                 <IconDotsVertical className="size-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -864,6 +864,7 @@ export function LeadsTable({
                     </TableHead>
                     <TableHead
                       scope="col"
+                      aria-sort={sort === "first_name" ? (order === "asc" ? "ascending" : "descending") : "none"}
                       className="cursor-pointer hover:bg-muted/50"
                       onClick={() => handleSort("first_name")}
                     >
@@ -872,6 +873,7 @@ export function LeadsTable({
                     <TableHead scope="col">Entreprise</TableHead>
                     <TableHead
                       scope="col"
+                      aria-sort={sort === "status" ? (order === "asc" ? "ascending" : "descending") : "none"}
                       className="cursor-pointer hover:bg-muted/50"
                       onClick={() => handleSort("status")}
                     >
@@ -880,6 +882,7 @@ export function LeadsTable({
                     <TableHead scope="col" className="w-[200px]">Accroche IA</TableHead>
                     <TableHead
                       scope="col"
+                      aria-sort={sort === "total_score" ? (order === "asc" ? "ascending" : "descending") : "none"}
                       className="cursor-pointer hover:bg-muted/50"
                       onClick={() => handleSort("total_score")}
                     >
@@ -898,7 +901,7 @@ export function LeadsTable({
                         <SortIcon column="total_score" sort={sort} order={order} />
                       </div>
                     </TableHead>
-                    <TableHead>
+                    <TableHead scope="col">
                       <div className="flex items-center gap-1">
                         Segment
                         <Tooltip>

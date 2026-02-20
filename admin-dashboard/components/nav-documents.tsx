@@ -55,7 +55,7 @@ export function NavDocuments({
                 {item.badgeTooltip || item.badgeSource || item.badgeDate ? (
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Badge className="rounded-full px-2 text-[10px]">
+                      <Badge variant="info" className="rounded-full px-2 text-[10px]">
                         {item.badge}
                       </Badge>
                     </TooltipTrigger>
@@ -74,7 +74,7 @@ export function NavDocuments({
                     </TooltipContent>
                   </Tooltip>
                 ) : (
-                  <Badge className="rounded-full px-2 text-[10px]">
+                  <Badge variant="info" className="rounded-full px-2 text-[10px]">
                     {item.badge}
                   </Badge>
                 )}

@@ -87,7 +87,7 @@ export default function AppointmentsPage() {
           Nouveau rendez-vous
         </Button>
       </div>
-      
+
       <SyncStatus updatedAt={updatedAt} onRefresh={() => void mutate()} />
 
       <div className="mt-6 grid gap-6 md:grid-cols-[300px_1fr]">
@@ -102,6 +102,7 @@ export default function AppointmentsPage() {
                 selected={selectedDate}
                 onSelect={setSelectedDate}
                 className="w-full"
+                aria-label="Calendrier des rendez-vous"
               />
             </CardContent>
           </Card>
@@ -139,10 +140,12 @@ export default function AppointmentsPage() {
               <Skeleton className="h-24 w-full" />
             </div>
           ) : error ? (
-            <ErrorState title="Erreur" description="Impossible de charger les rendez-vous." />
+            <div role="alert" aria-live="assertive">
+              <ErrorState title="Erreur" description="Impossible de charger les rendez-vous." />
+            </div>
           ) : filteredAppointments.length === 0 ? (
-            <EmptyState 
-              title="Aucun rendez-vous ce jour" 
+            <EmptyState
+              title="Aucun rendez-vous ce jour"
               description="Sélectionnez une autre date ou programmez un nouveau rendez-vous."
             />
           ) : (
@@ -165,7 +168,7 @@ export default function AppointmentsPage() {
                       </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" disabled={busyId === apt.id}>
+                          <Button variant="ghost" size="icon" disabled={busyId === apt.id} aria-label={`Actions pour ${apt.title}`}>
                             {busyId === apt.id ? (
                               <IconLoader2 className="h-4 w-4 animate-spin" />
                             ) : (

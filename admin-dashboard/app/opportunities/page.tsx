@@ -352,9 +352,9 @@ export default function OpportunitiesPage() {
 
   return (
     <AppShell contentClassName="p-3 pt-0 sm:p-4 sm:pt-0 lg:p-6">
-      <main className="flex flex-1 flex-col gap-4">
+      <section aria-labelledby="opps-heading" className="flex flex-1 flex-col gap-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="text-3xl font-bold tracking-tight">Opportunités</h1>
+          <h1 id="opps-heading" className="text-3xl font-bold tracking-tight">Opportunités</h1>
           <div className="flex flex-wrap gap-2">
             <Button variant={view === "kanban" ? "default" : "outline"} onClick={() => setView("kanban")}><IconLayoutKanban className="size-4" />Kanban</Button>
             <Button variant={view === "table" ? "default" : "outline"} onClick={() => setView("table")}><IconListDetails className="size-4" />Table</Button>
@@ -633,7 +633,7 @@ export default function OpportunitiesPage() {
             />
           )
         ) : null}
-      </main>
+      </section>
 
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent className="sm:max-w-xl">

@@ -248,7 +248,8 @@ export default function LeadsPage() {
           description="Utilisez 'Creation rapide de lead' dans la sidebar ou importez un CSV pour demarrer."
         />
       ) : (
-        <div className="mt-4">
+        <section aria-labelledby="leads-data-heading" className="mt-4">
+          <h2 id="leads-data-heading" className="sr-only">Liste des leads</h2>
           {view === "table" ? (
             <LeadsTable
               data={leads}
@@ -348,7 +349,7 @@ export default function LeadsPage() {
           ) : (
             <LeadsKanban data={leads} onDataChanged={() => void mutate()} />
           )}
-        </div>
+        </section>
       )}
     </AppShell>
   )

@@ -87,74 +87,74 @@ export default function TasksPage() {
 
   return (
     <AppShell>
-      <main className="flex flex-1 flex-col h-full w-full">
+      <section aria-labelledby="tasks-heading" className="flex flex-1 flex-col h-full w-full">
         <div className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="text-3xl font-bold tracking-tight">Tâches</h2>
-        <ExportCsvButton entity="tasks" />
-      </div>
-      <SyncStatus updatedAt={updatedAt} onRefresh={() => void mutate()} />
-      {isLoading && !loadingTimedOut ? (
-        <div className="space-y-3">
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-10 w-full" />
+          <h1 className="text-3xl font-bold tracking-tight">Tâches</h1>
+          <ExportCsvButton entity="tasks" />
         </div>
-      ) : error || loadingTimedOut ? (
-        <ErrorState
-          title="Impossible de charger les tâches."
-          description={
-            loadingTimedOut
-              ? "Le chargement dépasse le délai attendu. Vérifiez la santé de l'API puis réessayez."
-              : error instanceof Error
-                ? error.message
-                : "La liste des tâches est temporairement indisponible."
-          }
-          secondaryLabel="Ouvrir Paramètres"
-          secondaryHref="/settings"
-          onRetry={() => void mutate()}
-        />
-      ) : (data?.total || 0) === 0 ? (
-        <EmptyState
-          title="Aucune tâche disponible"
-          description="Les tâches apparaissent ici après création ou conversion depuis les leads."
-        />
-      ) : (
-        <TasksTable
-          data={tasks}
-          total={data?.total || 0}
-          page={page}
-          pageSize={pageSize}
-          search={search}
-          status={status}
-          channel={channel}
-          source={source}
-          sort={sort}
-          order={order}
-          onSearchChange={(value) => {
-            setSearch(value)
-            setPage(1)
-          }}
-          onStatusChange={(value) => {
-            setStatus(value)
-            setPage(1)
-          }}
-          onChannelChange={(value) => {
-            setChannel(value)
-            setPage(1)
-          }}
-          onSourceChange={(value) => {
-            setSource(value)
-            setPage(1)
-          }}
-          onPageChange={setPage}
-          onSortChange={(nextSort, nextOrder) => {
-            setSort(nextSort)
-            setOrder(nextOrder)
-          }}
-          onDataChanged={() => void mutate()}
-        />
-      )}
-      </main>
+        <SyncStatus updatedAt={updatedAt} onRefresh={() => void mutate()} />
+        {isLoading && !loadingTimedOut ? (
+          <div className="space-y-3">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+        ) : error || loadingTimedOut ? (
+          <ErrorState
+            title="Impossible de charger les tâches."
+            description={
+              loadingTimedOut
+                ? "Le chargement dépasse le délai attendu. Vérifiez la santé de l'API puis réessayez."
+                : error instanceof Error
+                  ? error.message
+                  : "La liste des tâches est temporairement indisponible."
+            }
+            secondaryLabel="Ouvrir Paramètres"
+            secondaryHref="/settings"
+            onRetry={() => void mutate()}
+          />
+        ) : (data?.total || 0) === 0 ? (
+          <EmptyState
+            title="Aucune tâche disponible"
+            description="Les tâches apparaissent ici après création ou conversion depuis les leads."
+          />
+        ) : (
+          <TasksTable
+            data={tasks}
+            total={data?.total || 0}
+            page={page}
+            pageSize={pageSize}
+            search={search}
+            status={status}
+            channel={channel}
+            source={source}
+            sort={sort}
+            order={order}
+            onSearchChange={(value) => {
+              setSearch(value)
+              setPage(1)
+            }}
+            onStatusChange={(value) => {
+              setStatus(value)
+              setPage(1)
+            }}
+            onChannelChange={(value) => {
+              setChannel(value)
+              setPage(1)
+            }}
+            onSourceChange={(value) => {
+              setSource(value)
+              setPage(1)
+            }}
+            onPageChange={setPage}
+            onSortChange={(nextSort, nextOrder) => {
+              setSort(nextSort)
+              setOrder(nextOrder)
+            }}
+            onDataChanged={() => void mutate()}
+          />
+        )}
+      </section>
     </AppShell>
   )
 }
