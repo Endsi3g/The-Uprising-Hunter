@@ -15,6 +15,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { leadStatusLabel } from "@/lib/lead-status-labels"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Select,
@@ -595,7 +596,7 @@ export default function CampaignsPage() {
     <AppShell>
       <div className="flex flex-1 flex-col gap-4">
         <div className="rounded-2xl border bg-linear-to-r from-slate-900 via-slate-800 to-slate-700 p-5 text-slate-50">
-          <h2 className="text-3xl font-bold tracking-tight">The Uprising Hunter</h2>
+          <h1 className="text-3xl font-bold tracking-tight">The Uprising Hunter</h1>
           <p className="mt-2 text-sm text-slate-200">
             Campagnes, sequences, generation de contenu et enrichment dans une vue unifiee.
           </p>
@@ -687,7 +688,8 @@ export default function CampaignsPage() {
                       <Label className="text-base font-semibold">Channel Strategy</Label>
                     </div>
 
-                    <div className="grid gap-4 rounded-lg border p-3">
+                    <fieldset className="grid gap-4 rounded-lg border p-3 m-0">
+                      <legend className="sr-only">Canaux de communication</legend>
                       <div className="flex items-center gap-4">
                         <Checkbox
                           id="strategy-email"
@@ -698,8 +700,9 @@ export default function CampaignsPage() {
                           <Label htmlFor="strategy-email">Email Outreach</Label>
                         </div>
                         <div className="ml-auto flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground">Delay (hrs):</span>
+                          <Label htmlFor="delay-email" className="text-xs text-muted-foreground">Delay (hrs):</Label>
                           <Input
+                            id="delay-email"
                             type="number"
                             className="h-7 w-16"
                             value={strategyEmailDelay}
@@ -719,8 +722,9 @@ export default function CampaignsPage() {
                           <Label htmlFor="strategy-linkedin">LinkedIn Message</Label>
                         </div>
                         <div className="ml-auto flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground">Delay (hrs):</span>
+                          <Label htmlFor="delay-linkedin" className="text-xs text-muted-foreground">Delay (hrs):</Label>
                           <Input
+                            id="delay-linkedin"
                             type="number"
                             className="h-7 w-16"
                             value={strategyLinkedinDelay}
@@ -729,7 +733,7 @@ export default function CampaignsPage() {
                           />
                         </div>
                       </div>
-                    </div>
+                    </fieldset>
                   </div>
 
                   <div className="space-y-3 md:col-span-2">
@@ -779,8 +783,8 @@ export default function CampaignsPage() {
                           </div>
                         </div>
 
-                        <div className="grid gap-2">
-                          <Label>Lead Statuses to Include</Label>
+                        <fieldset className="grid gap-2 m-0 p-0 border-0">
+                          <legend className="text-sm font-medium">Statuts de leads à inclure</legend>
                           <div className="flex flex-wrap gap-3">
                             {["NEW", "ENRICHED", "SCORED", "CONTACTED"].map((status) => (
                               <div key={status} className="flex items-center gap-1.5">
@@ -796,15 +800,15 @@ export default function CampaignsPage() {
                                   }}
                                 />
                                 <Label htmlFor={`status-${status}`} className="text-xs">
-                                  {status}
+                                  {leadStatusLabel(status)}
                                 </Label>
                               </div>
                             ))}
                           </div>
-                        </div>
+                        </fieldset>
 
-                        <div className="grid gap-2">
-                          <Label>ICP Tiers to Include</Label>
+                        <fieldset className="grid gap-2 m-0 p-0 border-0">
+                          <legend className="text-sm font-medium">Tiers ICP à inclure</legend>
                           <div className="flex flex-wrap gap-3">
                             {["Tier A", "Tier B", "Tier C", "Tier D"].map((tier) => (
                               <div key={tier} className="flex items-center gap-1.5">
@@ -825,7 +829,7 @@ export default function CampaignsPage() {
                               </div>
                             ))}
                           </div>
-                        </div>
+                        </fieldset>
 
                         <div className="grid gap-4 sm:grid-cols-2">
                           <div className="grid gap-2">
@@ -1128,7 +1132,7 @@ export default function CampaignsPage() {
                               />
                             </div>
                             <div className="flex items-end">
-                              <Badge variant="outline" className="h-8 w-full justify-center text-[10px] font-normal border-dashed">
+                              <Badge variant="neutral" className="h-8 w-full justify-center text-[10px] font-normal border-dashed">
                                 Étape {index + 1}
                               </Badge>
                             </div>

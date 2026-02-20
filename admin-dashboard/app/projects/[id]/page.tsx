@@ -292,7 +292,7 @@ export default function ProjectDetailsPage({ params }: { params: Promise<{ id: s
             <CardContent className="pt-6 space-y-3">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <div className="flex items-center gap-2"><h2 className="text-3xl font-bold tracking-tight">{project.name}</h2><Badge variant="outline">{project.status}</Badge></div>
+                  <div className="flex items-center gap-2"><h2 className="text-3xl font-bold tracking-tight">{project.name}</h2><Badge variant="info">{project.status}</Badge></div>
                   <p className="text-sm text-muted-foreground">{project.description || "Aucune description"}</p>
                   <p className="text-xs text-muted-foreground inline-flex items-center gap-1 mt-1"><IconCalendar className="size-3" /> Deadline: {formatDateFr(project.due_date)}</p>
                 </div>

@@ -81,7 +81,7 @@ export default function AppointmentsPage() {
   return (
     <AppShell>
       <div className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="text-3xl font-bold tracking-tight">Rendez-vous</h2>
+        <h1 className="text-3xl font-bold tracking-tight">Rendez-vous</h1>
         <Button onClick={() => toast.info("Veuillez passer par la fiche d'un lead pour programmer un RDV.")}>
           <IconCalendar className="mr-2 h-4 w-4" />
           Nouveau rendez-vous
@@ -155,7 +155,7 @@ export default function AppointmentsPage() {
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
                           <h4 className="font-bold">{apt.title}</h4>
-                          <Badge variant={apt.status === "scheduled" ? "secondary" : "outline"}>
+                          <Badge variant={apt.status === "scheduled" ? "secondary" : "info"}>
                             {apt.status}
                           </Badge>
                         </div>

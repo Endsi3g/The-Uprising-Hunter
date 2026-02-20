@@ -98,6 +98,9 @@ DEFAULT_REFRESH_TOKEN_TTL_DAYS = 7
 DEFAULT_AUTH_COOKIE_SECURE = "auto"
 
 ACCESS_TOKEN_COOKIE_NAME = "admin_access_token"
+
+# Defined early to be available for route decorators
+admin_v1 = APIRouter(prefix="/admin/v1", tags=["Actionable Admin"])
 REFRESH_TOKEN_COOKIE_NAME = "admin_refresh_token"
 JWT_ALGORITHM = "HS256"
 PASSWORD_HASH_ITERATIONS = 260_000

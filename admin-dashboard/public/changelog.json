@@ -1,5 +1,11 @@
 [
   {
+    "hash": "131b05e",
+    "date": "2026-02-19",
+    "author": "Endsi3g",
+    "message": "chore: rebranding to The Uprising Hunter and stabilizing app environment"
+  },
+  {
     "hash": "4395697",
     "date": "2026-02-18",
     "author": "Quebec SaaS",
@@ -292,11 +298,5 @@
     "date": "2026-02-12",
     "author": "Quebec SaaS",
     "message": "fix(deploy): hardening API client (remove double slash) + ensure strict TS fix"
-  },
-  {
-    "hash": "3425812",
-    "date": "2026-02-12",
-    "author": "Quebec SaaS",
-    "message": "fix(deploy): strict TS fix for admin-dashboard + pin Python 3.11 for Render"
   }
 ]

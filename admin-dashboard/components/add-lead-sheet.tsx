@@ -161,7 +161,7 @@ export function AddLeadSheet() {
           <div className="grid gap-6 py-6">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="firstName">Prenom</Label>
+                <Label htmlFor="firstName">Prenom <span className="text-destructive">*</span></Label>
                 <Input
                   id="firstName"
                   value={form.firstName}
@@ -172,7 +172,7 @@ export function AddLeadSheet() {
                 {errors.firstName ? <p className="text-xs text-red-600 font-medium">{errors.firstName}</p> : null}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="lastName">Nom</Label>
+                <Label htmlFor="lastName">Nom <span className="text-destructive">*</span></Label>
                 <Input
                   id="lastName"
                   value={form.lastName}
@@ -184,7 +184,7 @@ export function AddLeadSheet() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">Email <span className="text-destructive">*</span></Label>
               <Input
                 id="email"
                 type="email"
@@ -217,7 +217,7 @@ export function AddLeadSheet() {
               {errors.phone ? <p className="text-xs text-red-600 font-medium">{errors.phone}</p> : null}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="company">Entreprise</Label>
+              <Label htmlFor="company">Entreprise <span className="text-destructive">*</span></Label>
               <Input
                 id="company"
                 value={form.company}
@@ -231,7 +231,7 @@ export function AddLeadSheet() {
               <div className="space-y-2">
                 <Label htmlFor="status">Statut</Label>
                 <Select value={form.status} onValueChange={(value) => setField("status", value)}>
-                  <SelectTrigger id="status">
+                  <SelectTrigger id="status" aria-label="Statut">
                     <SelectValue placeholder="Choisir un statut" />
                   </SelectTrigger>
                   <SelectContent className="rounded-xl">
@@ -245,7 +245,7 @@ export function AddLeadSheet() {
               <div className="space-y-2">
                 <Label htmlFor="segment">Segment</Label>
                 <Select value={form.segment} onValueChange={(value) => setField("segment", value)}>
-                  <SelectTrigger id="segment">
+                  <SelectTrigger id="segment" aria-label="Segment">
                     <SelectValue placeholder="Choisir un segment" />
                   </SelectTrigger>
                   <SelectContent className="rounded-xl">
@@ -260,7 +260,7 @@ export function AddLeadSheet() {
             <div className="space-y-2 rounded-lg border bg-muted/30 p-3 text-sm">
               <p className="font-medium">Previsualisation</p>
               <p>
-                {form.firstName || "-"} {form.lastName || "-"} | {form.company || "Entreprise"}
+                {form.firstName || "Prenom"} {form.lastName || "Nom"} | {form.company || "Entreprise"}
               </p>
               <p className="text-muted-foreground">
                 {form.email || "email@exemple.com"} - {form.segment}
@@ -279,7 +279,7 @@ export function AddLeadSheet() {
             <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>
               Annuler
             </Button>
-            <Button type="submit" disabled={isLoading || !isFormValid}>
+            <Button type="submit" disabled={isLoading || !isFormValid} className="disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100">
               {isLoading ? (
                 <>
                   <IconLoader2 className="mr-2 h-4 w-4 animate-spin" />

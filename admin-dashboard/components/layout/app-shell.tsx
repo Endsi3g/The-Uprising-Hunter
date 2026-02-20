@@ -29,6 +29,7 @@ export function AppShell({
       <AppSidebar variant="inset" />
       <SidebarInset className={insetClassName}>
         {withHeader ? <SiteHeader /> : null}
+        <main>
         <div
           className={cn(
             "flex flex-1 flex-col gap-4 p-3 pt-0 sm:p-4 sm:pt-0 lg:p-6",
@@ -37,6 +38,7 @@ export function AppShell({
         >
           {children}
         </div>
+        </main>
       </SidebarInset>
     </SidebarProvider>
   )

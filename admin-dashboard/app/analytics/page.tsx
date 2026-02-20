@@ -20,6 +20,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { useLoadingTimeout } from "@/hooks/use-loading-timeout"
 import { fetchApi } from "@/lib/api"
 import { formatCurrencyFr, formatNumberFr } from "@/lib/format"
+import { leadStatusLabel } from "@/lib/lead-status-labels"
 
 type AnalyticsData = {
   total_leads: number
@@ -71,7 +72,7 @@ export default function AnalyticsPage() {
         <SiteHeader />
         <div className="flex flex-1 flex-col gap-4 p-3 pt-0 sm:p-4 sm:pt-0 lg:p-6">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <h2 className="text-3xl font-bold tracking-tight">Analytique</h2>
+            <h1 className="text-3xl font-bold tracking-tight">Analytique</h1>
             <SyncStatus updatedAt={updatedAt} onRefresh={() => void mutateAnalytics()} />
           </div>
 
@@ -170,7 +171,7 @@ export default function AnalyticsPage() {
                         <div key={status} className="flex items-center">
                           <div className="w-full">
                             <div className="flex items-center justify-between text-sm">
-                              <span>{status}</span>
+                              <span>{leadStatusLabel(status)}</span>
                               <span className="font-semibold">
                                 {formatNumberFr(count)} (
                                 {Math.round((count / Math.max(analytics.total_leads, 1)) * 100)}%)

@@ -191,7 +191,7 @@ export default function LeadsPage() {
   return (
     <AppShell>
       <div className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="text-3xl font-bold tracking-tight">Leads</h2>
+        <h1 className="text-3xl font-bold tracking-tight">Leads</h1>
         <div className="flex items-center gap-2">
           <Button
             variant={isSniperMode ? "default" : "outline"}

@@ -95,10 +95,12 @@ export function LeadsKanban({ data, onDataChanged }: LeadsKanbanProps) {
             </Badge>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-2 space-y-2 pb-2">
+          <div role="list" aria-label={`Colonne ${statusLabels[status]}`} className="flex-1 overflow-y-auto px-2 space-y-2 pb-2">
             {columns[status]?.map((lead) => (
               <div
                 key={lead.id}
+                role="listitem"
+                aria-roledescription="Carte déplaçable"
                 draggable
                 onDragStart={() => setDraggedLeadId(lead.id)}
                 className="group relative rounded-lg border bg-card p-3 shadow-xs hover:shadow-sm hover:border-primary/30 transition-all cursor-grab active:cursor-grabbing"

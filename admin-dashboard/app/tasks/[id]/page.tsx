@@ -709,7 +709,7 @@ export default function TaskDetailPage() {
                     <div key={item.id} className="rounded-md border p-3">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <p className="text-sm font-medium">{item.message}</p>
-                        <Badge variant="outline">{item.event_type}</Badge>
+                        <Badge variant="neutral">{item.event_type}</Badge>
                       </div>
                       <p className="mt-1 text-xs text-muted-foreground">
                         {item.actor} - {formatDateTimeFr(item.created_at)}
@@ -736,7 +736,7 @@ export default function TaskDetailPage() {
                       </p>
                       <p className="text-muted-foreground">{task.lead?.email || linkedLead?.email || "-"}</p>
                       <div className="flex flex-wrap gap-2">
-                        <Badge variant="outline">{task.lead?.status || linkedLead?.status || "-"}</Badge>
+                        <Badge variant="info">{task.lead?.status || linkedLead?.status || "-"}</Badge>
                         {task.lead?.tier || linkedLead?.score?.tier ? (
                           <Badge variant="secondary">{task.lead?.tier || linkedLead?.score?.tier}</Badge>
                         ) : null}

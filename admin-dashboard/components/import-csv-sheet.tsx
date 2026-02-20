@@ -246,11 +246,11 @@ export function ImportCsvSheet({ onImported }: { onImported?: () => void }) {
           {preview ? (
             <div className="space-y-3 rounded-md border p-3">
               <div className="flex flex-wrap items-center gap-2 text-sm">
-                <Badge variant="outline">Detecte: {preview.detected_table}</Badge>
+                <Badge variant="info">Detecte: {preview.detected_table}</Badge>
                 <Badge variant="secondary">Confiance: {preview.table_confidence}</Badge>
-                <Badge variant="outline">Lignes: {preview.total_rows}</Badge>
-                <Badge variant="outline">Valides: {preview.valid_rows}</Badge>
-                <Badge variant="outline">Invalides: {preview.invalid_rows}</Badge>
+                <Badge variant="neutral">Lignes: {preview.total_rows}</Badge>
+                <Badge variant="success">Valides: {preview.valid_rows}</Badge>
+                <Badge variant="danger">Invalides: {preview.invalid_rows}</Badge>
               </div>
               {preview.errors.length > 0 ? (
                 <div className="rounded-md border border-red-200 bg-red-50 p-2 text-xs text-red-700">

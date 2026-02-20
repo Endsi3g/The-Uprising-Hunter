@@ -87,7 +87,8 @@ export default function TasksPage() {
 
   return (
     <AppShell>
-      <div className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+      <main className="flex flex-1 flex-col h-full w-full">
+        <div className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-3xl font-bold tracking-tight">Tâches</h2>
         <ExportCsvButton entity="tasks" />
       </div>
@@ -153,6 +154,7 @@ export default function TasksPage() {
           onDataChanged={() => void mutate()}
         />
       )}
+      </main>
     </AppShell>
   )
 }

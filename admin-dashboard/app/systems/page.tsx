@@ -118,7 +118,7 @@ function statusBadge(value: string | undefined) {
     return <Badge className="bg-emerald-600">OK</Badge>
   }
   if (key === "warning" || key === "degraded") {
-    return <Badge variant="outline">Warning</Badge>
+    return <Badge variant="warning">Warning</Badge>
   }
   if (key === "failed" || key === "error") {
     return <Badge variant="destructive">Erreur</Badge>
@@ -459,7 +459,7 @@ export default function SystemsPage() {
                             Active
                           </Badge>
                         ) : (
-                          <Badge variant="outline">Inactive</Badge>
+                          <Badge variant="neutral">Inactive</Badge>
                         )}
                       </div>
                     ))}

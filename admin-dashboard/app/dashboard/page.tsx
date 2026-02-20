@@ -38,9 +38,10 @@ export default function DashboardPage() {
 
   return (
     <AppShell contentClassName="flex flex-1 flex-col p-0">
-      <div className="@container/main flex flex-1 flex-col gap-2">
+      <main className="@container/main flex flex-1 flex-col gap-2">
         <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
-          <div className="px-3 sm:px-4 lg:px-6">
+          <div className="px-3 sm:px-4 lg:px-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <h1 className="text-2xl font-bold tracking-tight">Tableau de bord</h1>
             <SyncStatus
               updatedAt={updatedAt}
               isValidating={isValidating}
@@ -79,14 +80,18 @@ export default function DashboardPage() {
           ) : null}
           {!isLoading && !error && !loadingTimedOut ? (
             <>
-              <SectionCards stats={stats} />
-              <div className="px-3 sm:px-4 lg:px-6">
+              <section aria-labelledby="stats-heading">
+                <h2 id="stats-heading" className="sr-only">Statistiques principales</h2>
+                <SectionCards stats={stats} />
+              </section>
+              <section aria-labelledby="chart-heading" className="px-3 sm:px-4 lg:px-6">
+                <h2 id="chart-heading" className="sr-only">Activité du pipeline</h2>
                 <ChartAreaInteractive trend={stats?.daily_pipeline_trend || []} />
-              </div>
+              </section>
             </>
           ) : null}
         </div>
-      </div>
+      </main>
     </AppShell>
   )
 }

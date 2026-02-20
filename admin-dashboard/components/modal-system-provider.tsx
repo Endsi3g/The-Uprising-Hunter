@@ -333,11 +333,15 @@ export function ModalSystemProvider({ children }: { children: React.ReactNode })
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Rechercher..."
+              aria-label="Champ de recherche globale"
             />
             <div className="space-y-2">
-              {searchLoading ? <p className="text-sm text-muted-foreground">Recherche en cours...</p> : null}
+              {searchLoading ? <p className="text-sm text-muted-foreground" aria-live="polite">Recherche en cours...</p> : null}
               {!searchLoading && searchResults.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Aucun resultat.</p>
+                <p className="text-sm text-muted-foreground" aria-live="polite">
+                  Aucun resultat. 
+                  {query && <span className="block mt-1">Essayez avec un autre terme, ex: &apos;Emma&apos;.</span>}
+                </p>
               ) : null}
               {searchResults.map((item) => (
                 <button
@@ -369,8 +373,8 @@ export function ModalSystemProvider({ children }: { children: React.ReactNode })
             </SheetDescription>
           </SheetHeader>
           <div className="mt-4 space-y-4">
-            {helpLoading ? <p className="text-sm text-muted-foreground">Chargement...</p> : null}
-            <Button type="button" variant="outline" onClick={openOnboarding}>
+            {helpLoading ? <p className="text-sm text-muted-foreground" aria-live="polite">Chargement...</p> : null}
+            <Button type="button" variant="outline" onClick={openOnboarding} aria-label="Relancer le tutoriel d'introduction (Onboarding)">
               {messages.onboarding.launchFromHelp}
             </Button>
             {!helpLoading && helpData ? (
@@ -391,7 +395,12 @@ export function ModalSystemProvider({ children }: { children: React.ReactNode })
                 </div>
                 <div className="space-y-2">
                   {helpData.links.map((link) => (
-                    <Link key={link.href} href={link.href} className="block text-sm underline">
+                    <Link 
+                      key={link.href} 
+                      href={link.href} 
+                      className="block text-sm underline hover:text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm"
+                      aria-label={`Ouvrir le lien vers ${link.label}`}
+                    >
                       {link.label}
                     </Link>
                   ))}
@@ -425,6 +434,8 @@ export function ModalSystemProvider({ children }: { children: React.ReactNode })
                     setProjectForm((current) => ({ ...current, name: event.target.value }))
                   }
                   required
+                  placeholder="Nom du projet"
+                  title="Nom du projet"
                 />
               </div>
               <div className="space-y-2">

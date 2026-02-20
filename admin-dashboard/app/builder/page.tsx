@@ -3,7 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import useSWR from "swr"
-import { IconPlus, IconWorld, IconEdit, IconExternalLink } from "@tabler/icons-react"
+import { IconPlus, IconEdit, IconExternalLink } from "@tabler/icons-react"
 import { toast } from "sonner"
 
 import { AppSidebar } from "@/components/app-sidebar"
@@ -104,7 +104,6 @@ export default function BuilderPage() {
             />
           ) : pages?.length === 0 ? (
             <EmptyState
-              icon={IconWorld}
               title="Aucune landing page"
               description="Commencez par créer votre première page pour capturer des leads."
               action={

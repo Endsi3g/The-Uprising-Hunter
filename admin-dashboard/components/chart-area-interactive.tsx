@@ -156,48 +156,51 @@ export default function ChartAreaInteractive({ trend = [] }: ChartAreaInteractiv
           <span className="@[540px]/card:hidden">{messages.dashboard.chart.subtitleShort}</span>
         </CardDescription>
         <CardAction>
-          <ToggleGroup
-            type="single"
-            value={timeRange}
-            onValueChange={(value) => {
-              if (isTimeRange(value)) {
-                setTimeRange(value)
-              }
-            }}
-            variant="outline"
-            className="hidden *:data-[slot=toggle-group-item]:px-4! @[767px]/card:flex"
-          >
-            <ToggleGroupItem value="90d">{messages.dashboard.chart.range90d}</ToggleGroupItem>
-            <ToggleGroupItem value="30d">{messages.dashboard.chart.range30d}</ToggleGroupItem>
-            <ToggleGroupItem value="7d">{messages.dashboard.chart.range7d}</ToggleGroupItem>
-          </ToggleGroup>
-          <Select
-            value={timeRange}
-            onValueChange={(value) => {
-              if (isTimeRange(value)) {
-                setTimeRange(value)
-              }
-            }}
-          >
-            <SelectTrigger
-              className="flex w-40 **:data-[slot=select-value]:block **:data-[slot=select-value]:truncate @[767px]/card:hidden"
-              size="sm"
-              aria-label={messages.dashboard.chart.rangeSelectAriaLabel}
+          <fieldset className="flex items-center gap-2 m-0 p-0 border-0">
+            <legend className="sr-only">{messages.dashboard.chart.rangeSelectAriaLabel}</legend>
+            <ToggleGroup
+              type="single"
+              value={timeRange}
+              onValueChange={(value) => {
+                if (isTimeRange(value)) {
+                  setTimeRange(value)
+                }
+              }}
+              variant="outline"
+              className="hidden *:data-[slot=toggle-group-item]:px-4! @[767px]/card:flex"
             >
-              <SelectValue placeholder={messages.dashboard.chart.range90d} />
-            </SelectTrigger>
-            <SelectContent className="rounded-xl">
-              <SelectItem value="90d" className="rounded-lg">
-                {messages.dashboard.chart.range90d}
-              </SelectItem>
-              <SelectItem value="30d" className="rounded-lg">
-                {messages.dashboard.chart.range30d}
-              </SelectItem>
-              <SelectItem value="7d" className="rounded-lg">
-                {messages.dashboard.chart.range7d}
-              </SelectItem>
-            </SelectContent>
-          </Select>
+              <ToggleGroupItem value="90d">{messages.dashboard.chart.range90d}</ToggleGroupItem>
+              <ToggleGroupItem value="30d">{messages.dashboard.chart.range30d}</ToggleGroupItem>
+              <ToggleGroupItem value="7d">{messages.dashboard.chart.range7d}</ToggleGroupItem>
+            </ToggleGroup>
+            <Select
+              value={timeRange}
+              onValueChange={(value) => {
+                if (isTimeRange(value)) {
+                  setTimeRange(value)
+                }
+              }}
+            >
+              <SelectTrigger
+                className="flex w-40 **:data-[slot=select-value]:block **:data-[slot=select-value]:truncate @[767px]/card:hidden"
+                size="sm"
+                aria-label={messages.dashboard.chart.rangeSelectAriaLabel}
+              >
+                <SelectValue placeholder={messages.dashboard.chart.range90d} />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl">
+                <SelectItem value="90d" className="rounded-lg">
+                  {messages.dashboard.chart.range90d}
+                </SelectItem>
+                <SelectItem value="30d" className="rounded-lg">
+                  {messages.dashboard.chart.range30d}
+                </SelectItem>
+                <SelectItem value="7d" className="rounded-lg">
+                  {messages.dashboard.chart.range7d}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </fieldset>
         </CardAction>
       </CardHeader>
       <div className="px-6 text-xs text-muted-foreground">{messages.dashboard.chart.legend}</div>

@@ -57,7 +57,7 @@ export default function ChangelogPage() {
                                         <span className="text-sm font-medium text-muted-foreground">
                                             {format(new Date(commit.date), "dd MMMM yyyy", { locale: fr })}
                                         </span>
-                                        <Badge variant="outline" className="font-mono text-xs">
+                                        <Badge variant="neutral" className="font-mono text-xs">
                                             {commit.hash}
                                         </Badge>
                                     </div>

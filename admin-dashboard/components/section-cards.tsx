@@ -38,7 +38,7 @@ export function SectionCards({ stats }: { stats?: Stats }) {
 
   return (
     <div className="grid grid-cols-1 gap-4 px-4 lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
-      <Card className="@container/card bg-linear-to-t from-primary/5 to-card shadow-xs">
+      <Card role="region" aria-label={messages.dashboard.stats.sourcedLeads} className="@container/card bg-linear-to-t from-primary/5 to-card shadow-xs">
         <CardHeader>
           <CardDescription>{messages.dashboard.stats.sourcedLeads}</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
@@ -55,14 +55,14 @@ export function SectionCards({ stats }: { stats?: Stats }) {
         </CardFooter>
       </Card>
 
-      <Card className="@container/card bg-linear-to-t from-primary/5 to-card shadow-xs">
+      <Card role="region" aria-label={messages.dashboard.stats.qualifiedLeads} className="@container/card bg-linear-to-t from-primary/5 to-card shadow-xs">
         <CardHeader>
           <CardDescription>{messages.dashboard.stats.qualifiedLeads}</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
             {safeStats.qualified_leads}
           </CardTitle>
           <CardAction>
-            <Badge variant="outline">
+            <Badge variant="info">
               <IconUserPlus />
               {formatPercent((safeStats.qualified_leads / safeStats.total_leads) * 100)}
             </Badge>
@@ -75,14 +75,14 @@ export function SectionCards({ stats }: { stats?: Stats }) {
         </CardFooter>
       </Card>
 
-      <Card className="@container/card bg-linear-to-t from-primary/5 to-card shadow-xs">
+      <Card role="region" aria-label="Leads Chauds" className="@container/card bg-linear-to-t from-primary/5 to-card shadow-xs">
         <CardHeader>
           <CardDescription>Leads Chauds</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
             {safeStats.hot_leads}
           </CardTitle>
           <CardAction>
-            <Badge variant="outline">
+            <Badge variant="warning">
               <IconListCheck />
               Hot
             </Badge>
@@ -95,14 +95,14 @@ export function SectionCards({ stats }: { stats?: Stats }) {
         </CardFooter>
       </Card>
 
-      <Card className="@container/card bg-linear-to-t from-primary/5 to-card shadow-xs">
+      <Card role="region" aria-label="Tâches en attente" className="@container/card bg-linear-to-t from-primary/5 to-card shadow-xs">
         <CardHeader>
           <CardDescription>Tâches en attente</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
             {safeStats.pending_tasks}
           </CardTitle>
           <CardAction>
-            <Badge variant="outline">
+            <Badge variant="neutral">
               {safeStats.conversion_rate}% conv.
             </Badge>
           </CardAction>

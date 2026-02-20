@@ -56,7 +56,7 @@ const ProjectCard = React.memo(({
             {project.name}
           </Link>
         </CardTitle>
-        <Badge variant="outline">{project.status}</Badge>
+        <Badge variant={projectStatusVariant(project.status)}>{project.status}</Badge>
       </div>
       <p className="line-clamp-2 text-sm text-muted-foreground">
         {project.description || "Aucune description"}
@@ -75,10 +75,10 @@ const ProjectCard = React.memo(({
           </Link>
         </Button>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={() => onEdit(project)}>
+          <Button variant="ghost" size="icon" onClick={() => onEdit(project)} aria-label={`Modifier le projet ${project.name}`}>
             <IconPencil className="size-4" />
           </Button>
-          <Button variant="ghost" size="icon" onClick={() => onDelete(project)}>
+          <Button variant="ghost" size="icon" onClick={() => onDelete(project)} aria-label={`Supprimer le projet ${project.name}`}>
             <IconTrash className="size-4 text-red-600" />
           </Button>
         </div>
@@ -90,6 +90,16 @@ const ProjectCard = React.memo(({
 ProjectCard.displayName = "ProjectCard"
 
 const PROJECT_STATUSES = ["all", "Planning", "In Progress", "On Hold", "Completed", "Cancelled"]
+
+function projectStatusVariant(status: string): "neutral" | "info" | "warning" | "success" | "danger" {
+  if (status === "Planning") return "neutral"
+  if (status === "In Progress") return "info"
+  if (status === "On Hold") return "warning"
+  if (status === "Completed") return "success"
+  if (status === "Cancelled") return "danger"
+  return "neutral"
+}
+
 const fetcher = <T,>(path: string) => requestApi<T>(path)
 
 export default function ProjectsPage() {
@@ -189,7 +199,7 @@ export default function ProjectsPage() {
   return (
     <AppShell>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="text-3xl font-bold tracking-tight">Projets</h2>
+        <h1 className="text-3xl font-bold tracking-tight">Projets</h1>
         <div className="flex flex-wrap gap-2">
           <ExportCsvButton entity="projects" />
           <Button onClick={createProject}>Nouveau projet</Button>

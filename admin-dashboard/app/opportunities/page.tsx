@@ -85,6 +85,16 @@ const STAGE_TO_CANONICAL: Record<Stage, string> = {
   Won: "won",
   Lost: "lost",
 }
+
+function stageVariant(stage: Stage): "neutral" | "info" | "warning" | "success" | "danger" {
+  if (stage === "Prospect") return "neutral"
+  if (stage === "Qualified") return "info"
+  if (stage === "Proposed") return "warning"
+  if (stage === "Won") return "success"
+  if (stage === "Lost") return "danger"
+  return "neutral"
+}
+
 const fetcher = <T,>(path: string) => fetchApi<T>(path)
 const chartConfig = {
   weighted_revenue: { label: "Pondere", color: "var(--primary)" },
@@ -111,13 +121,13 @@ function overdue(item: Opportunity): boolean {
 
 function DropCol({ stage, children }: { stage: Stage; children: React.ReactNode }) {
   const { setNodeRef, isOver } = useDroppable({ id: `stage:${stage}` })
-  return <div ref={setNodeRef} className={`min-h-[12rem] rounded-xl border p-3 ${isOver ? "border-primary" : "border-border"}`}>{children}</div>
+  return <div ref={setNodeRef} aria-label={`Colonne ${stage}`} className={`min-h-[12rem] rounded-xl border p-3 ${isOver ? "border-primary" : "border-border"}`}>{children}</div>
 }
 function DragCard({ item, children }: { item: Opportunity; children: React.ReactNode }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: item.id })
   return (
     <div ref={setNodeRef} style={{ transform: CSS.Translate.toString(transform) }} className={`rounded-lg border bg-background p-3 ${isDragging ? "opacity-60" : ""}`}>
-      <div className="mb-2 flex items-center justify-between"><span className="truncate font-medium">{item.prospect_name}</span><button type="button" {...attributes} {...listeners}><IconGripVertical className="size-4 text-muted-foreground" /></button></div>
+      <div className="mb-2 flex items-center justify-between"><span className="truncate font-medium">{item.prospect_name}</span><button type="button" aria-label={`Déplacer ${item.prospect_name}`} {...attributes} {...listeners}><IconGripVertical className="size-4 text-muted-foreground" /></button></div>
       {children}
     </div>
   )
@@ -342,9 +352,9 @@ export default function OpportunitiesPage() {
 
   return (
     <AppShell contentClassName="p-3 pt-0 sm:p-4 sm:pt-0 lg:p-6">
-      <div className="flex flex-1 flex-col gap-4">
+      <main className="flex flex-1 flex-col gap-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="text-3xl font-bold tracking-tight">Opportunités</h2>
+          <h1 className="text-3xl font-bold tracking-tight">Opportunités</h1>
           <div className="flex flex-wrap gap-2">
             <Button variant={view === "kanban" ? "default" : "outline"} onClick={() => setView("kanban")}><IconLayoutKanban className="size-4" />Kanban</Button>
             <Button variant={view === "table" ? "default" : "outline"} onClick={() => setView("table")}><IconListDetails className="size-4" />Table</Button>
@@ -354,12 +364,12 @@ export default function OpportunitiesPage() {
 
         <SyncStatus updatedAt={updatedAt} onRefresh={() => { void mutate(); void mutateSummary() }} />
 
-        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+        <section aria-label="Indicateurs clés du pipeline" className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
           <Card><CardHeader className="pb-2"><CardDescription>Pipeline value total</CardDescription><CardTitle>{formatCurrencyFr(summary.pipeline_value_total)}</CardTitle></CardHeader></Card>
           <Card><CardHeader className="pb-2"><CardDescription>Win rate</CardDescription><CardTitle>{summary.win_rate_percent.toFixed(1)}%</CardTitle></CardHeader></Card>
           <Card><CardHeader className="pb-2"><CardDescription>Avg deal size</CardDescription><CardTitle>{formatCurrencyFr(summary.avg_deal_size)}</CardTitle></CardHeader></Card>
           <Card><CardHeader className="pb-2"><CardDescription>Close rate</CardDescription><CardTitle>{summary.close_rate_percent.toFixed(1)}%</CardTitle></CardHeader></Card>
-        </div>
+        </section>
 
         <Card className="overflow-hidden">
           <Tabs defaultValue="filters" className="w-full">
@@ -420,12 +430,13 @@ export default function OpportunitiesPage() {
         <Card>
           <CardHeader className="py-3 px-4">
             <CardTitle className="text-sm">Handoff post-sale</CardTitle>
+            <CardDescription>Transférer une opportunité gagnée à un membre de l&apos;équipe.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 lg:grid-cols-4 p-4 pt-0">
             <div className="space-y-1">
               <Label className="text-[10px] uppercase text-muted-foreground font-bold">Opportunite</Label>
               <Select value={handoffOpportunityId} onValueChange={setHandoffOpportunityId}>
-                <SelectTrigger className="h-9"><SelectValue placeholder="Selectionner" /></SelectTrigger>
+                <SelectTrigger className="h-9" aria-label="Sélectionner une opportunité gagnée"><SelectValue placeholder="Selectionner" /></SelectTrigger>
                 <SelectContent>
                   {wonRows.length === 0 ? <SelectItem value="none" disabled>Aucune opportunite Won</SelectItem> : null}
                   {wonRows.map((row) => <SelectItem key={row.id} value={row.id}>{row.prospect_name}</SelectItem>)}
@@ -435,7 +446,7 @@ export default function OpportunitiesPage() {
             <div className="space-y-1">
               <Label className="text-[10px] uppercase text-muted-foreground font-bold">Transfert vers</Label>
               <Select value={handoffUserId} onValueChange={setHandoffUserId}>
-                <SelectTrigger className="h-9"><SelectValue placeholder="Selectionner un utilisateur" /></SelectTrigger>
+                <SelectTrigger className="h-9" aria-label="Sélectionner un utilisateur pour le transfert"><SelectValue placeholder="Selectionner un utilisateur" /></SelectTrigger>
                 <SelectContent>
                   {(usersData?.items || []).map((user) => <SelectItem key={user.id} value={user.id}>{(user.display_name || "").trim() || user.email}</SelectItem>)}
                 </SelectContent>
@@ -465,9 +476,9 @@ export default function OpportunitiesPage() {
               <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1 md:grid md:gap-4 md:overflow-visible xl:grid-cols-5">
                 {STAGES.map((stage) => (
                   <div key={stage} className="flex min-h-48 flex-col rounded-lg bg-muted/50 p-2 md:min-w-0">
-                    <div className="flex items-center justify-between"><h3 className="font-semibold">{stage}</h3><Badge variant="outline">{byStage[stage].length}</Badge></div>
+                    <div className="flex items-center justify-between"><h3 className="font-semibold">{stage}</h3><Badge variant={stageVariant(stage)}>{byStage[stage].length}</Badge></div>
                     <DropCol stage={stage}>
-                      <div className="space-y-3">
+                      <div role="group" aria-label={`${stage} — ${byStage[stage].length} opportunités`} className="space-y-3">
                         {byStage[stage].map((row) => (
                           <DragCard key={row.id} item={row}>
                             <div className="space-y-1 text-sm">
@@ -546,7 +557,7 @@ export default function OpportunitiesPage() {
                   <div key={row.id} className="rounded-lg border p-3">
                     <div className="flex items-start justify-between gap-2">
                       <p className="line-clamp-2 font-medium">{row.prospect_name}</p>
-                      <Badge variant="outline">{row.stage}</Badge>
+                      <Badge variant={stageVariant(row.stage)}>{row.stage}</Badge>
                     </div>
                     <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
                       <div>
@@ -581,23 +592,24 @@ export default function OpportunitiesPage() {
               desktopTable={
                 <div className="rounded-xl border">
                   <Table>
+                    <caption className="sr-only">Tableau des opportunités avec étape, montant et probabilité</caption>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Prospect</TableHead>
-                        <TableHead>Stage</TableHead>
-                        <TableHead>Deal value</TableHead>
-                        <TableHead>Probability</TableHead>
-                        <TableHead>Close date</TableHead>
-                        <TableHead>Assigned to</TableHead>
-                        <TableHead>Alerte</TableHead>
+                        <TableHead scope="col">Prospect</TableHead>
+                        <TableHead scope="col">Stage</TableHead>
+                        <TableHead scope="col">Deal value</TableHead>
+                        <TableHead scope="col">Probability</TableHead>
+                        <TableHead scope="col">Close date</TableHead>
+                        <TableHead scope="col">Assigned to</TableHead>
+                        <TableHead scope="col">Alerte</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {filtered.map((row) => (
                         <TableRow key={row.id}>
-                          <TableCell className="font-medium">{row.prospect_name}</TableCell>
+                          <TableCell role="rowheader" className="font-medium">{row.prospect_name}</TableCell>
                           <TableCell>
-                            <Badge variant="outline">{row.stage}</Badge>
+                            <Badge variant={stageVariant(row.stage)}>{row.stage}</Badge>
                           </TableCell>
                           <TableCell>{inline(row, "amount")}</TableCell>
                           <TableCell>{inline(row, "probability")}</TableCell>
@@ -621,7 +633,7 @@ export default function OpportunitiesPage() {
             />
           )
         ) : null}
-      </div>
+      </main>
 
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent className="sm:max-w-xl">

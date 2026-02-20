@@ -97,11 +97,11 @@ export default function PageEditor() {
           title: aiContent.hero_title || formData.title,
           content: {
             ...formData.content,
-            hero_title: aiContent.hero_title,
-            hero_subtitle: aiContent.hero_subtitle,
-            cta_text: aiContent.cta_text,
-            problem_statement: aiContent.problem_statement,
-            solution_statement: aiContent.solution_statement
+            hero_title: aiContent.hero_title || formData.content.hero_title,
+            hero_subtitle: aiContent.hero_subtitle || formData.content.hero_subtitle,
+            cta_text: aiContent.cta_text || formData.content.cta_text,
+            problem_statement: aiContent.problem_statement || formData.content.problem_statement,
+            solution_statement: aiContent.solution_statement || formData.content.solution_statement
           }
         })
         toast.success("Contenu généré par l'IA.")

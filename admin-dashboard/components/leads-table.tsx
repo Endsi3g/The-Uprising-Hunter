@@ -5,6 +5,7 @@ import Link from "next/link"
 import { IconDotsVertical, IconFolderPlus, IconPlus, IconRocket, IconEye, IconTrash, IconPhone, IconCopy } from "@tabler/icons-react"
 import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
+import { leadStatusLabel } from "@/lib/lead-status-labels"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
   AlertDialog,
@@ -75,13 +76,14 @@ const SALON_PARTNER_SCRIPT = "Bonjour {name}, j'ai analysé votre site {company}
 
 type TriStateFilter = "ANY" | "YES" | "NO"
 
-const statusColors: Record<string, string> = {
-  NEW: "bg-blue-600 hover:bg-blue-700 border-none text-white",
-  CONTACTED: "bg-yellow-600 hover:bg-yellow-700 border-none text-white",
-  INTERESTED: "bg-purple-600 hover:bg-purple-700 border-none text-white",
-  CONVERTED: "bg-green-600 hover:bg-green-700 border-none text-white",
-  LOST: "bg-red-600 hover:bg-red-700 border-none text-white",
-  SCORED: "bg-cyan-600 hover:bg-cyan-700 border-none text-white"
+function leadStatusVariant(status: string): "info" | "warning" | "neutral" | "success" | "danger" {
+  if (status === "NEW") return "info"
+  if (status === "CONTACTED") return "warning"
+  if (status === "INTERESTED") return "neutral"
+  if (status === "CONVERTED") return "success"
+  if (status === "LOST") return "danger"
+  if (status === "SCORED") return "info"
+  return "neutral"
 }
 
 function scoreClass(score: number): string {
@@ -119,7 +121,7 @@ const LeadRow = React.memo(({
           aria-label="Selectionner le lead"
         />
       </TableCell>
-      <TableCell>
+      <TableCell role="rowheader">
         <Link
           href={`/leads/${encodeURIComponent(lead.id)}`}
           className="block font-medium text-primary hover:underline"
@@ -131,10 +133,9 @@ const LeadRow = React.memo(({
       <TableCell>{lead.company.name}</TableCell>
       <TableCell>
         <Badge
-          variant="outline"
-          className={statusColors[lead.status] || "bg-gray-500 border-none text-white"}
+          variant={leadStatusVariant(lead.status)}
         >
-          {lead.status}
+          {leadStatusLabel(lead.status)}
         </Badge>
       </TableCell>
       <TableCell className="max-w-[200px]">
@@ -152,7 +153,7 @@ const LeadRow = React.memo(({
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button variant="ghost" size="icon" className="size-8" asChild>
-                  <a href={`tel:${lead.phone}`}>
+                  <a href={`tel:${lead.phone}`} aria-label={`Appeler ${lead.name}`}>
                     <IconPhone className="size-4 text-green-600" />
                   </a>
                 </Button>
@@ -262,10 +263,9 @@ const LeadCard = React.memo(({
           <p className="truncate text-xs text-muted-foreground">{lead.company.name}</p>
         </div>
         <Badge
-          variant="outline"
-          className={statusColors[lead.status] || "bg-gray-500 border-none text-white"}
+          variant={leadStatusVariant(lead.status)}
         >
-          {lead.status}
+          {leadStatusLabel(lead.status)}
         </Badge>
       </div>
       <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
@@ -852,9 +852,10 @@ export function LeadsTable({
           desktopTable={
             <div className="rounded-lg border">
               <Table>
+                <caption className="sr-only">Tableau des leads avec statut, score et actions</caption>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[50px]">
+                    <TableHead scope="col" className="w-[50px]">
                       <Checkbox
                         checked={data.length > 0 && selectedLeads.size === data.length}
                         onCheckedChange={toggleSelectAll}
@@ -862,20 +863,23 @@ export function LeadsTable({
                       />
                     </TableHead>
                     <TableHead
+                      scope="col"
                       className="cursor-pointer hover:bg-muted/50"
                       onClick={() => handleSort("first_name")}
                     >
                       Lead <SortIcon column="first_name" sort={sort} order={order} />
                     </TableHead>
-                    <TableHead>Entreprise</TableHead>
+                    <TableHead scope="col">Entreprise</TableHead>
                     <TableHead
+                      scope="col"
                       className="cursor-pointer hover:bg-muted/50"
                       onClick={() => handleSort("status")}
                     >
                       Statut <SortIcon column="status" sort={sort} order={order} />
                     </TableHead>
-                    <TableHead className="w-[200px]">Accroche IA</TableHead>
+                    <TableHead scope="col" className="w-[200px]">Accroche IA</TableHead>
                     <TableHead
+                      scope="col"
                       className="cursor-pointer hover:bg-muted/50"
                       onClick={() => handleSort("total_score")}
                     >
@@ -909,7 +913,7 @@ export function LeadsTable({
                         </Tooltip>
                       </div>
                     </TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead scope="col" className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

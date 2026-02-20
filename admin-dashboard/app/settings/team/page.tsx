@@ -554,7 +554,7 @@ export default function TeamSettingsPage() {
                     <div key={owner.user_id} className="rounded-lg border p-3">
                       <div className="flex items-center justify-between gap-2">
                         <p className="text-sm font-medium">{owner.display_name}</p>
-                        <Badge variant={owner.overdue_sla_count > 0 ? "destructive" : "outline"}>
+                        <Badge variant={owner.overdue_sla_count > 0 ? "destructive" : "success"}>
                           SLA overdue {owner.overdue_sla_count}
                         </Badge>
                       </div>
@@ -581,7 +581,7 @@ export default function TeamSettingsPage() {
                     <div key={item.stage} className="rounded-lg border p-3">
                       <div className="flex items-center justify-between gap-2">
                         <p className="text-sm font-medium">{item.stage}</p>
-                        <Badge variant="outline">{item.lead_count} leads</Badge>
+                        <Badge variant="neutral">{item.lead_count} leads</Badge>
                       </div>
                       <p className="mt-1 text-xs text-muted-foreground">
                         Entries: {item.entries_in_window} | Conv. prev: {formatNumberFr(item.conversion_from_previous_percent)}%
@@ -685,7 +685,7 @@ export default function TeamSettingsPage() {
                       <div key={item.id} className="rounded-lg border p-3">
                         <div className="flex items-center justify-between gap-2">
                           <p className="text-sm font-medium">{recommendationTitle(item)}</p>
-                          <Badge variant="outline">P{item.priority}</Badge>
+                          <Badge variant="warning">P{item.priority}</Badge>
                         </div>
                         <p className="mt-1 text-xs text-muted-foreground">
                           {item.entity_type}:{" "}{item.entity_id} | {formatDateTimeFr(item.created_at || null)}

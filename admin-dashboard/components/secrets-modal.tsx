@@ -160,7 +160,7 @@ export function SecretsModal({ open, onOpenChange }: SecretsModalProps) {
                                 </Badge>
                               )}
                               {!isConfigured && (
-                                <Badge variant="outline" className="text-[10px] h-4 border-dashed text-muted-foreground">
+                                <Badge variant="danger" className="text-[10px] h-4 border-dashed">
                                   NON CONFIGURÉ
                                 </Badge>
                               )}

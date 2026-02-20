@@ -23,25 +23,31 @@ export function ErrorState({
   onSecondaryAction?: () => void
 }) {
   return (
-    <div className="flex min-h-40 flex-col items-center justify-center rounded-xl border border-red-300/60 bg-red-50/90 px-6 py-8 text-center shadow-sm dark:border-red-900/60 dark:bg-red-950/40">
-      <IconAlertTriangle className="mb-2 size-7 text-red-700 dark:text-red-300" />
-      <h3 className="text-sm font-semibold text-red-950 dark:text-red-100">{title}</h3>
+    <div role="alert" className="flex min-h-40 flex-col items-start justify-center rounded-xl border-l-4 border-l-red-500 border-red-300/60 bg-red-50/90 px-6 py-6 text-left shadow-md transition-all dark:border-l-red-500 dark:border-red-900/60 dark:bg-red-950/40">
+      <div className="flex items-center gap-3 mb-3 shrink-0">
+        <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/50">
+          <IconAlertTriangle className="size-5 text-red-700 dark:text-red-400" aria-hidden="true" />
+        </div>
+        <h3 className="text-base font-semibold text-red-950 dark:text-red-100">{title}</h3>
+      </div>
       {description ? (
-        <p className="mt-1 max-w-xl text-sm text-red-800 dark:text-red-200">{description}</p>
+        <div className="pl-13 w-full">
+          <p className="mt-1 max-w-2xl text-sm leading-relaxed text-red-800 dark:text-red-200">{description}</p>
+        </div>
       ) : null}
-      <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+      <div className="mt-5 pl-13 flex flex-wrap items-center gap-3 w-full">
         {onRetry ? (
-          <Button variant="outline" className="border-red-300 bg-white/70 hover:bg-red-100 dark:border-red-700 dark:bg-red-900/30 dark:hover:bg-red-900/50" onClick={onRetry}>
+          <Button variant="outline" size="sm" className="border-red-300 bg-white/80 hover:bg-red-100 dark:border-red-700 dark:bg-red-900/40 dark:hover:bg-red-900/60 shadow-sm" onClick={onRetry}>
             {retryLabel}
           </Button>
         ) : null}
         {secondaryLabel && secondaryHref ? (
-          <Button variant="ghost" asChild>
+          <Button variant="ghost" size="sm" asChild className="text-red-900 hover:bg-red-100/50 hover:text-red-950 dark:text-red-100 dark:hover:bg-red-900/30 dark:hover:text-red-50">
             <Link href={secondaryHref}>{secondaryLabel}</Link>
           </Button>
         ) : null}
         {secondaryLabel && onSecondaryAction ? (
-          <Button variant="ghost" onClick={onSecondaryAction}>
+          <Button variant="ghost" size="sm" className="text-red-900 hover:bg-red-100/50 hover:text-red-950 dark:text-red-100 dark:hover:bg-red-900/30 dark:hover:text-red-50" onClick={onSecondaryAction}>
             {secondaryLabel}
           </Button>
         ) : null}

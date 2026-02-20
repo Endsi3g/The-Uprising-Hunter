@@ -26,9 +26,13 @@ try {
     Set-Location $AppRoot
     Invoke-Expression "npx supabase start"
     Write-Host "✅ Supabase is UP." -ForegroundColor Green
+    
+    # NEW: Run setup-env.ps1 to prepare .env.local for frontend
+    Write-Host "🔑 Setting up environment variables..." -ForegroundColor Yellow
+    & ".\scripts\setup-env.ps1"
 }
 catch {
-    Write-Error "❌ Failed to start Supabase."
+    Write-Error "❌ Failed to start Supabase or setup environment."
     Set-Location $AppRoot
     Exit 1
 }
@@ -56,7 +60,8 @@ finally {
 
 # 4. Backend Start
 Write-Host "🐍 Starting Backend (FastAPI)..." -ForegroundColor Yellow
-$BackendCmd = "cmd /k python -m uvicorn src.api.server:app --port 8000 --reload"
+$PythonPath = Join-Path $AppRoot ".venv\Scripts\python.exe"
+$BackendCmd = "cmd /k `"$PythonPath`" -m uvicorn src.api.server:app --port 8000 --reload"
 Start-Process -FilePath "cmd" -ArgumentList "/c start $BackendCmd" -WindowStyle Normal
 
 # 5. Frontend Start (with Changelog)

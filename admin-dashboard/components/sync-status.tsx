@@ -74,16 +74,22 @@ export function SyncStatus({
         aria-live="polite"
         aria-atomic="true"
       >
-        <div className="flex items-center gap-2 text-sm font-medium text-amber-950 dark:text-amber-50">
-          <IconRefreshAlert className="size-4" />
-          <span>
-            {messages.dashboard.sync.stalePrefix} -{" "}
-            {formattedUpdatedAt || messages.dashboard.sync.staleNoSync}
-            {isFallbackSource ? ` (${messages.dashboard.sync.fallbackModeActive})` : ""}
-          </span>
-          <Badge variant="outline" className={sourceBadgeClass}>
-            {messages.dashboard.sync.sourceLabel}: {sourceValue}
-          </Badge>
+        <div className="flex flex-col gap-1.5 sm:gap-2">
+          <div className="flex items-center gap-2 text-sm font-bold text-amber-950 dark:text-amber-50">
+            <IconRefreshAlert className="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+            <span>{messages.dashboard.sync.stalePrefix}</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-amber-900/80 dark:text-amber-100/80">
+            <span>{formattedUpdatedAt || messages.dashboard.sync.staleNoSync}</span>
+            {isFallbackSource ? (
+               <span className="flex items-center gap-1.5 before:content-[''] before:block before:size-1 before:rounded-full before:bg-amber-500/50">
+                 {messages.dashboard.sync.fallbackModeActive}
+               </span>
+            ) : null}
+            <Badge variant="neutral" className={sourceBadgeClass}>
+              {messages.dashboard.sync.sourceLabel}: {sourceValue}
+            </Badge>
+          </div>
         </div>
         {onRefresh ? (
           <Button
@@ -108,11 +114,11 @@ export function SyncStatus({
           ? `${messages.dashboard.sync.upToDatePrefix} - ${formattedUpdatedAt}`
           : messages.dashboard.sync.pending}
       </span>
-      <Badge variant="outline" className={sourceBadgeClass}>
+      <Badge variant="neutral" className={sourceBadgeClass}>
         {messages.dashboard.sync.sourceLabel}: {sourceValue}
       </Badge>
       {isFallbackSource ? (
-        <Badge variant="outline" className="border-amber-600/45 bg-amber-300/15 text-amber-900 dark:border-amber-500/35 dark:bg-amber-500/15 dark:text-amber-100">
+        <Badge variant="warning" className="border-amber-600/45 bg-amber-300/15 text-amber-900 dark:border-amber-500/35 dark:bg-amber-500/15 dark:text-amber-100">
           {messages.dashboard.sync.fallbackBadge}
         </Badge>
       ) : null}

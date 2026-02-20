@@ -85,10 +85,17 @@ function sourceLabel(value: string): string {
   return value
 }
 
-function priorityClass(priority: Task["priority"]): string {
-  if (priority === "Critical") return "border-red-500 text-red-600"
-  if (priority === "High") return "border-orange-500 text-orange-600"
-  return ""
+function priorityVariant(priority: Task["priority"]): "danger" | "warning" | "neutral" | "info" {
+  if (priority === "Critical") return "danger"
+  if (priority === "High") return "warning"
+  if (priority === "Medium") return "info"
+  return "neutral"
+}
+
+function statusVariant(status: Task["status"]): "success" | "neutral" | "info" {
+  if (status === "Done") return "success"
+  if (status === "In Progress") return "info"
+  return "neutral"
 }
 
 function toDatetimeLocal(value?: string | null): string {
@@ -123,7 +130,7 @@ const TaskRow = React.memo(({
   onConvert: (task: Task) => void;
 }) => (
   <TableRow key={task.id}>
-    <TableCell>
+    <TableCell role="rowheader" className="font-medium">
       <Link
         href={`/tasks/${encodeURIComponent(task.id)}`}
         className="font-medium text-foreground underline-offset-2 hover:underline"
@@ -133,22 +140,22 @@ const TaskRow = React.memo(({
       <div className="text-xs text-muted-foreground">#{task.id}</div>
     </TableCell>
     <TableCell>
-      <Badge variant={task.status === "Done" ? "default" : "secondary"}>
+      <Badge variant={statusVariant(task.status)}>
         {task.status}
       </Badge>
     </TableCell>
     <TableCell>
-      <Badge variant="outline" className={priorityClass(task.priority)}>
+      <Badge variant={priorityVariant(task.priority)}>
         {task.priority}
       </Badge>
     </TableCell>
     <TableCell>{formatDateFr(task.due_date || null)}</TableCell>
     <TableCell>{task.assigned_to}</TableCell>
     <TableCell>
-      <Badge variant="outline">{channelLabel(task.channel)}</Badge>
+      <Badge variant="neutral">{channelLabel(task.channel)}</Badge>
     </TableCell>
     <TableCell>
-      <Badge variant={task.source === "auto-rule" ? "default" : "secondary"}>
+      <Badge variant={task.source === "auto-rule" ? "info" : task.source === "assistant" ? "success" : "neutral"}>
         {sourceLabel(task.source)}
       </Badge>
     </TableCell>
@@ -207,14 +214,14 @@ const TaskCard = React.memo(({
         </Link>
         <div className="text-xs text-muted-foreground">#{task.id}</div>
       </div>
-      <Badge variant={task.status === "Done" ? "default" : "secondary"}>
+      <Badge variant={statusVariant(task.status)}>
         {task.status}
       </Badge>
     </div>
     <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
       <div>
         <p className="text-muted-foreground">Priorité</p>
-        <Badge variant="outline" className={priorityClass(task.priority)}>
+        <Badge variant={priorityVariant(task.priority)}>
           {task.priority}
         </Badge>
       </div>
@@ -228,11 +235,11 @@ const TaskCard = React.memo(({
       </div>
       <div>
         <p className="text-muted-foreground">Canal</p>
-        <Badge variant="outline">{channelLabel(task.channel)}</Badge>
+        <Badge variant="neutral">{channelLabel(task.channel)}</Badge>
       </div>
       <div>
         <p className="text-muted-foreground">Source</p>
-        <Badge variant={task.source === "auto-rule" ? "default" : "secondary"}>
+        <Badge variant={task.source === "auto-rule" ? "info" : task.source === "assistant" ? "success" : "neutral"}>
           {sourceLabel(task.source)}
         </Badge>
       </div>
@@ -480,15 +487,16 @@ export function TasksTable({
         desktopTable={
           <div className="rounded-lg border">
             <Table>
+              <caption className="sr-only">Liste des tâches et filtres de recherche</caption>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("title")}>
+                  <TableHead scope="col" aria-sort={sort === "title" ? (order === "asc" ? "ascending" : "descending") : "none"} className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("title")}>
                     Tache <SortIcon column="title" sort={sort} order={order} />
                   </TableHead>
-                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("status")}>
+                  <TableHead scope="col" aria-sort={sort === "status" ? (order === "asc" ? "ascending" : "descending") : "none"} className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("status")}>
                     Statut <SortIcon column="status" sort={sort} order={order} />
                   </TableHead>
-                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("priority")}>
+                  <TableHead scope="col" aria-sort={sort === "priority" ? (order === "asc" ? "ascending" : "descending") : "none"} className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("priority")}>
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -501,13 +509,13 @@ export function TasksTable({
                       </Tooltip>
                     </TooltipProvider>
                   </TableHead>
-                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("due_date")}>
+                  <TableHead scope="col" aria-sort={sort === "due_date" ? (order === "asc" ? "ascending" : "descending") : "none"} className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("due_date")}>
                     Echeance <SortIcon column="due_date" sort={sort} order={order} />
                   </TableHead>
-                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("assigned_to")}>
+                  <TableHead scope="col" aria-sort={sort === "assigned_to" ? (order === "asc" ? "ascending" : "descending") : "none"} className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("assigned_to")}>
                     Assigne a <SortIcon column="assigned_to" sort={sort} order={order} />
                   </TableHead>
-                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("channel")}>
+                  <TableHead scope="col" aria-sort={sort === "channel" ? (order === "asc" ? "ascending" : "descending") : "none"} className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("channel")}>
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -520,7 +528,7 @@ export function TasksTable({
                       </Tooltip>
                     </TooltipProvider>
                   </TableHead>
-                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("source")}>
+                  <TableHead scope="col" aria-sort={sort === "source" ? (order === "asc" ? "ascending" : "descending") : "none"} className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("source")}>
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -533,10 +541,10 @@ export function TasksTable({
                       </Tooltip>
                     </TooltipProvider>
                   </TableHead>
-                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("sequence_step")}>
+                  <TableHead scope="col" aria-sort={sort === "sequence_step" ? (order === "asc" ? "ascending" : "descending") : "none"} className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("sequence_step")}>
                     Etape <SortIcon column="sequence_step" sort={sort} order={order} />
                   </TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead scope="col" className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
