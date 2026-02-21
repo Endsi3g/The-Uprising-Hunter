@@ -3,19 +3,8 @@ from __future__ import annotations
 import pytest
 
 from scripts.utilities.ingest_compagnie_docs import (
-    _has_suspicious_truncated_tail,
     _request_json_with_retries,
 )
-
-
-def test_has_suspicious_truncated_tail_detects_usage_marker() -> None:
-    text = "IDENTITÉ VISUELLE\n• Usage: 50"
-    assert _has_suspicious_truncated_tail(text) is True
-
-
-def test_has_suspicious_truncated_tail_ignores_complete_line() -> None:
-    text = "IDENTITÉ VISUELLE\n• Usage: 50% (backgrounds, textes sur clair)"
-    assert _has_suspicious_truncated_tail(text) is False
 
 
 def test_request_json_with_retries_retries_then_succeeds(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -230,7 +230,7 @@ export default function CampaignsPage() {
   const [sequenceStatus, setSequenceStatus] = React.useState("draft")
   const [sequenceChannels, setSequenceChannels] = React.useState("email,call")
   const [sequenceSteps, setSequenceSteps] = React.useState(DEFAULT_SEQUENCE_STEPS)
-  const [useFormForSteps, setUseFormForSteps] = React.useState(true)
+  const [useFormForSteps] = React.useState(true)
   const [sequenceStepsList, setSequenceStepsList] = React.useState<AnyMap[]>([
     {
       channel: "email",

@@ -3,7 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import useSWR from "swr"
-import { IconCalendar, IconFolder, IconPencil, IconTrash, IconSearch } from "@tabler/icons-react"
+import { IconCalendar, IconFolder, IconPencil, IconTrash } from "@tabler/icons-react"
 import { toast } from "sonner"
 
 import { ExportCsvButton } from "@/components/export-csv-button"

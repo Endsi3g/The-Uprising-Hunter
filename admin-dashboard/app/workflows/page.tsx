@@ -23,8 +23,10 @@ type WorkflowRule = {
   id: string
   name: string
   trigger_type: string
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   criteria: Record<string, any>
   action_type: string
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   action_config: Record<string, any>
   is_active: boolean
 }
@@ -183,7 +185,7 @@ export default function WorkflowsPage() {
         <SheetContent>
           <SheetHeader>
             <SheetTitle>{editingId ? "Modifier Workflow" : "Nouveau Workflow"}</SheetTitle>
-            <SheetDescription>Configurez vos règles d'automatisation.</SheetDescription>
+            <SheetDescription>Configurez vos règles d&apos;automatisation.</SheetDescription>
           </SheetHeader>
           <form onSubmit={handleSubmit} className="space-y-6 py-6">
             <div className="space-y-2">

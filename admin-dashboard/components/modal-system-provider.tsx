@@ -442,6 +442,8 @@ export function ModalSystemProvider({ children }: { children: React.ReactNode })
                 <Label htmlFor="project-description">Description</Label>
                 <textarea
                   id="project-description"
+                  aria-label="Description du projet"
+                  title="Description du projet"
                   className="min-h-24 w-full rounded-md border bg-transparent px-3 py-2 text-sm"
                   value={projectForm.description}
                   onChange={(event) =>

@@ -121,7 +121,7 @@ function overdue(item: Opportunity): boolean {
 
 function DropCol({ stage, children }: { stage: Stage; children: React.ReactNode }) {
   const { setNodeRef, isOver } = useDroppable({ id: `stage:${stage}` })
-  return <div ref={setNodeRef} aria-label={`Colonne ${stage}`} className={`min-h-[12rem] rounded-xl border p-3 ${isOver ? "border-primary" : "border-border"}`}>{children}</div>
+  return <div ref={setNodeRef} aria-label={`Colonne ${stage}`} className={`min-h-48 rounded-xl border p-3 ${isOver ? "border-primary" : "border-border"}`}>{children}</div>
 }
 function DragCard({ item, children }: { item: Opportunity; children: React.ReactNode }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: item.id })

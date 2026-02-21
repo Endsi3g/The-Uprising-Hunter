@@ -1,5 +1,23 @@
 [
   {
+    "hash": "019251e",
+    "date": "2026-02-20",
+    "author": "Endsi3g",
+    "message": "feat(ai): enable fallback to groq and ollama, fix launch script"
+  },
+  {
+    "hash": "3ac535d",
+    "date": "2026-02-20",
+    "author": "Endsi3g",
+    "message": "fix(a11y): WCAG 2.1 audit fixes — ARIA landmarks, aria-sort, semantic badges, nested main fix"
+  },
+  {
+    "hash": "db6c138",
+    "date": "2026-02-20",
+    "author": "Quebec SaaS",
+    "message": "feat: French status labels, WCAG audit fixes, comprehensive next steps document"
+  },
+  {
     "hash": "131b05e",
     "date": "2026-02-19",
     "author": "Endsi3g",
@@ -280,23 +298,5 @@
     "date": "2026-02-12",
     "author": "Quebec SaaS",
     "message": "fix(theme): implement next-themes to prevent flickering on login"
-  },
-  {
-    "hash": "4bdfdb7",
-    "date": "2026-02-12",
-    "author": "Quebec SaaS",
-    "message": "fix(deploy): fix second circular reference in assistant-prospect-panel.tsx (runDetail)"
-  },
-  {
-    "hash": "5a9c94d",
-    "date": "2026-02-12",
-    "author": "Quebec SaaS",
-    "message": "fix(deploy): fix circular reference in useSWR options"
-  },
-  {
-    "hash": "3fab110",
-    "date": "2026-02-12",
-    "author": "Quebec SaaS",
-    "message": "fix(deploy): hardening API client (remove double slash) + ensure strict TS fix"
   }
 ]

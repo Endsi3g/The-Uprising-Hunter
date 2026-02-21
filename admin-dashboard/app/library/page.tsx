@@ -44,7 +44,7 @@ type LibraryDoc = {
   file_type: string
   size_bytes: number
   mime_type: string
-  metadata: Record<string, any>
+  metadata: Record<string, unknown>
   created_at: string
   updated_at: string
 }
