@@ -9,6 +9,7 @@ venv/
 .pytest_tmp/
 .tmp_pytest/
 pytest-cache-files-*/
+pytest_output.txt
 
 # Environment
 .env

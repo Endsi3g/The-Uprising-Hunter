@@ -31,12 +31,12 @@ export function MenuToggleIcon({
 				open && '-rotate-45',
 				className,
 			)}
-			style={{ '--tw-transition-duration': `${duration}ms` } as React.CSSProperties}
+			style={{ transitionDuration: `${duration}ms` } as React.CSSProperties}
 			{...props}
 		>
 			<path
 				className={cn(
-					'transition-all ease-in-out',
+					'transition-[stroke-dasharray,stroke-dashoffset] ease-in-out',
 					open
 						? '[stroke-dasharray:20_300] [stroke-dashoffset:-32.42px]'
 						: '[stroke-dasharray:12_63]',
