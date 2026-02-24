@@ -9534,7 +9534,8 @@ def create_app() -> FastAPI:
     ) -> dict[str, Any]:
         """Public endpoint for lead capture (e.g. from website form)."""
         try:
-            existing = db.query(DBLead).filter(DBLead.email == str(payload.email)).first()
+            email_val = str(payload.email) if payload.email else None
+            existing = db.query(DBLead).filter(DBLead.email == email_val).first() if email_val else None
             if existing:
                 return {"status": "already_exists", "lead_id": existing.id}
 

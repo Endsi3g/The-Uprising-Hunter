@@ -535,17 +535,21 @@ def _client_ip(request: Request) -> str:
     if client_host in TRUSTED_PROXIES:
         forwarded = request.headers.get("x-forwarded-for")
         if forwarded:
-            # Trust last proxy in chain
+            # Parse parts, iterate from right-to-left and return first non-trusted IP
             parts = [p.strip() for p in forwarded.split(",") if p.strip()]
-            if parts:
-                return parts[-1]
+            for part in reversed(parts):
+                if part not in TRUSTED_PROXIES:
+                    return part
     return client_host
 
 # --- DEPENDENCIES ---
 
 def require_admin(request: Request, db: Session = Depends(get_db)) -> str:
-    # BYPASS AUTH FOR DEV: Explicit opt-in only via non-production environment
-    if not _is_production():
+    # BYPASS AUTH: Explicit opt-in or local context only
+    allow_bypass = os.getenv("ADMIN_AUTH_BYPASS") == "true"
+    is_local = _client_ip(request) in {"127.0.0.1", "::1", "localhost"}
+    
+    if not _is_production() and (allow_bypass or is_local):
         return "admin"
     
     auth_mode = _get_admin_auth_mode()
@@ -625,8 +629,7 @@ def require_rate_limit(request: Request) -> None:
         window_seconds = 60
 
     client_ip = _client_ip(request)
-    normalized_path = InMemoryRequestMetrics._normalize_path(request.url.path)
-    bucket_key = f"{client_ip}:{normalized_path}"
+    bucket_key = f"ip:{client_ip}"
 
     allowed = rate_limiter.allow(bucket_key, limit=limit, window_seconds=window_seconds)
     if not allowed:

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Annotated
 from datetime import date
-from pydantic import BaseModel, Field, EmailStr, model_validator
+from pydantic import BaseModel, Field, EmailStr, model_validator, field_validator
 from ..dependencies import AUTO_TASK_DEFAULT_CHANNELS
 
 class AdminLeadCreateRequest(BaseModel):
@@ -53,7 +53,7 @@ class AdminLeadNoteItemPayload(BaseModel):
     author: str | None = None
 
 class AdminLeadNotesUpdateRequest(BaseModel):
-    items: list[AdminLeadNoteItemPayload] = Field(..., min_length=1)
+    items: list[AdminLeadNoteItemPayload] = Field(default_factory=list)
 
 class AdminLeadAddToCampaignRequest(BaseModel):
     campaign_id: str = Field(min_length=1)
@@ -84,16 +84,25 @@ class AdminLeadReassignRequest(BaseModel):
 
 class LeadCaptureRequest(BaseModel):
     email: EmailStr | None = None
-    first_name: str | None = Field(default=None, min_length=1)
-    last_name: str | None = Field(default=None, min_length=1)
+    first_name: str | None = Field(default=None)
+    last_name: str | None = Field(default=None)
     company_name: str | None = None
     phone: str | None = None
     message: str | None = None
     source: str = "web_form"
 
+    @field_validator("first_name", "last_name", mode="before")
+    @classmethod
+    def strip_strings(cls, v: Any) -> Any:
+        if isinstance(v, str):
+            return v.strip()
+        return v
+
     @model_validator(mode="after")
     def validate_identifying_info(self) -> "LeadCaptureRequest":
-        if self.email is None and self.first_name is None and self.last_name is None:
+        fn_clean = (self.first_name or "").strip()
+        ln_clean = (self.last_name or "").strip()
+        if not self.email and not fn_clean and not ln_clean:
             raise ValueError("Lead capture must include email, first_name, or last_name")
         return self
 

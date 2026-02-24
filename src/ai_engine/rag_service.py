@@ -26,7 +26,7 @@ SUPPORTED_EXTENSIONS = ('.pdf', '.md', '.txt', '.py', '.ts', '.tsx', '.json', '.
 SECRET_PATTERNS = [
     re.compile(r'sk-[a-zA-Z0-9]{32,}', re.IGNORECASE), # OpenAI-like
     re.compile(r'AIza[0-9A-Za-z-_]{35}', re.IGNORECASE), # Google-like
-    re.compile(r'(?:password|passwd|api[-_]?key)\s*[:=]\s*["\'][\s\S]*?["\']', re.IGNORECASE | re.DOTALL), # common assignments
+    re.compile(r'(?:password|passwd|api[-_]?key)\s*[:=]\s*["\'][^"\'\n]*?["\']', re.IGNORECASE), # common assignments
     re.compile(r'-----BEGIN (?:RSA|PRIVATE) KEY-----[\s\S]*?-----END (?:RSA|PRIVATE) KEY-----', re.DOTALL), # PEM keys
     re.compile(r'AKIA[0-9A-Z]{16}', re.IGNORECASE), # AWS Access Key ID
     re.compile(r'postgres://(?P<user>[^:]+):(?P<pass>[^@]+)@', re.IGNORECASE), # DB URIs
@@ -243,13 +243,16 @@ class RAGService:
                         elif url_path.startswith("uploads/library/"):
                             web_path = "/" + url_path
 
+                        # Sanitize SRC_DIR metadata
+                        is_src_file = file_path.startswith(SRC_DIR)
+                        
                         docs_list.append({
                             "doc_id": hashlib.sha256(file_path.encode()).hexdigest()[:16],
-                            "title": filename,
+                            "title": "[CODE] " + os.path.basename(file_path) if is_src_file else filename,
                             "ext": os.path.splitext(filename)[1].lower().replace('.', '').upper(),
                             "status": "processed" if is_indexed else "pending_conversion", 
-                            "size_bytes": stat.st_size,
-                            "updated_at": str(stat.st_mtime),
+                            "size_bytes": 0 if is_src_file else stat.st_size,
+                            "updated_at": "HIDDEN" if is_src_file else str(stat.st_mtime),
                             "raw_path": web_path
                         })
                     except Exception as e:

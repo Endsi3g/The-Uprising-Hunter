@@ -15,7 +15,9 @@
 1.  **Extract Shared Dependencies**:
     - Identify authentication, database, and utility functions used across multiple routers.
     - Move them to `src/admin/dependencies.py` or `src/admin/utils.py`.
-2.  **Separate Schemas**:
+2.  **Extract Common schemas**:
+    - Create `src/admin/schemas/common.py` for shared Pydantic models (Pagination, Error responses, base DTOs).
+3.  **Separate Domain Schemas**:
     - Move Pydantic models (Request/Response) to `src/admin/schemas/`.
     - Group by domain (e.g., `schemas/leads.py`, `schemas/campaigns.py`).
 3.  **Create Modular Routers**:
@@ -30,8 +32,10 @@
 | Module | Schema File | Router File | Key Responsibilities | Prefix | Tags |
 |---|---|---|---|---|---|
 | **Common** | `schemas/common.py` | n/a | Shared models, pagination, errors | n/a | n/a |
-| **Auth** | `schemas/auth.py` | `routes/auth.py` | Login, Session management | `/admin/auth` | `Auth` |
+| **Auth** | `schemas/auth.py` | `routes/auth.py` | Login, Session management | `/admin/auth`* | `Auth` |
 | **Leads** | `schemas/leads.py` | `routes/leads.py` | Lead CRUD, Status updates | `/admin/v1/leads` | `Leads` |
+
+\* *Note: `/admin/auth` is intentionally unversioned to maintain backward compatibility for existing client libraries and stable session management integration.*
 | **Tasks** | `schemas/tasks.py` | `routes/tasks.py` | Task creation, assignment | `/admin/v1/tasks` | `Tasks` |
 | **Campaigns** | `schemas/campaigns.py` | `routes/campaigns.py` | Campaign/Sequence CRUD | `/admin/v1/campaigns` | `Campaigns` |
 | **Opportunities** | `schemas/opportunities.py` | `routes/opportunities.py` | Pipeline stages, Opportunity CRUD | `/admin/v1/opportunities` | `Opportunities` |
@@ -41,10 +45,11 @@
 | **Content** | `schemas/content.py` | `routes/content.py` | Landing pages, Document library | `/admin/v1/content` | `Content` |
 
 ## Execution Steps (Phase 1: Leads & Auth)
-1.  **Extract Dependencies**: Move `require_admin`, `require_rate_limit`, `get_current_admin_user` to `dependencies.py`.
-2.  **Extract Auth**: Move `AdminAuthLoginRequest`, `login_admin_v1`, etc.
-3.  **Extract Leads**: Move `AdminLeadCreateRequest`, `create_lead_admin_v1`, etc.
-4.  **Verify**: Ensure the application still runs and endpoints are accessible.
+1.  **Extract Common**: Create `schemas/common.py`.
+2.  **Extract Dependencies**: Move `require_admin`, `require_rate_limit`, `get_current_admin_user` to `dependencies.py`.
+3.  **Extract Auth**: Move `AdminAuthLoginRequest`, `login_admin_v1`, etc. to `schemas/auth.py` and `routes/auth.py`.
+4.  **Extract Leads**: Move `AdminLeadCreateRequest`, `create_lead_admin_v1`, etc. to `schemas/leads.py` and `routes/leads.py`.
+5.  **Verify**: Ensure the application still runs and endpoints are accessible.
 
 ## Next Phases
 - Phase 2: Tasks & Campaigns

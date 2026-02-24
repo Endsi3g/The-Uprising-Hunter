@@ -17,8 +17,8 @@ echo [INFO] Cleaning up previous sessions...
 
 :: 1. Force kill by Ports (8000 = Backend, 3000 = Frontend)
 :: This is the most reliable way to stop the specific services
-for /f "tokens=5" %%a in ('netstat -aon ^| find ":8000" ^| find "LISTENING"') do taskkill /f /pid %%a >nul 2>&1
-for /f "tokens=5" %%a in ('netstat -aon ^| find ":3000" ^| find "LISTENING"') do taskkill /f /pid %%a >nul 2>&1
+for /f "tokens=5" %%a in ('netstat -aon ^| find ":8000 " ^| find "LISTENING"') do taskkill /f /pid %%a >nul 2>&1
+for /f "tokens=5" %%a in ('netstat -aon ^| find ":3000 " ^| find "LISTENING"') do taskkill /f /pid %%a >nul 2>&1
 
 :: 2. Force kill by Window Title (Clean up wrapper/cmd windows)
 taskkill /FI "WINDOWTITLE eq The Uprising Hunter - Backend" /T /F >nul 2>&1
@@ -128,10 +128,10 @@ start "The Uprising Hunter - Backend" cmd /c ^"%BACKEND_COMMAND% 2^> ^"%BACKEND_
 :: ---------------------------------------------------
 echo [STEP 4/4] Starting Frontend (Port 3000)...
 pushd admin-dashboard
-if %ERRORLEVEL% neq 0 (
+if !ERRORLEVEL! neq 0 (
     echo [ERROR] Failed to enter admin-dashboard directory.
     pause
-    exit /b %ERRORLEVEL%
+    exit /b !ERRORLEVEL!
 )
 
 set FRONTEND_COMMAND=npm run dev

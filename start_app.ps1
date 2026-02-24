@@ -59,18 +59,18 @@ if (Test-Path ".venv\Scripts\Activate.ps1") {
 else {
     Write-Host "[WARNING] .venv not found. Creating one..." -ForegroundColor Yellow
     try {
-        python -m venv .venv 2>> $LauncherLog
+        python -m venv .venv
         if ($LASTEXITCODE -ne 0) { throw "Failed to create virtual environment" }
         
         Write-Host "[INFO] Virtual environment created. Activating..." -ForegroundColor Green
         & .venv\Scripts\Activate.ps1
         
         Write-Host "[INFO] Installing dependencies..." -ForegroundColor Cyan
-        python -m pip install --upgrade pip 2>> $LauncherLog
+        python -m pip install --upgrade pip
         if ($LASTEXITCODE -ne 0) { throw "Failed to upgrade pip" }
         
         if (Test-Path "requirements.txt") {
-            pip install -r requirements.txt 2>> $LauncherLog
+            pip install -r requirements.txt
             if ($LASTEXITCODE -ne 0) { throw "Failed to install Python dependencies" }
             Write-Host "[SUCCESS] Python dependencies installed." -ForegroundColor Green
         }
@@ -106,7 +106,7 @@ if (Test-Path "admin-dashboard\package.json") {
         Write-Host "[INFO] node_modules missing. Installing..." -ForegroundColor Cyan
         Push-Location "admin-dashboard"
         try {
-            npm install 2>> $LauncherLog
+            npm install
             if ($LASTEXITCODE -ne 0) { throw "npm install failed" }
             Write-Host "[SUCCESS] Frontend dependencies installed." -ForegroundColor Green
         }
@@ -125,8 +125,8 @@ if (Test-Path "admin-dashboard\package.json") {
 # 3. Start Backend
 # ---------------------------------------------------
 Write-Host "[STEP 3/4] Starting Backend (Port 8000)..." -ForegroundColor Green
-$BackendCmd = "python -m uvicorn src.admin.app:app --host 127.0.0.1 --port 8000 --reload 2> `"$BackendLog`""
-Start-Process -FilePath "cmd" -ArgumentList "/k $BackendCmd" -WindowStyle Normal
+$BackendCmd = "python -m uvicorn src.admin.app:app --host 127.0.0.1 --port 8000 2> `"$BackendLog`""
+Start-Process -FilePath "cmd" -ArgumentList "/k $BackendCmd" -WorkingDirectory $PSScriptRoot -WindowStyle Normal
 
 # ---------------------------------------------------
 # 4. Start Frontend

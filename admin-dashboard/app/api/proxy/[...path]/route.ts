@@ -603,11 +603,14 @@ async function forwardRequest(
   request: NextRequest,
   path: string[],
 ): Promise<Response> {
-  const normalizedPath = path.join("/");
+  // Normalize and resolve path to prevent traversal
+  const rawPath = path.join("/");
+  const normalizedPath = rawPath.replace(/\/+/g, "/");
   const pathname = `/${normalizedPath}`;
 
+  // Check against allowlist after normalization
   const isAllowed = ALLOWED_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix));
-  if (!isAllowed) {
+  if (!isAllowed || pathname.includes("..")) {
     return Response.json(
       { error: "Forbidden", message: "Path not allowed by proxy." },
       { status: 403, headers: withDataSourceHeader(undefined, "upstream") },
@@ -631,7 +634,10 @@ async function forwardRequest(
       },
     );
   }
-  const targetUrl = `${baseUrl}/${normalizedPath}${request.nextUrl.search}`;
+  
+  // Ensure exactly one slash between baseUrl and normalizedPath
+  const cleanBaseUrl = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
+  const targetUrl = `${cleanBaseUrl}/${normalizedPath}${request.nextUrl.search}`;
 
   const headers = new Headers(request.headers);
   if (!headers.get("authorization")) {

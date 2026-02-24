@@ -2,8 +2,9 @@ const PUBLIC_PATHS = new Set(["/", "/login", "/create-account", "/demo"]);
 const PUBLIC_PREFIXES = ["/_next/", "/api/", "/images/", "/p/"];
 const STATIC_FILE_REGEX = /\.[a-zA-Z0-9]+$/;
 
+// Standard non-sensitive public assets allowed without full authentication
 const PUBLIC_FILE_EXTENSIONS = new Set([
-  "png", "jpg", "jpeg", "css", "ico", "svg", "woff", "woff2", "ttf"
+  "png", "jpg", "jpeg", "webp", "gif", "css", "ico", "svg", "woff", "woff2", "ttf", "js", "txt", "xml", "json"
 ]);
 
 export const ACCESS_COOKIE_NAME = "admin_access_token";
@@ -41,7 +42,6 @@ export function isDemoAccessAllowed(
   hasDemoCookie: boolean,
 ): boolean {
   if (!hasDemoCookie) return false;
-  if (isLocalhostHost(hostname)) return true;
   
   // Also allow staging/preview hosts if configured
   const stagingHosts = (process.env.PROSPECT_STAGING_HOSTS || "").split(",");

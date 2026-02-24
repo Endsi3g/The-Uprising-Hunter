@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import Any
 
 from fastapi import HTTPException, status
+from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -17,8 +18,8 @@ from ..core.models import LeadStage, LeadStatus
 
 logger = get_logger(__name__)
 
-if hasattr(status, "HTTP_422_UNPROCESSABLE_CONTENT"):
-    HTTP_422_STATUS = status.HTTP_422_UNPROCESSABLE_CONTENT
+if hasattr(status, "HTTP_422_STATUS"):
+    HTTP_422_STATUS = status.HTTP_422_STATUS
 else:  # pragma: no cover
     HTTP_422_STATUS = 422
 
@@ -339,12 +340,12 @@ def _get_or_create_company(db: Session, company_name: str) -> DBCompany:
             db.add(company)
             db.flush()
             return company
-    except SQLAlchemyError as exc:
+    except SQLAlchemyError:
         # Concurrent insert? Try one last lookup.
         retry = db.query(DBCompany).filter(func.lower(DBCompany.name) == name_clean.lower()).first()
         if retry:
             return retry
-        raise exc
+        raise
 
 
 def _upsert_lead(db: Session, row: dict[str, Any]) -> str:
@@ -360,8 +361,9 @@ def _upsert_lead(db: Session, row: dict[str, Any]) -> str:
     if email:
         existing = db.query(DBLead).filter(DBLead.email == email).first()
     
-    # Fallback to composite key lookup
-    if not existing:
+    # Fallback to composite key lookup only if we have non-default identifiers
+    has_real_name = (first_name and first_name != "Unknown") or last_name
+    if not existing and has_real_name and company_name != "Unknown Company":
         existing = db.query(DBLead).filter(
             func.lower(DBLead.first_name) == first_name.lower(),
             func.lower(DBLead.last_name) == last_name.lower(),
@@ -369,11 +371,22 @@ def _upsert_lead(db: Session, row: dict[str, Any]) -> str:
         ).first()
     
     if existing:
-        existing.first_name = first_name
-        existing.last_name = last_name
-        existing.phone = row.get("phone")
+        # Update fields only if provided in the row
+        if first_name and first_name != "Unknown":
+            existing.first_name = first_name
+        if last_name:
+            existing.last_name = last_name
+        
+        phone = row.get("phone")
+        if phone:
+            existing.phone = phone
+            
         existing.status = row["status"]
-        existing.segment = row.get("segment")
+        
+        segment = row.get("segment")
+        if segment:
+            existing.segment = segment
+            
         existing.company_id = company.id
         
         # Update email if missing

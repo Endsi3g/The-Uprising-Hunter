@@ -47,9 +47,16 @@ class DBLead(Base):
 
     @validates("id")
     def validate_id_consistency(self, key, value):
-        if value and "@" in value and "." in value.split("@")[-1]:
-            if not self.email:
-                self.email = value
+        if value and isinstance(value, str):
+            # Strict email heuristic check
+            if "@" in value and value.count("@") == 1:
+                local, domain = value.split("@", 1)
+                if local and domain and "." in domain:
+                    labels = domain.split(".")
+                    if all(labels) and len(labels) >= 2:
+                        # Value looks like an email, but we DO NOT auto-assign to self.email
+                        # to keep PII mapping explicit in the service layer.
+                        pass
         return value
 
     status = Column(SqlEnum(LeadStatus), default=LeadStatus.NEW, index=True)

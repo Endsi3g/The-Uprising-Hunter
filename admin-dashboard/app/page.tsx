@@ -19,11 +19,6 @@ import { HeroSection, LogosSection } from "@/components/ui/hero-1"
 import { redirect } from "next/navigation"
 
 export default function Home() {
-  // BYPASS AUTH FOR DEV: Redirect to dashboard immediately if in development
-  if (process.env.NODE_ENV === "development") {
-    redirect("/dashboard")
-  }
-
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground selection:bg-primary/20">
       {/* Navigation */}
