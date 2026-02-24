@@ -18,8 +18,10 @@ from ..core.models import LeadStage, LeadStatus
 
 logger = get_logger(__name__)
 
-if hasattr(status, "HTTP_422_STATUS"):
-    HTTP_422_STATUS = status.HTTP_422_STATUS
+if hasattr(status, "HTTP_422_UNPROCESSABLE_ENTITY"):
+    HTTP_422_STATUS = status.HTTP_422_UNPROCESSABLE_ENTITY
+elif hasattr(status, "HTTP_422_UNPROCESSABLE_CONTENT"):
+    HTTP_422_STATUS = status.HTTP_422_UNPROCESSABLE_CONTENT
 else:  # pragma: no cover
     HTTP_422_STATUS = 422
 
@@ -236,14 +238,17 @@ def _validate_row(
         first_name = _pick_value(row, "first_name", mapping) or "Unknown"
         last_name = _pick_value(row, "last_name", mapping) or ""
         company_name = _pick_value(row, "company_name", mapping) or "Unknown Company"
+        raw_status = _pick_value(row, "status", mapping)
+        raw_segment = _pick_value(row, "segment", mapping)
+        
         return {
             "first_name": first_name,
             "last_name": last_name,
             "email": email,
             "phone": _pick_value(row, "phone", mapping),
             "company_name": company_name,
-            "status": _coerce_lead_status(_pick_value(row, "status", mapping)).value,
-            "segment": _pick_value(row, "segment", mapping) or "General",
+            "status": _coerce_lead_status(raw_status).value if raw_status else None,
+            "segment": raw_segment if raw_segment else None,
         }
 
     if table == "tasks":
@@ -381,11 +386,11 @@ def _upsert_lead(db: Session, row: dict[str, Any]) -> str:
         if phone:
             existing.phone = phone
             
-        existing.status = row["status"]
+        if row.get("status"):
+            existing.status = row["status"]
         
-        segment = row.get("segment")
-        if segment:
-            existing.segment = segment
+        if row.get("segment"):
+            existing.segment = row["segment"]
             
         existing.company_id = company.id
         
@@ -402,8 +407,8 @@ def _upsert_lead(db: Session, row: dict[str, Any]) -> str:
         email=email,
         phone=row.get("phone"),
         company_id=company.id,
-        status=row["status"],
-        segment=row.get("segment"),
+        status=row.get("status") or LeadStatus.NEW,
+        segment=row.get("segment") or "General",
         stage=LeadStage.NEW,
     )
     db.add(lead)

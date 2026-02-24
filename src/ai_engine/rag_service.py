@@ -244,7 +244,7 @@ class RAGService:
                             web_path = "/" + url_path
 
                         # Sanitize SRC_DIR metadata
-                        is_src_file = file_path.startswith(SRC_DIR)
+                        is_src_file = file_path.startswith(SRC_DIR + os.sep)
                         
                         docs_list.append({
                             "doc_id": hashlib.sha256(file_path.encode()).hexdigest()[:16],
@@ -252,7 +252,8 @@ class RAGService:
                             "ext": os.path.splitext(filename)[1].lower().replace('.', '').upper(),
                             "status": "processed" if is_indexed else "pending_conversion", 
                             "size_bytes": 0 if is_src_file else stat.st_size,
-                            "updated_at": "HIDDEN" if is_src_file else str(stat.st_mtime),
+                            "updated_at": None if is_src_file else str(stat.st_mtime),
+                            "sanitized": True if is_src_file else False,
                             "raw_path": web_path
                         })
                     except Exception as e:

@@ -127,6 +127,11 @@ start "The Uprising Hunter - Backend" cmd /c ^"%BACKEND_COMMAND% 2^> ^"%BACKEND_
 :: 4. Start Frontend
 :: ---------------------------------------------------
 echo [STEP 4/4] Starting Frontend (Port 3000)...
+if not exist "admin-dashboard\" (
+    echo [ERROR] admin-dashboard directory not found.
+    pause
+    exit /b 1
+)
 pushd admin-dashboard
 if !ERRORLEVEL! neq 0 (
     echo [ERROR] Failed to enter admin-dashboard directory.

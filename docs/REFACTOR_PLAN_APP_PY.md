@@ -34,8 +34,6 @@
 | **Common** | `schemas/common.py` | n/a | Shared models, pagination, errors | n/a | n/a |
 | **Auth** | `schemas/auth.py` | `routes/auth.py` | Login, Session management | `/admin/auth`* | `Auth` |
 | **Leads** | `schemas/leads.py` | `routes/leads.py` | Lead CRUD, Status updates | `/admin/v1/leads` | `Leads` |
-
-\* *Note: `/admin/auth` is intentionally unversioned to maintain backward compatibility for existing client libraries and stable session management integration.*
 | **Tasks** | `schemas/tasks.py` | `routes/tasks.py` | Task creation, assignment | `/admin/v1/tasks` | `Tasks` |
 | **Campaigns** | `schemas/campaigns.py` | `routes/campaigns.py` | Campaign/Sequence CRUD | `/admin/v1/campaigns` | `Campaigns` |
 | **Opportunities** | `schemas/opportunities.py` | `routes/opportunities.py` | Pipeline stages, Opportunity CRUD | `/admin/v1/opportunities` | `Opportunities` |
@@ -43,6 +41,8 @@
 | **Settings** | `schemas/settings.py` | `routes/settings.py` | User management, Webhooks | `/admin/v1/settings` | `Settings` |
 | **Assistant** | `schemas/assistant.py` | `routes/assistant.py` | AI actions, Chat, RAG | `/admin/v1/assistant` | `Assistant` |
 | **Content** | `schemas/content.py` | `routes/content.py` | Landing pages, Document library | `/admin/v1/content` | `Content` |
+
+\* *Note: `/admin/auth` is intentionally unversioned to maintain backward compatibility for existing client libraries and stable session management integration.*
 
 ## Execution Steps (Phase 1: Leads & Auth)
 1.  **Extract Common**: Create `schemas/common.py`.

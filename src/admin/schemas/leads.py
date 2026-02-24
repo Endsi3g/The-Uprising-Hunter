@@ -53,7 +53,7 @@ class AdminLeadNoteItemPayload(BaseModel):
     author: str | None = None
 
 class AdminLeadNotesUpdateRequest(BaseModel):
-    items: list[AdminLeadNoteItemPayload] = Field(default_factory=list)
+    items: list[AdminLeadNoteItemPayload] = Field(..., min_length=1)
 
 class AdminLeadAddToCampaignRequest(BaseModel):
     campaign_id: str = Field(min_length=1)
@@ -95,7 +95,8 @@ class LeadCaptureRequest(BaseModel):
     @classmethod
     def strip_strings(cls, v: Any) -> Any:
         if isinstance(v, str):
-            return v.strip()
+            stripped = v.strip()
+            return stripped if stripped else None
         return v
 
     @model_validator(mode="after")

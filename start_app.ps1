@@ -125,7 +125,7 @@ if (Test-Path "admin-dashboard\package.json") {
 # 3. Start Backend
 # ---------------------------------------------------
 Write-Host "[STEP 3/4] Starting Backend (Port 8000)..." -ForegroundColor Green
-$BackendCmd = "python -m uvicorn src.admin.app:app --host 127.0.0.1 --port 8000 2> `"$BackendLog`""
+$BackendCmd = "python -m uvicorn src.admin.app:app --host 127.0.0.1 --port 8000 2>> `"$BackendLog`""
 Start-Process -FilePath "cmd" -ArgumentList "/k $BackendCmd" -WorkingDirectory $PSScriptRoot -WindowStyle Normal
 
 # ---------------------------------------------------

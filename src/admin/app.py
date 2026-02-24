@@ -9547,8 +9547,8 @@ def create_app() -> FastAPI:
                 db.flush()
 
             db_lead = DBLead(
-                id=str(payload.email),
-                email=str(payload.email),
+                id=email_val or str(uuid.uuid4()),
+                email=email_val,
                 first_name=(payload.first_name or "").strip() or "Web",
                 last_name=(payload.last_name or "").strip() or "Capture",
                 phone=payload.phone,

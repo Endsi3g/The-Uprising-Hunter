@@ -545,11 +545,18 @@ def _client_ip(request: Request) -> str:
 # --- DEPENDENCIES ---
 
 def require_admin(request: Request, db: Session = Depends(get_db)) -> str:
-    # BYPASS AUTH: Explicit opt-in or local context only
+    # BYPASS AUTH: Explicit opt-in only
     allow_bypass = os.getenv("ADMIN_AUTH_BYPASS") == "true"
-    is_local = _client_ip(request) in {"127.0.0.1", "::1", "localhost"}
     
-    if not _is_production() and (allow_bypass or is_local):
+    if not _is_production() and allow_bypass:
+        client_ip = _client_ip(request)
+        # Note: _client_ip returns IP strings like "127.0.0.1" or "::1", not hostnames
+        is_local = client_ip in {"127.0.0.1", "::1"}
+        
+        logger.info(
+            f"Auth bypass granted for {request.method} {request.url.path} "
+            f"(Environment: non-prod, Local: {is_local}, Client: {client_ip})"
+        )
         return "admin"
     
     auth_mode = _get_admin_auth_mode()

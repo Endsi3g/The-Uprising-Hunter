@@ -1,10 +1,10 @@
-const PUBLIC_PATHS = new Set(["/", "/login", "/create-account", "/demo"]);
+const PUBLIC_PATHS = new Set(["/", "/login", "/create-account", "/demo", "/robots.txt"]);
 const PUBLIC_PREFIXES = ["/_next/", "/api/", "/images/", "/p/"];
 const STATIC_FILE_REGEX = /\.[a-zA-Z0-9]+$/;
 
 // Standard non-sensitive public assets allowed without full authentication
 const PUBLIC_FILE_EXTENSIONS = new Set([
-  "png", "jpg", "jpeg", "webp", "gif", "css", "ico", "svg", "woff", "woff2", "ttf", "js", "txt", "xml", "json"
+  "png", "jpg", "jpeg", "webp", "gif", "css", "ico", "svg", "woff", "woff2", "ttf"
 ]);
 
 export const ACCESS_COOKIE_NAME = "admin_access_token";
