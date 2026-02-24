@@ -54,7 +54,7 @@ import { IconInfoCircle } from "@tabler/icons-react"
 import { ResponsiveDataView } from "@/components/responsive/responsive-data-view"
 import { requestApi, fetchApi } from "@/lib/api"
 import useSWR from "swr"
-import { supabase } from "@/lib/supabase"
+import { isRealtimeEnabled, supabase } from "@/lib/supabase"
 
 const fetcher = <T,>(path: string) => fetchApi<T>(path)
 
@@ -601,6 +601,8 @@ export function LeadsTable({
 
   // Realtime subscription
   React.useEffect(() => {
+    if (!isRealtimeEnabled) return
+
     const channel = supabase
       .channel('leads-changes')
       .on(

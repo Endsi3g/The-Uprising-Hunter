@@ -6,6 +6,7 @@ export const WordmarkIcon = (props: React.ComponentProps<"svg">) => (
   </svg>
 );
 
+import Link from 'next/link';
 import React from 'react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -60,8 +61,12 @@ export function Header() {
 							{link.label}
 						</a>
 					))}
-					<Button variant="outline">Sign In</Button>
-					<Button>Get Started</Button>
+					<Button variant="outline" asChild>
+						<Link href="/login">Sign In</Link>
+					</Button>
+					<Button asChild>
+						<Link href="/create-account">Get Started</Link>
+					</Button>
 				</div>
 				<Button
 					size="icon"
@@ -91,10 +96,12 @@ export function Header() {
 					))}
 				</div>
 				<div className="flex flex-col gap-2">
-					<Button variant="outline" className="w-full bg-transparent">
-						Sign In
+					<Button variant="outline" className="w-full bg-transparent" asChild>
+						<Link href="/login">Sign In</Link>
 					</Button>
-					<Button className="w-full">Get Started</Button>
+					<Button className="w-full" asChild>
+						<Link href="/create-account">Get Started</Link>
+					</Button>
 				</div>
 			</MobileMenu>
 		</header>

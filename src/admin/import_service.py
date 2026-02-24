@@ -227,8 +227,7 @@ def _validate_row(
 ) -> dict[str, Any]:
     if table == "leads":
         email = _pick_value(row, "email", mapping)
-        if not email:
-            raise ValueError("Lead email is required.")
+        # BYPASS: Email is no longer required
         first_name = _pick_value(row, "first_name", mapping) or "Unknown"
         last_name = _pick_value(row, "last_name", mapping) or ""
         company_name = _pick_value(row, "company_name", mapping) or "Unknown Company"
@@ -335,9 +334,15 @@ def _get_or_create_company(db: Session, company_name: str) -> DBCompany:
 
 
 def _upsert_lead(db: Session, row: dict[str, Any]) -> str:
-    email = str(row["email"]).strip()
-    existing = db.query(DBLead).filter(DBLead.email == email).first()
+    email = str(row.get("email") or "").strip() or None
+    
+    # Try to find existing by email if provided
+    existing = None
+    if email:
+        existing = db.query(DBLead).filter(DBLead.email == email).first()
+    
     company = _get_or_create_company(db, row["company_name"])
+    
     if existing:
         existing.first_name = row["first_name"]
         existing.last_name = row["last_name"]
@@ -348,7 +353,7 @@ def _upsert_lead(db: Session, row: dict[str, Any]) -> str:
         return "updated"
 
     lead = DBLead(
-        id=email,
+        id=email if email else str(uuid.uuid4()),
         first_name=row["first_name"],
         last_name=row["last_name"],
         email=email,

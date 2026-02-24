@@ -100,7 +100,7 @@ export function AddLeadSheet() {
     const payload = {
       first_name: form.firstName.trim(),
       last_name: form.lastName.trim(),
-      email: form.email.trim(),
+      email: form.email.trim() || null,
       phone: form.phone.trim() || null,
       company_name: form.company.trim(),
       status: form.status,
@@ -184,7 +184,7 @@ export function AddLeadSheet() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email <span className="text-destructive">*</span></Label>
+              <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
@@ -196,7 +196,6 @@ export function AddLeadSheet() {
                   }
                 }}
                 className={errors.email ? "border-red-500 focus-visible:ring-red-500" : ""}
-                required
               />
               {errors.email ? <p className="text-xs text-red-600 font-medium">{errors.email}</p> : null}
             </div>

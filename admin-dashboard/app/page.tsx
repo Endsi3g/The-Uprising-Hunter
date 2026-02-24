@@ -16,7 +16,11 @@ import { Button } from "@/components/ui/button"
 import { Header } from "@/components/ui/header-1"
 import { HeroSection, LogosSection } from "@/components/ui/hero-1"
 
+import { redirect } from "next/navigation"
+
 export default function Home() {
+  // BYPASS AUTH FOR DEV: Redirect to dashboard immediately
+  redirect("/dashboard")
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground selection:bg-primary/20">

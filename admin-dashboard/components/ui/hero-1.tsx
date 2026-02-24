@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { RocketIcon, ArrowRightIcon, PhoneCallIcon } from "lucide-react";
@@ -65,13 +66,17 @@ export function HeroSection() {
 				</p>
 
 				<div className="fade-in slide-in-from-bottom-10 flex animate-in flex-row flex-wrap items-center justify-center gap-3 fill-mode-backwards pt-4 delay-300 duration-500 ease-out z-20">
-					<Button className="rounded-full h-12 px-6" size="lg" variant="secondary">
-						<PhoneCallIcon className="size-4 mr-2" />{" "}
-						Book a Demo
+					<Button className="rounded-full h-12 px-6" size="lg" variant="secondary" asChild>
+						<Link href="/login">
+							<PhoneCallIcon className="size-4 mr-2" />{" "}
+							Book a Demo
+						</Link>
 					</Button>
-					<Button className="rounded-full h-12 px-6" size="lg">
-						Start Free Trial{" "}
-						<ArrowRightIcon className="size-4 ms-2" />
+					<Button className="rounded-full h-12 px-6" size="lg" asChild>
+						<Link href="/create-account">
+							Start Free Trial{" "}
+							<ArrowRightIcon className="size-4 ms-2" />
+						</Link>
 					</Button>
 				</div>
 			</div>

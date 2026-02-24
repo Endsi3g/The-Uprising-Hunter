@@ -17,3 +17,11 @@ export const supabase = createClient(
     supabaseUrl || "http://localhost:54321",
     supabaseAnonKey || "missing-key",
 );
+
+/**
+ * Helper to determine if Realtime features should be enabled.
+ * Returns false if environment variables are missing or pointing to local defaults
+ * while the app is configured to use the Admin API proxy.
+ */
+export const isRealtimeEnabled =
+    !!(supabaseUrl && supabaseAnonKey && !supabaseUrl.includes("localhost"));

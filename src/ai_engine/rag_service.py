@@ -67,10 +67,12 @@ class RAGService:
         new_docs_count = 0
         failed_docs_count = 0
         
+        # Updated to include user uploads
+        LIBRARY_UPLOADS = os.path.join(os.getcwd(), 'uploads', 'library')
+        
         # Collect all files
         files = []
-        # Added SRC_DIR and code extensions
-        for directory in [DOCS_DIR, COMPAGNIE_DOCS_DIR, SRC_DIR]:
+        for directory in [DOCS_DIR, COMPAGNIE_DOCS_DIR, SRC_DIR, LIBRARY_UPLOADS]:
             if os.path.exists(directory):
                 # Recursively find files
                 for root, _, filenames in os.walk(directory):
@@ -79,8 +81,8 @@ class RAGService:
                         continue
                         
                     for filename in filenames:
-                        # Expanded extension list for code
-                        if filename.lower().endswith(('.pdf', '.md', '.txt', '.py', '.ts', '.tsx', '.json', '.yaml', '.yml', '.css', '.html')):
+                        # Added .csv to supported formats
+                        if filename.lower().endswith(('.pdf', '.md', '.txt', '.py', '.ts', '.tsx', '.json', '.yaml', '.yml', '.css', '.html', '.csv')):
                             files.append(os.path.join(root, filename))
 
         existing_sources = {doc['source'] for doc in self.vector_store}

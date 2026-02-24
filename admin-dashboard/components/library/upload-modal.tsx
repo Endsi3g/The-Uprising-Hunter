@@ -106,7 +106,7 @@ export function UploadModal({ open, onOpenChange, onSuccess }: UploadModalProps)
               className="hidden"
               ref={fileInputRef}
               onChange={handleFileChange}
-              accept=".pdf,.docx,.doc,.jpg,.jpeg,.png,.webp"
+              accept=".pdf,.docx,.doc,.jpg,.jpeg,.png,.webp,.csv"
             />
           </div>
           <div className="grid gap-2">

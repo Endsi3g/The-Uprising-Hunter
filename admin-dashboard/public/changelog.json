@@ -1,5 +1,17 @@
 [
   {
+    "hash": "003d014",
+    "date": "2026-02-20",
+    "author": "Quebec SaaS",
+    "message": "build(ci): ignore pytest logs and remove tracked pytest_output.txt"
+  },
+  {
+    "hash": "404b3ef",
+    "date": "2026-02-20",
+    "author": "Quebec SaaS",
+    "message": "fix(frontend): resolve all next.js production build errors, lints, and missing aria labels"
+  },
+  {
     "hash": "019251e",
     "date": "2026-02-20",
     "author": "Endsi3g",
@@ -286,17 +298,5 @@
     "date": "2026-02-12",
     "author": "Quebec SaaS",
     "message": "fix(build): correct next-themes import & update supabase credentials"
-  },
-  {
-    "hash": "64ff34f",
-    "date": "2026-02-12",
-    "author": "Quebec SaaS",
-    "message": "docs: add OPERATIONS_MANUAL.md to root"
-  },
-  {
-    "hash": "b6bb10a",
-    "date": "2026-02-12",
-    "author": "Quebec SaaS",
-    "message": "fix(theme): implement next-themes to prevent flickering on login"
   }
 ]

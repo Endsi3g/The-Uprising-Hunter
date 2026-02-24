@@ -23,7 +23,7 @@ export function DocumentPreview({ open, onOpenChange, docId, title, fileType }: 
   const [isLoading, setIsLoading] = React.useState(true)
   const [error, setError] = React.useState(false)
 
-  const fileUrl = `/api/v1/admin/library/documents/${docId}/file`
+  const fileUrl = `/api/proxy/api/v1/admin/library/documents/${docId}/file`
 
   const isImage = ["jpg", "jpeg", "png", "webp", "gif", "image"].includes(fileType.toLowerCase())
   const isPdf = fileType.toLowerCase() === "pdf"

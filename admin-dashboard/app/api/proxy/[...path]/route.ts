@@ -1,88 +1,90 @@
-import { NextRequest } from "next/server"
+import { NextRequest } from "next/server";
 
-type ProxyDataSource = "upstream" | "dev-fallback"
-const DATA_SOURCE_HEADER = "x-prospect-data-source"
+type ProxyDataSource = "upstream" | "dev-fallback";
+const DATA_SOURCE_HEADER = "x-prospect-data-source";
 
-function withDataSourceHeader(headers: HeadersInit | undefined, dataSource: ProxyDataSource): Headers {
-  const nextHeaders = new Headers(headers)
-  nextHeaders.set(DATA_SOURCE_HEADER, dataSource)
-  return nextHeaders
+function withDataSourceHeader(
+  headers: HeadersInit | undefined,
+  dataSource: ProxyDataSource,
+): Headers {
+  const nextHeaders = new Headers(headers);
+  nextHeaders.set(DATA_SOURCE_HEADER, dataSource);
+  return nextHeaders;
 }
 
-function getBaseUrl(): string | null {
-  const configured = process.env.API_BASE_URL
-  if (configured && configured.trim()) {
-    return configured.endsWith("/") ? configured.slice(0, -1) : configured
+function getBaseUrl(): string | undefined {
+  if (process.env.API_BASE_URL) return process.env.API_BASE_URL;
+  if (process.env.NEXT_PUBLIC_API_BASE_URL) {
+    return process.env.NEXT_PUBLIC_API_BASE_URL;
   }
-
-  if (process.env.NODE_ENV === "production") {
-    return null
-  }
-
-  return "http://localhost:8000"
+  if (process.env.NODE_ENV === "development") return "http://127.0.0.1:8000";
+  return undefined;
 }
 
 function isDevelopmentEnv(): boolean {
-  return process.env.NODE_ENV !== "production"
+  return process.env.NODE_ENV !== "production";
 }
 
 function getOptionalAuthHeader(): string | null {
-  const raw = process.env.ADMIN_AUTH
+  const raw = process.env.ADMIN_AUTH;
   if (!raw) {
-    return null
+    return null;
   }
-  return `Basic ${Buffer.from(raw).toString("base64")}`
+  return `Basic ${Buffer.from(raw).toString("base64")}`;
 }
 
 function getUpstreamTimeoutMs(): number {
-  const raw = Number(process.env.PROXY_UPSTREAM_TIMEOUT_MS || "60000")
-  if (!Number.isFinite(raw)) return 60000
-  return Math.max(1000, Math.min(raw, 120000))
+  const raw = Number(process.env.PROXY_UPSTREAM_TIMEOUT_MS || "60000");
+  if (!Number.isFinite(raw)) return 60000;
+  return Math.max(1000, Math.min(raw, 120000));
 }
 
 function buildWindowMeta(rawWindow: string | null) {
-  const windowKey = (rawWindow || "30d").toLowerCase()
-  const now = new Date()
+  const windowKey = (rawWindow || "30d").toLowerCase();
+  const now = new Date();
   const result = {
     label: "30 jours",
     days: 30,
     from: "",
     to: now.toISOString(),
-  }
+  };
 
   if (windowKey === "7d") {
-    result.label = "7 jours"
-    result.days = 7
+    result.label = "7 jours";
+    result.days = 7;
   } else if (windowKey === "90d") {
-    result.label = "90 jours"
-    result.days = 90
+    result.label = "90 jours";
+    result.days = 90;
   } else if (windowKey === "ytd") {
-    const from = new Date(now.getFullYear(), 0, 1)
-    result.label = "Année en cours"
-    result.days = Math.max(1, Math.ceil((now.getTime() - from.getTime()) / (24 * 3600 * 1000)))
-    result.from = from.toISOString()
-    return result
+    const from = new Date(now.getFullYear(), 0, 1);
+    result.label = "Année en cours";
+    result.days = Math.max(
+      1,
+      Math.ceil((now.getTime() - from.getTime()) / (24 * 3600 * 1000)),
+    );
+    result.from = from.toISOString();
+    return result;
   }
 
-  const from = new Date(now.getTime() - result.days * 24 * 3600 * 1000)
-  result.from = from.toISOString()
-  return result
+  const from = new Date(now.getTime() - result.days * 24 * 3600 * 1000);
+  result.from = from.toISOString();
+  return result;
 }
 
 function buildEmptyDailyTrend(days: number) {
   const output: Array<{
-    date: string
-    created: number
-    scored: number
-    contacted: number
-    closed: number
-    tasks_created: number
-    tasks_completed: number
-  }> = []
+    date: string;
+    created: number;
+    scored: number;
+    contacted: number;
+    closed: number;
+    tasks_created: number;
+    tasks_completed: number;
+  }> = [];
 
-  const today = new Date()
+  const today = new Date();
   for (let index = days - 1; index >= 0; index -= 1) {
-    const day = new Date(today.getTime() - index * 24 * 3600 * 1000)
+    const day = new Date(today.getTime() - index * 24 * 3600 * 1000);
     output.push({
       date: day.toISOString().slice(0, 10),
       created: 0,
@@ -91,13 +93,17 @@ function buildEmptyDailyTrend(days: number) {
       closed: 0,
       tasks_created: 0,
       tasks_completed: 0,
-    })
+    });
   }
-  return output
+  return output;
 }
 
-function getDevelopmentFallback(pathname: string, search: URLSearchParams, method: string): unknown | null {
-  const nowIso = new Date().toISOString()
+function getDevelopmentFallback(
+  pathname: string,
+  search: URLSearchParams,
+  method: string,
+): unknown | null {
+  const nowIso = new Date().toISOString();
 
   if (pathname === "/api/v1/admin/roles") {
     return {
@@ -106,7 +112,7 @@ function getDevelopmentFallback(pathname: string, search: URLSearchParams, metho
         { id: 2, key: "manager", label: "Manager" },
         { id: 3, key: "sales", label: "Commercial" },
       ],
-    }
+    };
   }
 
   if (pathname === "/api/v1/admin/users") {
@@ -122,7 +128,7 @@ function getDevelopmentFallback(pathname: string, search: URLSearchParams, metho
           updated_at: nowIso,
         },
       ],
-    }
+    };
   }
 
   if (pathname === "/api/v1/admin/settings") {
@@ -136,7 +142,7 @@ function getDevelopmentFallback(pathname: string, search: URLSearchParams, metho
       theme: "system",
       default_refresh_mode: "polling",
       notifications: { email: true, in_app: true },
-    }
+    };
   }
 
   if (pathname === "/api/v1/admin/help") {
@@ -148,14 +154,14 @@ function getDevelopmentFallback(pathname: string, search: URLSearchParams, metho
         {
           id: "guides",
           label: "Guides",
-          items: [{ label: "Quickstart", href: "/help/quickstart" }]
-        }
+          items: [{ label: "Quickstart", href: "/help/quickstart" }],
+        },
       ],
       quick_actions: [
-        { id: "docs", label: "Library", href: "/library", scope: "global" }
+        { id: "docs", label: "Library", href: "/library", scope: "global" },
       ],
-      updated_at: nowIso
-    }
+      updated_at: nowIso,
+    };
   }
 
   if (pathname === "/api/v1/admin/secrets/schema") {
@@ -167,20 +173,32 @@ function getDevelopmentFallback(pathname: string, search: URLSearchParams, metho
           label: "IA / NLP",
           keys: [
             { key: "OPENAI_API_KEY", description: "Clé OpenAI" },
-            { key: "ANTHROPIC_API_KEY", description: "Clé Anthropic" }
-          ]
-        }
-      ]
-    }
+            { key: "ANTHROPIC_API_KEY", description: "Clé Anthropic" },
+          ],
+        },
+      ],
+    };
   }
 
   if (pathname === "/api/v1/admin/secrets") {
     return {
       items: [
-        { key: "OPENAI_API_KEY", configured: true, source: "env", masked_value: "********", updated_at: nowIso },
-        { key: "ANTHROPIC_API_KEY", configured: false, source: "none", masked_value: "", updated_at: null }
-      ]
-    }
+        {
+          key: "OPENAI_API_KEY",
+          configured: true,
+          source: "env",
+          masked_value: "********",
+          updated_at: nowIso,
+        },
+        {
+          key: "ANTHROPIC_API_KEY",
+          configured: false,
+          source: "none",
+          masked_value: "",
+          updated_at: null,
+        },
+      ],
+    };
   }
 
   if (pathname === "/api/v1/admin/docs/compagnie") {
@@ -199,10 +217,10 @@ function getDevelopmentFallback(pathname: string, search: URLSearchParams, metho
           size_bytes: 1024,
           updated_at: nowIso,
           raw_path: "/raw/dev-doc-1.pdf",
-          processed: { markdown_path: "/processed/dev-doc-1.md" }
-        }
-      ]
-    }
+          processed: { markdown_path: "/processed/dev-doc-1.md" },
+        },
+      ],
+    };
   }
 
   if (pathname === "/api/v1/admin/stats") {
@@ -221,7 +239,7 @@ function getDevelopmentFallback(pathname: string, search: URLSearchParams, metho
       avg_total_score: 0,
       tier_distribution: {},
       daily_pipeline_trend: [],
-    }
+    };
   }
 
   if (pathname === "/api/v1/admin/metrics") {
@@ -231,7 +249,7 @@ function getDevelopmentFallback(pathname: string, search: URLSearchParams, metho
       errors_total: 0,
       p95_latency_ms: 0,
       queue_depth: 0,
-    }
+    };
   }
 
   if (pathname === "/api/v1/admin/sync/health" && method === "GET") {
@@ -242,14 +260,50 @@ function getDevelopmentFallback(pathname: string, search: URLSearchParams, metho
       last_sync_at: null,
       stale_seconds: null,
       sources: [
-        { entity: "leads", count: 0, last_updated_at: null, stale_seconds: null, status: "empty" },
-        { entity: "tasks", count: 0, last_updated_at: null, stale_seconds: null, status: "empty" },
-        { entity: "projects", count: 0, last_updated_at: null, stale_seconds: null, status: "empty" },
-        { entity: "report_runs", count: 0, last_updated_at: null, stale_seconds: null, status: "empty" },
-        { entity: "assistant_runs", count: 0, last_updated_at: null, stale_seconds: null, status: "empty" },
-        { entity: "notifications", count: 0, last_updated_at: null, stale_seconds: null, status: "empty" },
+        {
+          entity: "leads",
+          count: 0,
+          last_updated_at: null,
+          stale_seconds: null,
+          status: "empty",
+        },
+        {
+          entity: "tasks",
+          count: 0,
+          last_updated_at: null,
+          stale_seconds: null,
+          status: "empty",
+        },
+        {
+          entity: "projects",
+          count: 0,
+          last_updated_at: null,
+          stale_seconds: null,
+          status: "empty",
+        },
+        {
+          entity: "report_runs",
+          count: 0,
+          last_updated_at: null,
+          stale_seconds: null,
+          status: "empty",
+        },
+        {
+          entity: "assistant_runs",
+          count: 0,
+          last_updated_at: null,
+          stale_seconds: null,
+          status: "empty",
+        },
+        {
+          entity: "notifications",
+          count: 0,
+          last_updated_at: null,
+          stale_seconds: null,
+          status: "empty",
+        },
       ],
-    }
+    };
   }
 
   if (pathname === "/api/v1/admin/data/integrity" && method === "GET") {
@@ -267,11 +321,11 @@ function getDevelopmentFallback(pathname: string, search: URLSearchParams, metho
         failed_report_runs_30d: 0,
       },
       issues: [],
-    }
+    };
   }
 
   if (pathname === "/api/v1/admin/metrics/overview" && method === "GET") {
-    const windowMeta = buildWindowMeta(search.get("window"))
+    const windowMeta = buildWindowMeta(search.get("window"));
     return {
       generated_at: nowIso,
       request: {
@@ -330,7 +384,7 @@ function getDevelopmentFallback(pathname: string, search: URLSearchParams, metho
         ok: true,
         issue_count: 0,
       },
-    }
+    };
   }
 
   if (pathname === "/api/v1/admin/analytics") {
@@ -340,11 +394,11 @@ function getDevelopmentFallback(pathname: string, search: URLSearchParams, metho
       task_completion_rate: 0,
       pipeline_value: 0,
       new_leads_today: 0,
-    }
+    };
   }
 
   if (pathname === "/api/v1/admin/reports/schedules") {
-    return { items: [] }
+    return { items: [] };
   }
 
   if (pathname === "/api/v1/admin/tasks" && method === "GET") {
@@ -353,14 +407,16 @@ function getDevelopmentFallback(pathname: string, search: URLSearchParams, metho
       page_size: 25,
       total: 0,
       items: [],
-    }
+    };
   }
 
   if (pathname === "/api/v1/admin/projects" && method === "GET") {
-    return []
+    return [];
   }
 
-  if (/^\/api\/v1\/admin\/projects\/[^/]+$/.test(pathname) && method === "GET") {
+  if (
+    /^\/api\/v1\/admin\/projects\/[^/]+$/.test(pathname) && method === "GET"
+  ) {
     return {
       id: "dev-project",
       name: "Projet dev",
@@ -376,10 +432,13 @@ function getDevelopmentFallback(pathname: string, search: URLSearchParams, metho
       due_date: null,
       created_at: nowIso,
       updated_at: nowIso,
-    }
+    };
   }
 
-  if (/^\/api\/v1\/admin\/projects\/[^/]+\/activity$/.test(pathname) && method === "GET") {
+  if (
+    /^\/api\/v1\/admin\/projects\/[^/]+\/activity$/.test(pathname) &&
+    method === "GET"
+  ) {
     return {
       project_id: pathname.split("/")[5] || "dev-project",
       total: 1,
@@ -392,15 +451,15 @@ function getDevelopmentFallback(pathname: string, search: URLSearchParams, metho
           timestamp: nowIso,
         },
       ],
-    }
+    };
   }
 
   if (pathname === "/api/v1/admin/reports/schedules/runs") {
-    return { items: [] }
+    return { items: [] };
   }
 
   if (pathname === "/api/v1/admin/reports/30d") {
-    const windowMeta = buildWindowMeta(search.get("window"))
+    const windowMeta = buildWindowMeta(search.get("window"));
     return {
       window: windowMeta,
       kpis: {
@@ -422,7 +481,7 @@ function getDevelopmentFallback(pathname: string, search: URLSearchParams, metho
         stale_unscored_leads: 0,
         unassigned_tasks: 0,
       },
-    }
+    };
   }
 
   if (pathname === "/api/v1/admin/integrations") {
@@ -430,15 +489,18 @@ function getDevelopmentFallback(pathname: string, search: URLSearchParams, metho
       providers: {
         slack: { enabled: false, config: {} },
         zapier: { enabled: false, config: {} },
-        duckduckgo: { enabled: true, config: { region: "us-en", safe_search: "moderate" } },
+        duckduckgo: {
+          enabled: true,
+          config: { region: "us-en", safe_search: "moderate" },
+        },
         perplexity: { enabled: false, config: { model: "sonar" } },
         firecrawl: { enabled: false, config: { country: "us", lang: "en" } },
       },
-    }
+    };
   }
 
   if (pathname === "/api/v1/admin/webhooks") {
-    return { items: [] }
+    return { items: [] };
   }
 
   if (pathname === "/api/v1/admin/audit-log") {
@@ -455,7 +517,7 @@ function getDevelopmentFallback(pathname: string, search: URLSearchParams, metho
         },
       ],
       next_cursor: null,
-    }
+    };
   }
 
   if (pathname === "/api/v1/admin/diagnostics/latest") {
@@ -465,7 +527,7 @@ function getDevelopmentFallback(pathname: string, search: URLSearchParams, metho
       detail: "No diagnostics artifact available yet.",
       status: "warning",
       finished_at: null,
-    }
+    };
   }
 
   if (pathname === "/api/v1/admin/autofix/latest") {
@@ -475,7 +537,7 @@ function getDevelopmentFallback(pathname: string, search: URLSearchParams, metho
       detail: "No autofix artifact available yet.",
       status: "warning",
       finished_at: null,
-    }
+    };
   }
 
   if (method === "POST" && pathname === "/api/v1/admin/diagnostics/run") {
@@ -490,7 +552,7 @@ function getDevelopmentFallback(pathname: string, search: URLSearchParams, metho
       stdout_tail: ["[dev-fallback] Diagnostics run simulated."],
       stderr_tail: [],
       artifact_payload: { status: "ok", source: "proxy-dev-fallback" },
-    }
+    };
   }
 
   if (method === "POST" && pathname === "/api/v1/admin/autofix/run") {
@@ -505,10 +567,10 @@ function getDevelopmentFallback(pathname: string, search: URLSearchParams, metho
       stdout_tail: ["[dev-fallback] Autofix run simulated."],
       stderr_tail: [],
       artifact_payload: { status: "ok", source: "proxy-dev-fallback" },
-    }
+    };
   }
 
-  return null
+  return null;
 }
 
 function respondWithDevelopmentFallback(
@@ -516,13 +578,17 @@ function respondWithDevelopmentFallback(
   pathname: string,
 ): Response | null {
   if (!isDevelopmentEnv()) {
-    return null
+    return null;
   }
-  const method = request.method.toUpperCase()
+  const method = request.method.toUpperCase();
 
-  const payload = getDevelopmentFallback(pathname, request.nextUrl.searchParams, method)
+  const payload = getDevelopmentFallback(
+    pathname,
+    request.nextUrl.searchParams,
+    method,
+  );
   if (!payload) {
-    return null
+    return null;
   }
 
   return Response.json(payload, {
@@ -530,20 +596,20 @@ function respondWithDevelopmentFallback(
     headers: withDataSourceHeader({
       "x-proxy-fallback": "dev-mock",
     }, "dev-fallback"),
-  })
+  });
 }
 
 async function forwardRequest(
   request: NextRequest,
   path: string[],
 ): Promise<Response> {
-  const normalizedPath = path.join("/")
-  const pathname = `/${normalizedPath}`
-  const baseUrl = getBaseUrl()
+  const normalizedPath = path.join("/");
+  const pathname = `/${normalizedPath}`;
+  const baseUrl = getBaseUrl();
   if (!baseUrl) {
-    const fallback = respondWithDevelopmentFallback(request, pathname)
+    const fallback = respondWithDevelopmentFallback(request, pathname);
     if (fallback) {
-      return fallback
+      return fallback;
     }
     return Response.json(
       {
@@ -554,34 +620,33 @@ async function forwardRequest(
         status: 500,
         headers: withDataSourceHeader(undefined, "upstream"),
       },
-    )
+    );
   }
-  const targetUrl = `${baseUrl}/${normalizedPath}${request.nextUrl.search}`
+  const targetUrl = `${baseUrl}/${normalizedPath}${request.nextUrl.search}`;
 
-  const headers = new Headers(request.headers)
+  const headers = new Headers(request.headers);
   if (!headers.get("authorization")) {
-    const fallbackAuth = getOptionalAuthHeader()
+    const fallbackAuth = getOptionalAuthHeader();
     if (fallbackAuth) {
-      headers.set("Authorization", fallbackAuth)
+      headers.set("Authorization", fallbackAuth);
     }
   }
-  headers.set("x-forwarded-host", request.headers.get("host") || "")
-  headers.set("x-forwarded-proto", request.nextUrl.protocol.replace(":", ""))
-  headers.delete("host")
-  headers.delete("content-length")
-  headers.delete("connection")
+  headers.set("x-forwarded-host", request.headers.get("host") || "");
+  headers.set("x-forwarded-proto", request.nextUrl.protocol.replace(":", ""));
+  headers.delete("host");
+  headers.delete("content-length");
+  headers.delete("connection");
 
-  const method = request.method.toUpperCase()
-  const body =
-    method === "GET" || method === "HEAD"
-      ? undefined
-      : Buffer.from(await request.arrayBuffer())
+  const method = request.method.toUpperCase();
+  const body = method === "GET" || method === "HEAD"
+    ? undefined
+    : Buffer.from(await request.arrayBuffer());
 
-  const controller = new AbortController()
-  const timeoutMs = getUpstreamTimeoutMs()
-  const timeout = setTimeout(() => controller.abort(), timeoutMs)
+  const controller = new AbortController();
+  const timeoutMs = getUpstreamTimeoutMs();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
-  let upstream: Response
+  let upstream: Response;
   try {
     upstream = await fetch(targetUrl, {
       method,
@@ -589,14 +654,14 @@ async function forwardRequest(
       body,
       cache: "no-store",
       signal: controller.signal,
-    })
+    });
   } catch (error) {
-    const fallback = respondWithDevelopmentFallback(request, pathname)
+    const fallback = respondWithDevelopmentFallback(request, pathname);
     if (fallback) {
-      return fallback
+      return fallback;
     }
 
-    const isTimeout = error instanceof Error && error.name === "AbortError"
+    const isTimeout = error instanceof Error && error.name === "AbortError";
     return Response.json(
       {
         detail: isTimeout
@@ -607,43 +672,71 @@ async function forwardRequest(
         status: isTimeout ? 504 : 502,
         headers: withDataSourceHeader(undefined, "upstream"),
       },
-    )
+    );
   } finally {
-    clearTimeout(timeout)
+    clearTimeout(timeout);
   }
 
   if (upstream.status >= 500) {
-    const fallback = respondWithDevelopmentFallback(request, pathname)
+    const fallback = respondWithDevelopmentFallback(request, pathname);
     if (fallback) {
-      return fallback
+      return fallback;
     }
   }
 
-  const responseHeaders = new Headers(upstream.headers)
-  responseHeaders.delete("content-encoding")
-  responseHeaders.delete("transfer-encoding")
-  responseHeaders.set(DATA_SOURCE_HEADER, "upstream")
+  const responseHeaders = new Headers();
+  upstream.headers.forEach((value, key) => {
+    const lowKey = key.toLowerCase();
+    if (lowKey === "content-encoding" || lowKey === "transfer-encoding") {
+      return;
+    }
+    // Specially handle Set-Cookie to preserve multiple headers if they exist
+    if (lowKey === "set-cookie") {
+      console.log(`[Proxy] Upstream Set-Cookie: ${value}`);
+      responseHeaders.append(key, value);
+    } else {
+      responseHeaders.set(key, value);
+    }
+  });
+  responseHeaders.set(DATA_SOURCE_HEADER, "upstream");
+
+  // Log cookies in development to help debug redirection issues
+  if (
+    process.env.NODE_ENV === "development" && responseHeaders.has("set-cookie")
+  ) {
+    console.log(`[Proxy] Forwarding Set-Cookie for ${pathname}`);
+  }
 
   return new Response(upstream.body, {
     status: upstream.status,
     statusText: upstream.statusText,
     headers: responseHeaders,
-  })
+  });
 }
 
 type ProxyContext = {
   params:
     | {
-      path: string[]
+      path: string[];
     }
     | Promise<{
-      path: string[]
-    }>
+      path: string[];
+    }>;
+};
+
+async function handler(
+  request: NextRequest,
+  context: ProxyContext,
+): Promise<Response> {
+  const { path } = await Promise.resolve(context.params);
+  return forwardRequest(request, path);
 }
 
-async function handler(request: NextRequest, context: ProxyContext): Promise<Response> {
-  const { path } = await Promise.resolve(context.params)
-  return forwardRequest(request, path)
-}
-
-export { handler as GET, handler as POST, handler as PUT, handler as PATCH, handler as DELETE, handler as HEAD }
+export {
+  handler as DELETE,
+  handler as GET,
+  handler as HEAD,
+  handler as PATCH,
+  handler as POST,
+  handler as PUT,
+};

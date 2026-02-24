@@ -73,7 +73,7 @@ class Lead(BaseModel):
     id: str = Field(..., description="Unique ID of the lead")
     first_name: str
     last_name: str
-    email: EmailStr
+    email: Optional[EmailStr] = None
     title: Optional[str] = None
     phone: Optional[str] = None
     linkedin_url: Optional[HttpUrl] = None
@@ -192,13 +192,13 @@ class LandingPage(BaseModel):
     slug: str
     title: str
     description: Optional[str] = None
-    content: Dict[str, Any] = Field(default_factory=dict)
-    theme: Dict[str, Any] = Field(default_factory=dict)
+    content: Dict[str, Any] = Field(default_factory=dict, alias="content_json")
+    theme: Dict[str, Any] = Field(default_factory=dict, alias="theme_json")
     is_published: bool = False
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 class LibraryDoc(BaseModel):
     id: str

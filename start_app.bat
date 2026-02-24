@@ -5,7 +5,10 @@ setlocal enabledelayedexpansion
 ::   The Uprising Hunter - Smart Launcher
 :: ===================================================
 
-set "LOG_FILE=%~dp0startup_errors.log"
+set "BASE_LOG=%~dp0startup"
+set "LAUNCHER_LOG=%BASE_LOG%_launcher.log"
+set "BACKEND_LOG=%BASE_LOG%_backend.log"
+set "FRONTEND_LOG=%BASE_LOG%_frontend.log"
 
 :: ---------------------------------------------------
 :: 0. Cleanup / Reset
@@ -17,23 +20,20 @@ echo [INFO] Cleaning up previous sessions...
 for /f "tokens=5" %%a in ('netstat -aon ^| find ":8000" ^| find "LISTENING"') do taskkill /f /pid %%a >nul 2>&1
 for /f "tokens=5" %%a in ('netstat -aon ^| find ":3000" ^| find "LISTENING"') do taskkill /f /pid %%a >nul 2>&1
 
-:: 2. Force kill by Window Title (Clean up wrapper/cmd windows)
+:: 2. Force kill by Image Name (Catch any orphans not bound to ports)
+taskkill /f /im python.exe >nul 2>&1
+taskkill /f /im node.exe >nul 2>&1
+
+:: 3. Force kill by Window Title (Clean up wrapper/cmd windows)
 taskkill /FI "WINDOWTITLE eq The Uprising Hunter - Backend" /T /F >nul 2>&1
 taskkill /FI "WINDOWTITLE eq The Uprising Hunter - Frontend" /T /F >nul 2>&1
 
-:: Give it a second to release the file handle
-timeout /t 2 /nobreak >nul
+:: 3. Clear logs
+if exist "%LAUNCHER_LOG%" del "%LAUNCHER_LOG%" >nul 2>&1
+if exist "%BACKEND_LOG%" del "%BACKEND_LOG%" >nul 2>&1
+if exist "%FRONTEND_LOG%" del "%FRONTEND_LOG%" >nul 2>&1
 
-:: Try to delete the old log file
-if exist "%LOG_FILE%" (
-    del "%LOG_FILE%" >nul 2>&1
-    if exist "%LOG_FILE%" (
-        echo [WARNING] Could not delete startup_errors.log. 
-        echo [WARNING] Please manually close any open "python", "node", or "cmd" windows.
-    )
-)
-
-echo [INFO] Launcher started at %DATE% %TIME% > "%LOG_FILE%"
+echo [INFO] Launcher started at %DATE% %TIME% > "%LAUNCHER_LOG%"
 
 echo ===================================================
 echo   Starting The Uprising Hunter (Backend + Frontend)
@@ -123,7 +123,9 @@ popd
 :: 3. Start Backend
 :: ---------------------------------------------------
 echo [STEP 3/4] Starting Backend (Port 8000)...
-start "The Uprising Hunter - Backend" cmd /k "python -m uvicorn src.admin.app:app --port 8000 --reload 2>> "%LOG_FILE%""
+:: Use a temporary variable to hold the command to avoid complex quoting in 'start'
+set BACKEND_COMMAND=python -m uvicorn src.admin.app:app --host 0.0.0.0 --port 8000 --reload
+start "The Uprising Hunter - Backend" cmd /c "%BACKEND_COMMAND% 2> "%BACKEND_LOG%""
 
 :: ---------------------------------------------------
 :: 4. Start Frontend
@@ -131,21 +133,24 @@ start "The Uprising Hunter - Backend" cmd /k "python -m uvicorn src.admin.app:ap
 echo [STEP 4/4] Starting Frontend (Port 3000)...
 cd admin-dashboard
 
+set FRONTEND_COMMAND=npm run dev
 where npm >nul 2>&1
 if %ERRORLEVEL% equ 0 (
-    start "The Uprising Hunter - Frontend" cmd /k "npm run dev 2>> "%LOG_FILE%""
+    start "The Uprising Hunter - Frontend" cmd /c "%FRONTEND_COMMAND% 2> "%FRONTEND_LOG%""
 ) else (
     if exist "C:\Program Files\nodejs\npm.cmd" (
-        start "The Uprising Hunter - Frontend" cmd /k ""C:\Program Files\nodejs\npm.cmd" run dev 2>> "%LOG_FILE%""
+        start "The Uprising Hunter - Frontend" cmd /c ""C:\Program Files\nodejs\npm.cmd" run dev 2> "%FRONTEND_LOG%""
     ) else (
-        echo [ERROR] npm command not found. >> "%LOG_FILE%"
+        echo [ERROR] npm command not found. >> "%LAUNCHER_LOG%"
         echo [ERROR] npm command not found.
     )
 )
 
 echo.
 echo [SUCCESS] Services launched! 
-echo Errors (if any) are logged to: %LOG_FILE%
+echo - Backend Log:  %BACKEND_LOG%
+echo - Frontend Log: %FRONTEND_LOG%
+echo - Launcher Log: %LAUNCHER_LOG%
 echo - Backend: http://localhost:8000
 echo - Frontend: http://localhost:3000
 echo.

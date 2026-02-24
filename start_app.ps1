@@ -3,7 +3,9 @@
 # ===================================================
 
 $ErrorActionPreference = "Stop"
-$LogFile = Join-Path $PSScriptRoot "startup_errors.log"
+$LauncherLog = Join-Path $PSScriptRoot "startup_launcher.log"
+$BackendLog = Join-Path $PSScriptRoot "startup_backend.log"
+$FrontendLog = Join-Path $PSScriptRoot "startup_frontend.log"
 
 # ---------------------------------------------------
 # 0. Cleanup / Reset
@@ -19,18 +21,17 @@ foreach ($Port in $Ports) {
 }
 
 # 2. Kill existing processes by window title
-Get-Process | Where-Object { $_.MainWindowTitle -eq "The Uprising Hunter - Backend" -or $_.MainWindowTitle -eq "The Uprising Hunter - Frontend" } | Stop-Process -Force -ErrorAction SilentlyContinue
+Get-Process | Where-Object { $_.MainWindowTitle -match "The Uprising Hunter" } | Stop-Process -Force -ErrorAction SilentlyContinue
 
 # Verify file unlock
 Start-Sleep -Seconds 1
-if (Test-Path $LogFile) {
-    Remove-Item $LogFile -Force -ErrorAction SilentlyContinue
-    if (Test-Path $LogFile) {
-        Write-Host "[WARNING] Could not delete log file. It may be locked." -ForegroundColor Yellow
+foreach ($file in @($LauncherLog, $BackendLog, $FrontendLog)) {
+    if (Test-Path $file) {
+        Remove-Item $file -Force -ErrorAction SilentlyContinue
     }
 }
 
-"[" + (Get-Date).ToString("yyyy-MM-dd HH:mm:ss") + "] [INFO] Launcher started" | Out-File -FilePath $LogFile -Encoding UTF8 -Force
+"[" + (Get-Date).ToString("yyyy-MM-dd HH:mm:ss") + "] [INFO] Launcher started" | Out-File -FilePath $LauncherLog -Encoding UTF8 -Force
 
 Write-Host "===================================================" -ForegroundColor Cyan
 Write-Host "  Starting The Uprising Hunter (Backend + Frontend)" -ForegroundColor Cyan
@@ -49,20 +50,20 @@ if (Test-Path ".venv\Scripts\Activate.ps1") {
 else {
     Write-Host "[WARNING] .venv not found. Creating one..." -ForegroundColor Yellow
     try {
-        Start-Process python -ArgumentList "-m venv .venv" -Wait -NoNewWindow -RedirectStandardError $LogFile
+        Start-Process python -ArgumentList "-m venv .venv" -Wait -NoNewWindow -RedirectStandardError $LauncherLog
         Write-Host "[INFO] Virtual environment created. Activating..." -ForegroundColor Green
         & .venv\Scripts\Activate.ps1
         
         Write-Host "[INFO] Installing dependencies..." -ForegroundColor Cyan
-        Start-Process python -ArgumentList "-m pip install --upgrade pip" -Wait -NoNewWindow -RedirectStandardError $LogFile
+        Start-Process python -ArgumentList "-m pip install --upgrade pip" -Wait -NoNewWindow -RedirectStandardError $LauncherLog
         if (Test-Path "requirements.txt") {
-            Start-Process pip -ArgumentList "install -r requirements.txt" -Wait -NoNewWindow -RedirectStandardError $LogFile
+            Start-Process pip -ArgumentList "install -r requirements.txt" -Wait -NoNewWindow -RedirectStandardError $LauncherLog
             Write-Host "[SUCCESS] Python dependencies installed." -ForegroundColor Green
         }
     }
     catch {
-        Write-Host "[ERROR] Failed to setup Python environment. Check startup_errors.log" -ForegroundColor Red
-        "[" + (Get-Date).ToString("yyyy-MM-dd HH:mm:ss") + "] [ERROR] Python setup failed: $_" | Out-File -FilePath $LogFile -Append -Encoding UTF8
+        Write-Host "[ERROR] Failed to setup Python environment. Check startup_launcher.log" -ForegroundColor Red
+        "[" + (Get-Date).ToString("yyyy-MM-dd HH:mm:ss") + "] [ERROR] Python setup failed: $_" | Out-File -FilePath $LauncherLog -Append -Encoding UTF8
         Read-Host "Press Enter to exit..."
         exit 1
     }
@@ -80,7 +81,7 @@ if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
     }
     else {
         Write-Host "[ERROR] Node.js not found." -ForegroundColor Red
-        "[" + (Get-Date).ToString("yyyy-MM-dd HH:mm:ss") + "] [ERROR] Node.js not found" | Out-File -FilePath $LogFile -Append -Encoding UTF8
+        "[" + (Get-Date).ToString("yyyy-MM-dd HH:mm:ss") + "] [ERROR] Node.js not found" | Out-File -FilePath $LauncherLog -Append -Encoding UTF8
         Read-Host "Press Enter to exit..."
         exit 1
     }
@@ -91,12 +92,12 @@ if (Test-Path "admin-dashboard\package.json") {
         Write-Host "[INFO] node_modules missing. Installing..." -ForegroundColor Cyan
         Push-Location "admin-dashboard"
         try {
-            Start-Process npm -ArgumentList "install" -Wait -NoNewWindow -RedirectStandardError $LogFile
+            Start-Process npm -ArgumentList "install" -Wait -NoNewWindow -RedirectStandardError $LauncherLog
             Write-Host "[SUCCESS] Frontend dependencies installed." -ForegroundColor Green
         }
         catch {
             Write-Host "[ERROR] npm install failed." -ForegroundColor Red
-            "[" + (Get-Date).ToString("yyyy-MM-dd HH:mm:ss") + "] [ERROR] npm install failed: $_" | Out-File -FilePath $LogFile -Append -Encoding UTF8
+            "[" + (Get-Date).ToString("yyyy-MM-dd HH:mm:ss") + "] [ERROR] npm install failed: $_" | Out-File -FilePath $LauncherLog -Append -Encoding UTF8
         }
         Pop-Location
     }
@@ -106,19 +107,21 @@ if (Test-Path "admin-dashboard\package.json") {
 # 3. Start Backend
 # ---------------------------------------------------
 Write-Host "[STEP 3/4] Starting Backend (Port 8000)..." -ForegroundColor Green
-Start-Process -FilePath "cmd" -ArgumentList "/k python -m uvicorn src.admin.app:app --port 8000 --reload 2>> `"$LogFile`"" -WindowStyle Normal
+$BackendCmd = "python -m uvicorn src.admin.app:app --host 0.0.0.0 --port 8000 --reload 2> `"$BackendLog`""
+Start-Process -FilePath "cmd" -ArgumentList "/k $BackendCmd" -WindowStyle Normal
 
 # ---------------------------------------------------
 # 4. Start Frontend
 # ---------------------------------------------------
 Write-Host "[STEP 4/4] Starting Frontend (Port 3000)..." -ForegroundColor Green
-Set-Location "admin-dashboard"
-Start-Process -FilePath "cmd" -ArgumentList "/k npm run dev 2>> `"$LogFile`"" -WindowStyle Normal
+$FrontendCmd = "npm run dev 2> `"$FrontendLog`""
+Start-Process -FilePath "cmd" -ArgumentList "/c cd admin-dashboard && $FrontendCmd" -WindowStyle Normal
 
 Write-Host ""
 Write-Host "[SUCCESS] Services launched!" -ForegroundColor Green
-Write-Host "Errors (if any) are logged to: $LogFile" -ForegroundColor Gray
-Write-Host "- Backend: http://localhost:8000"
-Write-Host "- Frontend: http://localhost:3000"
+Write-Host "- Backend Log: $BackendLog" -ForegroundColor Gray
+Write-Host "- Frontend Log: $FrontendLog" -ForegroundColor Gray
+Write-Host "- Backend URL: http://localhost:8000"
+Write-Host "- Frontend URL: http://localhost:3000"
 Write-Host ""
 Read-Host "Press Enter to exit this launcher..."

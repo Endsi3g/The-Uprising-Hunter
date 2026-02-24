@@ -19,7 +19,7 @@ import { fetchApi } from "@/lib/api"
 
 type ApiLead = {
   id: string
-  email: string
+  email?: string | null
   first_name?: string
   last_name?: string
   phone?: string | null
@@ -176,9 +176,9 @@ export default function LeadsPage() {
   const leads: Lead[] = data?.items
     ? data.items.map((item) => ({
       id: item.id,
-      name: `${item.first_name || ""} ${item.last_name || ""}`.trim() || item.email,
+      name: `${item.first_name || ""} ${item.last_name || ""}`.trim() || item.email || "Lead sans email",
       company: { name: item.company_name || "Inconnu" },
-      email: item.email,
+      email: item.email || "",
       phone: item.phone || "",
       status: item.status,
       score: Number(item.total_score || 0),

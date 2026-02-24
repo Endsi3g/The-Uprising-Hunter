@@ -34,10 +34,10 @@ class DBCompany(Base):
 class DBLead(Base):
     __tablename__ = "leads"
 
-    id = Column(String, primary_key=True, index=True) # Using email as ID for compatibility
+    id = Column(String, primary_key=True, index=True) # Unique ID (UUID or Email)
     first_name = Column(String)
     last_name = Column(String)
-    email = Column(String, unique=True, index=True)
+    email = Column(String, unique=True, index=True, nullable=True)
     title = Column(String, nullable=True)
     phone = Column(String, nullable=True)
     linkedin_url = Column(String, nullable=True)
