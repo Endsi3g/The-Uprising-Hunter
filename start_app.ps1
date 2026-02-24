@@ -45,24 +45,38 @@ Write-Host "[STEP 1/4] Checking Python environment..." -ForegroundColor Yellow
 
 if (Test-Path ".venv\Scripts\Activate.ps1") {
     Write-Host "[INFO] Activating virtual environment..." -ForegroundColor Green
-    & .venv\Scripts\Activate.ps1
+    try {
+        & .venv\Scripts\Activate.ps1
+    }
+    catch {
+        Write-Host "[ERROR] Failed to activate virtual environment: $_" -ForegroundColor Red
+        Write-Host "[TIP] Check your execution policy (Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass)" -ForegroundColor Gray
+        "[" + (Get-Date).ToString("yyyy-MM-dd HH:mm:ss") + "] [ERROR] Failed to activate virtual environment: $_" | Out-File -FilePath $LauncherLog -Append -Encoding UTF8
+        Read-Host "Press Enter to exit..."
+        exit 1
+    }
 }
 else {
     Write-Host "[WARNING] .venv not found. Creating one..." -ForegroundColor Yellow
     try {
-        Start-Process python -ArgumentList "-m venv .venv" -Wait -NoNewWindow -RedirectStandardError $LauncherLog
+        python -m venv .venv 2>> $LauncherLog
+        if ($LASTEXITCODE -ne 0) { throw "Failed to create virtual environment" }
+        
         Write-Host "[INFO] Virtual environment created. Activating..." -ForegroundColor Green
         & .venv\Scripts\Activate.ps1
         
         Write-Host "[INFO] Installing dependencies..." -ForegroundColor Cyan
-        Start-Process python -ArgumentList "-m pip install --upgrade pip" -Wait -NoNewWindow -RedirectStandardError $LauncherLog
+        python -m pip install --upgrade pip 2>> $LauncherLog
+        if ($LASTEXITCODE -ne 0) { throw "Failed to upgrade pip" }
+        
         if (Test-Path "requirements.txt") {
-            Start-Process pip -ArgumentList "install -r requirements.txt" -Wait -NoNewWindow -RedirectStandardError $LauncherLog
+            pip install -r requirements.txt 2>> $LauncherLog
+            if ($LASTEXITCODE -ne 0) { throw "Failed to install Python dependencies" }
             Write-Host "[SUCCESS] Python dependencies installed." -ForegroundColor Green
         }
     }
     catch {
-        Write-Host "[ERROR] Failed to setup Python environment. Check startup_launcher.log" -ForegroundColor Red
+        Write-Host "[ERROR] Failed to setup Python environment. Check $LauncherLog" -ForegroundColor Red
         "[" + (Get-Date).ToString("yyyy-MM-dd HH:mm:ss") + "] [ERROR] Python setup failed: $_" | Out-File -FilePath $LauncherLog -Append -Encoding UTF8
         Read-Host "Press Enter to exit..."
         exit 1
@@ -92,12 +106,16 @@ if (Test-Path "admin-dashboard\package.json") {
         Write-Host "[INFO] node_modules missing. Installing..." -ForegroundColor Cyan
         Push-Location "admin-dashboard"
         try {
-            Start-Process npm -ArgumentList "install" -Wait -NoNewWindow -RedirectStandardError $LauncherLog
+            npm install 2>> $LauncherLog
+            if ($LASTEXITCODE -ne 0) { throw "npm install failed" }
             Write-Host "[SUCCESS] Frontend dependencies installed." -ForegroundColor Green
         }
         catch {
-            Write-Host "[ERROR] npm install failed." -ForegroundColor Red
+            Write-Host "[ERROR] npm install failed. Check $LauncherLog" -ForegroundColor Red
             "[" + (Get-Date).ToString("yyyy-MM-dd HH:mm:ss") + "] [ERROR] npm install failed: $_" | Out-File -FilePath $LauncherLog -Append -Encoding UTF8
+            Pop-Location
+            Read-Host "Press Enter to exit..."
+            exit 1
         }
         Pop-Location
     }
@@ -107,7 +125,7 @@ if (Test-Path "admin-dashboard\package.json") {
 # 3. Start Backend
 # ---------------------------------------------------
 Write-Host "[STEP 3/4] Starting Backend (Port 8000)..." -ForegroundColor Green
-$BackendCmd = "python -m uvicorn src.admin.app:app --host 0.0.0.0 --port 8000 --reload 2> `"$BackendLog`""
+$BackendCmd = "python -m uvicorn src.admin.app:app --host 127.0.0.1 --port 8000 --reload 2> `"$BackendLog`""
 Start-Process -FilePath "cmd" -ArgumentList "/k $BackendCmd" -WindowStyle Normal
 
 # ---------------------------------------------------

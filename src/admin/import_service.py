@@ -227,6 +227,10 @@ def _validate_row(
 ) -> dict[str, Any]:
     if table == "leads":
         email = _pick_value(row, "email", mapping)
+        if email:
+            email = email.strip()
+            if "@" not in email or "." not in email.split("@")[-1]:
+                email = None
         # BYPASS: Email is no longer required
         first_name = _pick_value(row, "first_name", mapping) or "Unknown"
         last_name = _pick_value(row, "last_name", mapping) or ""
@@ -324,43 +328,69 @@ def preview_csv_import(
 
 
 def _get_or_create_company(db: Session, company_name: str) -> DBCompany:
-    existing = db.query(DBCompany).filter(DBCompany.name == company_name).first()
+    name_clean = company_name.strip()
+    existing = db.query(DBCompany).filter(func.lower(DBCompany.name) == name_clean.lower()).first()
     if existing:
         return existing
-    company = DBCompany(name=company_name, domain=None)
-    db.add(company)
-    db.flush()
-    return company
+    
+    try:
+        with db.begin_nested():
+            company = DBCompany(name=name_clean, domain=None)
+            db.add(company)
+            db.flush()
+            return company
+    except SQLAlchemyError as exc:
+        # Concurrent insert? Try one last lookup.
+        retry = db.query(DBCompany).filter(func.lower(DBCompany.name) == name_clean.lower()).first()
+        if retry:
+            return retry
+        raise exc
 
 
 def _upsert_lead(db: Session, row: dict[str, Any]) -> str:
-    email = str(row.get("email") or "").strip() or None
+    email = str(row.get("email") or "").strip().lower() or None
+    first_name = str(row.get("first_name") or "").strip()
+    last_name = str(row.get("last_name") or "").strip()
+    company_name = str(row.get("company_name") or "").strip()
     
-    # Try to find existing by email if provided
+    company = _get_or_create_company(db, company_name)
+    
+    # Try to find existing by email first
     existing = None
     if email:
         existing = db.query(DBLead).filter(DBLead.email == email).first()
     
-    company = _get_or_create_company(db, row["company_name"])
+    # Fallback to composite key lookup
+    if not existing:
+        existing = db.query(DBLead).filter(
+            func.lower(DBLead.first_name) == first_name.lower(),
+            func.lower(DBLead.last_name) == last_name.lower(),
+            DBLead.company_id == company.id
+        ).first()
     
     if existing:
-        existing.first_name = row["first_name"]
-        existing.last_name = row["last_name"]
-        existing.phone = row["phone"]
-        existing.status = _coerce_lead_status(row.get("status"))
-        existing.segment = row["segment"]
+        existing.first_name = first_name
+        existing.last_name = last_name
+        existing.phone = row.get("phone")
+        existing.status = row["status"]
+        existing.segment = row.get("segment")
         existing.company_id = company.id
+        
+        # Update email if missing
+        if email and not existing.email:
+            existing.email = email
+            
         return "updated"
 
     lead = DBLead(
-        id=email if email else str(uuid.uuid4()),
-        first_name=row["first_name"],
-        last_name=row["last_name"],
+        id=str(uuid.uuid4()),
+        first_name=first_name,
+        last_name=last_name,
         email=email,
-        phone=row["phone"],
+        phone=row.get("phone"),
         company_id=company.id,
-        status=_coerce_lead_status(row.get("status")),
-        segment=row["segment"],
+        status=row["status"],
+        segment=row.get("segment"),
         stage=LeadStage.NEW,
     )
     db.add(lead)
@@ -369,6 +399,14 @@ def _upsert_lead(db: Session, row: dict[str, Any]) -> str:
 
 def _upsert_task(db: Session, row: dict[str, Any]) -> str:
     task_id = str(row.get("id") or "").strip() or None
+    lead_id = str(row.get("lead_id") or "").strip() or None
+    
+    # Validate lead existence if provided
+    if lead_id:
+        lead_exists = db.query(DBLead.id).filter(DBLead.id == lead_id).first()
+        if not lead_exists:
+            raise ValueError(f"Referenced lead_id '{lead_id}' does not exist.")
+
     task = db.query(DBTask).filter(DBTask.id == task_id).first() if task_id else None
     if task:
         task.title = row["title"]
@@ -376,7 +414,7 @@ def _upsert_task(db: Session, row: dict[str, Any]) -> str:
         task.priority = row["priority"]
         task.due_date = row["due_date"]
         task.assigned_to = row["assigned_to"]
-        task.lead_id = row["lead_id"]
+        task.lead_id = lead_id
         return "updated"
 
     new_task = DBTask(
@@ -386,7 +424,7 @@ def _upsert_task(db: Session, row: dict[str, Any]) -> str:
         priority=row["priority"],
         due_date=row["due_date"],
         assigned_to=row["assigned_to"],
-        lead_id=row["lead_id"],
+        lead_id=lead_id,
     )
     db.add(new_task)
     return "created"
@@ -394,12 +432,20 @@ def _upsert_task(db: Session, row: dict[str, Any]) -> str:
 
 def _upsert_project(db: Session, row: dict[str, Any]) -> str:
     project_id = str(row.get("id") or "").strip() or None
+    lead_id = str(row.get("lead_id") or "").strip() or None
+
+    # Validate lead existence if provided
+    if lead_id:
+        lead_exists = db.query(DBLead.id).filter(DBLead.id == lead_id).first()
+        if not lead_exists:
+            raise ValueError(f"Referenced lead_id '{lead_id}' does not exist.")
+
     project = db.query(DBProject).filter(DBProject.id == project_id).first() if project_id else None
     if project:
         project.name = row["name"]
         project.description = row["description"]
         project.status = row["status"]
-        project.lead_id = row["lead_id"]
+        project.lead_id = lead_id
         project.due_date = row["due_date"]
         return "updated"
 
@@ -408,7 +454,7 @@ def _upsert_project(db: Session, row: dict[str, Any]) -> str:
         name=row["name"],
         description=row["description"],
         status=row["status"],
-        lead_id=row["lead_id"],
+        lead_id=lead_id,
         due_date=row["due_date"],
     )
     db.add(new_project)
@@ -443,18 +489,22 @@ def commit_csv_import(
             continue
 
         try:
-            if selected_table == "leads":
-                result = _upsert_lead(db, normalized)
-            elif selected_table == "tasks":
-                result = _upsert_task(db, normalized)
-            elif selected_table == "projects":
-                result = _upsert_project(db, normalized)
-            else:
-                raise ValueError(f"Unsupported table: {selected_table}")
-            if result == "created":
-                created += 1
-            else:
-                updated += 1
+            with db.begin_nested():
+                if selected_table == "leads":
+                    result = _upsert_lead(db, normalized)
+                elif selected_table == "tasks":
+                    result = _upsert_task(db, normalized)
+                elif selected_table == "projects":
+                    result = _upsert_project(db, normalized)
+                else:
+                    raise ValueError(f"Unsupported table: {selected_table}")
+                
+                db.flush() # Force per-row constraint check
+                
+                if result == "created":
+                    created += 1
+                else:
+                    updated += 1
         except (SQLAlchemyError, ValueError) as exc:
             logger.warning(
                 "Failed to import CSV row.",

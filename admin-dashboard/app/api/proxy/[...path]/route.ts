@@ -13,17 +13,17 @@ function withDataSourceHeader(
 }
 
 function getBaseUrl(): string | undefined {
-  if (process.env.API_BASE_URL) return process.env.API_BASE_URL;
-  if (process.env.NEXT_PUBLIC_API_BASE_URL) {
-    return process.env.NEXT_PUBLIC_API_BASE_URL;
-  }
+  const url = process.env.API_BASE_URL;
+  if (url) return url.endsWith("/") ? url.slice(0, -1) : url;
   if (process.env.NODE_ENV === "development") return "http://127.0.0.1:8000";
   return undefined;
 }
 
 function isDevelopmentEnv(): boolean {
-  return process.env.NODE_ENV !== "production";
+  return process.env.NODE_ENV === "development";
 }
+
+const ALLOWED_PATH_PREFIXES = ["/api/v1/admin/", "/api/v1/internal/health"];
 
 function getOptionalAuthHeader(): string | null {
   const raw = process.env.ADMIN_AUTH;
@@ -605,6 +605,15 @@ async function forwardRequest(
 ): Promise<Response> {
   const normalizedPath = path.join("/");
   const pathname = `/${normalizedPath}`;
+
+  const isAllowed = ALLOWED_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+  if (!isAllowed) {
+    return Response.json(
+      { error: "Forbidden", message: "Path not allowed by proxy." },
+      { status: 403, headers: withDataSourceHeader(undefined, "upstream") },
+    );
+  }
+
   const baseUrl = getBaseUrl();
   if (!baseUrl) {
     const fallback = respondWithDevelopmentFallback(request, pathname);
@@ -685,18 +694,26 @@ async function forwardRequest(
   }
 
   const responseHeaders = new Headers();
+
+  // Handle multiple Set-Cookie headers correctly
+  const setCookies = upstream.headers.getSetCookie();
+  setCookies.forEach((cookie) => {
+    if (isDevelopmentEnv()) {
+      console.log(`[Proxy] Upstream Set-Cookie: ${cookie}`);
+    }
+    responseHeaders.append("Set-Cookie", cookie);
+  });
+
   upstream.headers.forEach((value, key) => {
     const lowKey = key.toLowerCase();
-    if (lowKey === "content-encoding" || lowKey === "transfer-encoding") {
+    if (
+      lowKey === "content-encoding" || 
+      lowKey === "transfer-encoding" ||
+      lowKey === "set-cookie"
+    ) {
       return;
     }
-    // Specially handle Set-Cookie to preserve multiple headers if they exist
-    if (lowKey === "set-cookie") {
-      console.log(`[Proxy] Upstream Set-Cookie: ${value}`);
-      responseHeaders.append(key, value);
-    } else {
-      responseHeaders.set(key, value);
-    }
+    responseHeaders.set(key, value);
   });
   responseHeaders.set(DATA_SOURCE_HEADER, "upstream");
 

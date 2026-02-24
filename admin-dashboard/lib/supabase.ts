@@ -23,5 +23,23 @@ export const supabase = createClient(
  * Returns false if environment variables are missing or pointing to local defaults
  * while the app is configured to use the Admin API proxy.
  */
-export const isRealtimeEnabled =
-    !!(supabaseUrl && supabaseAnonKey && !supabaseUrl.includes("localhost"));
+export const isRealtimeEnabled = (() => {
+    if (!supabaseUrl || !supabaseAnonKey) return false;
+    try {
+        const url = new URL(supabaseUrl);
+        let host = url.hostname.toLowerCase();
+        // Normalize IPv6 loopback
+        if (host.startsWith("[") && host.endsWith("]")) {
+            host = host.slice(1, -1);
+        }
+        const isLocal =
+            host === "localhost" ||
+            host === "::1" ||
+            host === "127.0.0.1" ||
+            host === "0.0.0.0" ||
+            host.startsWith("127.");
+        return !isLocal;
+    } catch {
+        return false;
+    }
+})();

@@ -10,7 +10,7 @@ import secrets
 import time
 import uuid
 from contextlib import asynccontextmanager
-from datetime import datetime, time as datetime_time, timedelta, timezone
+from datetime import date, datetime, time as datetime_time, timedelta, timezone
 from io import StringIO
 from pathlib import Path
 from threading import Lock
@@ -26,10 +26,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 from sqlalchemy import case, func, or_, text
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.requests import Request
 
@@ -384,11 +384,11 @@ request_metrics = InMemoryRequestMetrics()
 
 
 class AdminLeadCreateRequest(BaseModel):
-    first_name: str
-    last_name: str
+    first_name: str = Field(min_length=1)
+    last_name: str = Field(min_length=1)
     email: EmailStr | None = None
     phone: str | None = None
-    company_name: str
+    company_name: str = Field(min_length=1)
     status: str | None = None
     segment: str | None = None
 
@@ -415,7 +415,7 @@ class AdminLeadOpportunityCreateRequest(BaseModel):
     status: str | None = None
     amount: float | None = Field(default=None, ge=0)
     probability: int | None = Field(default=None, ge=0, le=100)
-    expected_close_date: str | None = None
+    expected_close_date: date | None = None
     details: dict[str, Any] | None = None
 
 
@@ -425,7 +425,7 @@ class AdminLeadOpportunityUpdateRequest(BaseModel):
     status: str | None = None
     amount: float | None = Field(default=None, ge=0)
     probability: int | None = Field(default=None, ge=0, le=100)
-    expected_close_date: str | None = None
+    expected_close_date: date | None = None
     details: dict[str, Any] | None = None
 
 
@@ -460,12 +460,10 @@ class AdminLeadNoteItemPayload(BaseModel):
     id: str | None = None
     content: str = Field(min_length=1)
     author: str | None = None
-    created_at: str | None = None
-    updated_at: str | None = None
 
 
 class AdminLeadNotesUpdateRequest(BaseModel):
-    items: list[AdminLeadNoteItemPayload] = Field(default_factory=list)
+    items: list[AdminLeadNoteItemPayload] = Field(..., min_length=1)
 
 
 class AdminLeadAddToCampaignRequest(BaseModel):
@@ -475,6 +473,12 @@ class AdminLeadAddToCampaignRequest(BaseModel):
 class AdminBulkDeleteRequest(BaseModel):
     ids: list[str] = Field(default_factory=list)
     segment: str | None = None
+
+    @model_validator(mode="after")
+    def validate_selection(self) -> "AdminBulkDeleteRequest":
+        if not self.ids and not self.segment:
+            raise ValueError("Bulk delete must specify either 'ids' or a 'segment'")
+        return self
 
 
 class AdminTaskCreateRequest(BaseModel):
@@ -551,6 +555,12 @@ class AdminLeadReassignRequest(BaseModel):
     owner_email: EmailStr | None = None
     owner_display_name: str | None = None
     reason: str | None = None
+
+    @model_validator(mode="after")
+    def validate_owner_identifier(self) -> "AdminLeadReassignRequest":
+        if not self.owner_user_id and not self.owner_email:
+            raise ValueError("Either owner_user_id or owner_email must be provided")
+        return self
 
 
 class AdminTaskBulkAssignRequest(BaseModel):
@@ -712,7 +722,7 @@ class AdminDiagnosticsRunRequest(BaseModel):
 
 
 class AdminUserInviteRequest(BaseModel):
-    email: EmailStr | None = None
+    email: EmailStr
     display_name: str | None = None
     roles: list[str] = Field(default_factory=lambda: ["sales"])
 
@@ -916,6 +926,12 @@ class LeadCaptureRequest(BaseModel):
     phone: str | None = None
     message: str | None = None
     source: str = "web_form"
+
+    @model_validator(mode="after")
+    def validate_identifying_info(self) -> "LeadCaptureRequest":
+        if not self.email and not self.first_name and not self.last_name:
+            raise ValueError("Lead capture must include email, first_name, or last_name")
+        return self
 
 
 class EnrichmentRunRequest(BaseModel):
@@ -1345,7 +1361,7 @@ def _set_auth_cookies(
     secure_cookie = _should_use_secure_cookies()
     logger.info("Setting auth cookies", extra={"secure": secure_cookie, "mode": _get_admin_auth_mode()})
     
-    access_max_age = int((access_expires_at - datetime.utcnow()).total_seconds())
+    access_max_age = max(1, int((access_expires_at - datetime.utcnow()).total_seconds()))
     refresh_max_age = max(1, int((refresh_expires_at - datetime.utcnow()).total_seconds()))
     response.set_cookie(
         ACCESS_TOKEN_COOKIE_NAME,
@@ -1399,8 +1415,9 @@ def _create_refresh_session(
 
 
 def require_admin(request: Request, db: Session = Depends(get_db)) -> str:
-    # BYPASS AUTH FOR DEV: Always return "admin"
-    return "admin"
+    # BYPASS AUTH FOR DEV: Always return "admin" in non-production
+    if not _is_production():
+        return "admin"
 
     auth_mode = _get_admin_auth_mode()
 
@@ -1481,9 +1498,21 @@ def require_rate_limit(request: Request) -> None:
         )
 
 
-def _parse_datetime_field(raw_value: str | None, field_name: str) -> datetime | None:
+def _parse_datetime_field(raw_value: Any, field_name: str) -> datetime | None:
     if raw_value is None:
         return None
+    
+    if isinstance(raw_value, datetime):
+        return raw_value
+    if isinstance(raw_value, date):
+        return datetime.combine(raw_value, datetime_time.min)
+
+    if not isinstance(raw_value, str):
+        raise HTTPException(
+            status_code=HTTP_422_STATUS,
+            detail=f"Invalid type for {field_name}: expected string or date, got {type(raw_value).__name__}",
+        )
+
     cleaned = raw_value.strip()
     if not cleaned:
         return None
@@ -2682,15 +2711,38 @@ def _delete_lead_payload(db: Session, lead_id: str) -> dict[str, Any]:
     return {"deleted": True, "id": lead_id}
 
 
-def _bulk_delete_leads_payload(db: Session, lead_ids: list[str]) -> dict[str, Any]:
+def _bulk_delete_leads_payload(
+    db: Session, 
+    lead_ids: list[str] | None = None, 
+    segment: str | None = None
+) -> dict[str, Any]:
     deleted_count = 0
     try:
-        query = db.query(DBLead).filter(DBLead.id.in_(lead_ids))
-        deleted_count = query.delete(synchronize_session=False)
+        # 1. Identify target leads
+        query = db.query(DBLead.id)
+        if lead_ids:
+            query = query.filter(DBLead.id.in_(lead_ids))
+        elif segment:
+            query = query.filter(DBLead.segment == segment)
+        else:
+            return {"deleted": True, "count": 0}
+        
+        target_ids = [r[0] for r in query.all()]
+        if not target_ids:
+            return {"deleted": True, "count": 0}
+
+        # 2. Delete related entities
+        db.query(DBTask).filter(DBTask.lead_id.in_(target_ids)).delete(synchronize_session=False)
+        db.query(DBProject).filter(DBProject.lead_id.in_(target_ids)).delete(synchronize_session=False)
+        db.query(DBInteraction).filter(DBInteraction.lead_id.in_(target_ids)).delete(synchronize_session=False)
+        db.query(DBOpportunity).filter(DBOpportunity.lead_id.in_(target_ids)).delete(synchronize_session=False)
+
+        # 3. Delete leads
+        deleted_count = db.query(DBLead).filter(DBLead.id.in_(target_ids)).delete(synchronize_session=False)
         db.commit()
     except SQLAlchemyError as exc:
         db.rollback()
-        logger.exception("Failed to bulk delete leads.", extra={"error": str(exc), "count": len(lead_ids)})
+        logger.exception("Failed to bulk delete leads.", extra={"error": str(exc), "count": len(lead_ids or [])})
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to bulk delete leads.",
@@ -4225,11 +4277,14 @@ def _get_stats_payload(db: Session) -> dict[str, Any]:
         func.sum(case((DBLead.tier.in_(["Tier A", "Tier B"]), 1), else_=0)).label("qualified"),
         func.sum(case((DBLead.heat_status == "Hot", 1), else_=0)).label("hot"),
         func.sum(case((DBLead.created_at >= today_start, 1), else_=0)).label("new_today"),
-        func.sum(case((DBLead.status == LeadStatus.CONTACTED, 1), else_=0)).label("contacted")
+        func.sum(case((DBLead.status == LeadStatus.CONTACTED, 1), else_=0)).label("contacted"),
+        func.sum(case((DBLead.status.in_([LeadStatus.CONVERTED, LeadStatus.LOST]), 1), else_=0)).label("closed")
     ).first()
     
     total_leads = l_stats.total or 0
     contacted = int(l_stats.contacted or 0)
+    qualified = int(l_stats.qualified or 0)
+    closed = int(l_stats.closed or 0)
     
     pending_tasks = db.query(DBTask).filter(DBTask.status != "Done").count()
     conversion_rate = (contacted / total_leads * 100) if total_leads > 0 else 0.0
@@ -4237,10 +4292,13 @@ def _get_stats_payload(db: Session) -> dict[str, Any]:
     return {
         "total_leads": total_leads,
         "new_leads_today": int(l_stats.new_today or 0),
-        "qualified_leads": int(l_stats.qualified or 0),
+        "qualified_leads": qualified,
         "hot_leads": int(l_stats.hot or 0),
         "pending_tasks": pending_tasks,
         "conversion_rate": round(conversion_rate, 1),
+        "qualified_total": qualified,
+        "contacted_total": contacted,
+        "closed_total": closed,
         "daily_pipeline_trend": []
     }
 
@@ -6653,6 +6711,15 @@ def create_app() -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
+        from .dependencies import _validate_security_configs
+        try:
+            _validate_security_configs()
+        except RuntimeError as exc:
+            logger.critical(f"Startup security validation failed: {exc}")
+            # In production, we want to fail hard.
+            if _is_production():
+                raise
+
         db = SessionLocal()
         try:
             _run_due_report_schedules_payload(db)
@@ -6826,10 +6893,11 @@ def create_app() -> FastAPI:
         
         # Critical alert for 500 errors
         request_id = getattr(request.state, "request_id", "unknown")
+        error_detail = f"{exc.__class__.__name__}: {str(exc)}" if not _is_production() else "[REDACTED]"
         alert_msg = (
             f"**Path**: {request.url.path}\n"
             f"**Method**: {request.method}\n"
-            f"**Error**: {exc.__class__.__name__}: {str(exc)}\n"
+            f"**Error**: {error_detail}\n"
             f"**Request ID**: {request_id}"
         )
         await _send_discord_alert(alert_msg)
@@ -7674,6 +7742,9 @@ def create_app() -> FastAPI:
         lead = _get_lead_or_404(db, lead_id)
         recipient = str(payload.to_email) if payload.to_email else lead.email
         
+        if not recipient:
+            raise HTTPException(status_code=400, detail="Destinataire manquant (le lead n'a pas d'email).")
+
         ok = _send_system_email(
             db,
             subject=payload.subject,
@@ -7845,14 +7916,17 @@ def create_app() -> FastAPI:
         actor: str = "admin",
         db: Session = Depends(get_db),
     ) -> dict[str, Any]:
-        result = _bulk_delete_leads_payload(db, payload.ids)
+        result = _bulk_delete_leads_payload(db, lead_ids=payload.ids, segment=payload.segment)
         _audit_log(
             db,
             actor=actor,
             action="leads_bulk_deleted",
             entity_type="lead",
             entity_id="bulk",
-            metadata={"count": result.get("count"), "ids": payload.ids},
+            metadata={
+                "count": result.get("count"), 
+                "segment": payload.segment
+            },
         )
         return result
 

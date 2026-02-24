@@ -96,10 +96,10 @@ export function Header() {
 					))}
 				</div>
 				<div className="flex flex-col gap-2">
-					<Button variant="outline" className="w-full bg-transparent" asChild>
+					<Button variant="outline" className="w-full bg-transparent" asChild onClick={() => setOpen(false)}>
 						<Link href="/login">Sign In</Link>
 					</Button>
-					<Button className="w-full" asChild>
+					<Button className="w-full" asChild onClick={() => setOpen(false)}>
 						<Link href="/create-account">Get Started</Link>
 					</Button>
 				</div>

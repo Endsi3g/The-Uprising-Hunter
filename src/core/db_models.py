@@ -10,7 +10,7 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, validates
 from datetime import datetime
 from .database import Base
 from .models import LeadStatus, LeadStage, LeadOutcome, InteractionType
@@ -44,6 +44,13 @@ class DBLead(Base):
     
     company_id = Column(Integer, ForeignKey("companies.id"), index=True)
     company = relationship("DBCompany", back_populates="leads")
+
+    @validates("id")
+    def validate_id_consistency(self, key, value):
+        if value and "@" in value and "." in value.split("@")[-1]:
+            if not self.email:
+                self.email = value
+        return value
 
     status = Column(SqlEnum(LeadStatus), default=LeadStatus.NEW, index=True)
     segment = Column(String, nullable=True, index=True)

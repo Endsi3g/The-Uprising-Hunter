@@ -23,16 +23,10 @@ export function middleware(request: NextRequest) {
     );
     const hasDemoCookie = request.cookies.get(DEMO_COOKIE_NAME)?.value === "1";
     const authenticated = isRouteAuthenticated({
-        _hostname: hostname,
-        _hasAccessCookie: hasAccessCookie,
-        _hasDemoCookie: hasDemoCookie,
+        hostname,
+        hasAccessCookie,
+        hasDemoCookie,
     });
-
-    if (pathname.includes("dashboard") || pathname.includes("login")) {
-        console.log(
-            `[Middleware] Path: ${pathname}, Auth: ${authenticated}, HasCookie: ${hasAccessCookie}`,
-        );
-    }
 
     if (isPublicPath(pathname)) {
         if (
@@ -48,8 +42,7 @@ export function middleware(request: NextRequest) {
     }
 
     if (!authenticated) {
-        // BYPASS AUTH FOR DEV: Don't redirect to login
-        return NextResponse.next();
+        return toLoginRedirect(request);
     }
 
     return NextResponse.next();

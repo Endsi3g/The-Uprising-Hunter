@@ -6,7 +6,8 @@ import hmac
 import os
 import secrets
 import time
-from datetime import datetime, timedelta
+from collections import OrderedDict
+from datetime import datetime, timedelta, timezone
 from threading import Lock
 from typing import Any, Optional
 
@@ -36,7 +37,7 @@ def _audit_log(
         metadata_json=metadata or {},
     )
     db.add(entry)
-    db.commit()
+    db.flush()
 from . import secrets_manager as _sec_svc
 from . import funnel_service as _funnel_svc
 
@@ -210,12 +211,40 @@ ERR_DB_ERROR = "DB_001"
 ERR_RATE_LIMIT = "RATE_001"
 
 
+def _is_production() -> bool:
+    env_name = (
+        os.getenv("APP_ENV")
+        or os.getenv("ENV")
+        or os.getenv("ENVIRONMENT")
+        or "development"
+    )
+    return env_name.strip().lower() in {"prod", "production"}
+
+def _validate_security_configs() -> None:
+    if not _is_production():
+        return
+
+    password = os.getenv("ADMIN_PASSWORD", DEFAULT_ADMIN_PASSWORD)
+    if password == DEFAULT_ADMIN_PASSWORD:
+        raise RuntimeError(
+            "Refusing startup in production with default ADMIN_PASSWORD. "
+            "Please set a secure ADMIN_PASSWORD environment variable."
+        )
+
+    jwt_secret = _get_jwt_secret()
+    if jwt_secret == _default_jwt_secret():
+        raise RuntimeError(
+            "Refusing startup in production with default JWT_SECRET. "
+            "Please set a secure JWT_SECRET environment variable."
+        )
+
 # --- RATE LIMITER ---
 
 class InMemoryRateLimiter:
-    def __init__(self) -> None:
+    def __init__(self, max_buckets: int = 10000) -> None:
         self._lock = Lock()
-        self._hits: dict[str, list[float]] = {}
+        self._max_buckets = max_buckets
+        self._hits: OrderedDict[str, list[float]] = OrderedDict()
 
     def allow(self, key: str, limit: int, window_seconds: int) -> bool:
         now = time.time()
@@ -223,6 +252,18 @@ class InMemoryRateLimiter:
         with self._lock:
             entries = self._hits.get(key, [])
             entries = [stamp for stamp in entries if stamp >= window_start]
+            if not entries:
+                if key in self._hits:
+                    del self._hits[key]
+                
+                # New key? Check capacity.
+                if len(self._hits) >= self._max_buckets:
+                    self._hits.popitem(last=False) # Evict oldest bucket
+                entries = []
+            else:
+                # Move to end (most recently used)
+                self._hits.move_to_end(key)
+
             if len(entries) >= limit:
                 self._hits[key] = entries
                 return False
@@ -372,7 +413,7 @@ def _base64url_encode(raw: bytes) -> str:
     return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
 
 def _base64url_decode(raw: str) -> bytes:
-    pad = "=" * (4 - (len(raw) % 4))
+    pad = "=" * (-len(raw) % 4)
     return base64.urlsafe_b64decode(raw + pad)
 
 def _hash_admin_password(password: str) -> str:
@@ -478,33 +519,35 @@ def _extract_access_payload(request: Request) -> dict[str, Any] | None:
             detail="Token expired",
         )
     except jwt.InvalidTokenError:
-        return None
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
+        )
+
+TRUSTED_PROXIES = {
+    item.strip()
+    for item in os.getenv("TRUSTED_PROXIES", "127.0.0.1,::1").split(",")
+    if item.strip()
+}
 
 def _client_ip(request: Request) -> str:
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
+    client_host = request.client.host if request.client else "unknown"
+    if client_host in TRUSTED_PROXIES:
+        forwarded = request.headers.get("x-forwarded-for")
+        if forwarded:
+            # Trust last proxy in chain
+            parts = [p.strip() for p in forwarded.split(",") if p.strip()]
+            if parts:
+                return parts[-1]
+    return client_host
 
 # --- DEPENDENCIES ---
 
 def require_admin(request: Request, db: Session = Depends(get_db)) -> str:
-    # BYPASS AUTH FOR DEV: Always return "admin"
-    # return "admin"
+    # BYPASS AUTH FOR DEV: Explicit opt-in only via non-production environment
+    if not _is_production():
+        return "admin"
     
-    # Actually use the real implementation for correctness in refactor
-    # But keep the bypass if it was enabled in the original code? 
-    # The original code had:
-    # def require_admin(...):
-    #    # BYPASS AUTH FOR DEV: Always return "admin"
-    #    return "admin"
-    #    ... unreachable code ...
-    
-    # I will keep it as is, but maybe uncomment the real logic if I want to be strict?
-    # No, keep it as is to match current behavior.
-    return "admin"
-    
-    # Unreachable implementation preserved for reference/future enablement
     auth_mode = _get_admin_auth_mode()
 
     payload: dict[str, Any] | None = None
@@ -527,15 +570,27 @@ def require_admin(request: Request, db: Session = Depends(get_db)) -> str:
                 headers={"WWW-Authenticate": "Bearer"},
             )
         session = db.query(DBAdminSession).filter(DBAdminSession.id == session_id).first()
-        if not session or session.revoked_at is not None or session.expires_at <= datetime.utcnow():
+        
+        # Safe normalized expiry check
+        is_expired = True
+        if session and session.expires_at:
+            expires_at = session.expires_at
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=timezone.utc)
+            else:
+                expires_at = expires_at.astimezone(timezone.utc)
+            is_expired = expires_at <= datetime.now(timezone.utc)
+
+        if not session or session.revoked_at is not None or is_expired:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Session revoked or expired.",
                 headers={"WWW-Authenticate": "Bearer"},
             )
         # Only persist last_seen_at if stale by 2+ minutes to avoid write-per-request
-        _now = datetime.utcnow()
-        if not session.last_seen_at or (_now - session.last_seen_at).total_seconds() > 120:
+        _now = datetime.now(timezone.utc)
+        last_seen = session.last_seen_at.replace(tzinfo=timezone.utc) if session.last_seen_at else None
+        if not last_seen or (_now - last_seen).total_seconds() > 120:
             session.last_seen_at = _now
             db.commit()
         return username
@@ -569,11 +624,9 @@ def require_rate_limit(request: Request) -> None:
     except ValueError:
         window_seconds = 60
 
-    client_host = request.client.host if request.client else "unknown"
-    forwarded_for = request.headers.get("x-forwarded-for", "")
-    if forwarded_for:
-        client_host = forwarded_for.split(",")[0].strip()
-    bucket_key = f"{client_host}:{request.url.path}"
+    client_ip = _client_ip(request)
+    normalized_path = InMemoryRequestMetrics._normalize_path(request.url.path)
+    bucket_key = f"{client_ip}:{normalized_path}"
 
     allowed = rate_limiter.allow(bucket_key, limit=limit, window_seconds=window_seconds)
     if not allowed:

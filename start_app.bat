@@ -20,11 +20,7 @@ echo [INFO] Cleaning up previous sessions...
 for /f "tokens=5" %%a in ('netstat -aon ^| find ":8000" ^| find "LISTENING"') do taskkill /f /pid %%a >nul 2>&1
 for /f "tokens=5" %%a in ('netstat -aon ^| find ":3000" ^| find "LISTENING"') do taskkill /f /pid %%a >nul 2>&1
 
-:: 2. Force kill by Image Name (Catch any orphans not bound to ports)
-taskkill /f /im python.exe >nul 2>&1
-taskkill /f /im node.exe >nul 2>&1
-
-:: 3. Force kill by Window Title (Clean up wrapper/cmd windows)
+:: 2. Force kill by Window Title (Clean up wrapper/cmd windows)
 taskkill /FI "WINDOWTITLE eq The Uprising Hunter - Backend" /T /F >nul 2>&1
 taskkill /FI "WINDOWTITLE eq The Uprising Hunter - Frontend" /T /F >nul 2>&1
 
@@ -124,27 +120,33 @@ popd
 :: ---------------------------------------------------
 echo [STEP 3/4] Starting Backend (Port 8000)...
 :: Use a temporary variable to hold the command to avoid complex quoting in 'start'
-set BACKEND_COMMAND=python -m uvicorn src.admin.app:app --host 0.0.0.0 --port 8000 --reload
-start "The Uprising Hunter - Backend" cmd /c "%BACKEND_COMMAND% 2> "%BACKEND_LOG%""
+set BACKEND_COMMAND=python -m uvicorn src.admin.app:app --host 127.0.0.1 --port 8000 --reload
+start "The Uprising Hunter - Backend" cmd /c ^"%BACKEND_COMMAND% 2^> ^"%BACKEND_LOG%^"^"
 
 :: ---------------------------------------------------
 :: 4. Start Frontend
 :: ---------------------------------------------------
 echo [STEP 4/4] Starting Frontend (Port 3000)...
-cd admin-dashboard
+pushd admin-dashboard
+if %ERRORLEVEL% neq 0 (
+    echo [ERROR] Failed to enter admin-dashboard directory.
+    pause
+    exit /b %ERRORLEVEL%
+)
 
 set FRONTEND_COMMAND=npm run dev
 where npm >nul 2>&1
 if %ERRORLEVEL% equ 0 (
-    start "The Uprising Hunter - Frontend" cmd /c "%FRONTEND_COMMAND% 2> "%FRONTEND_LOG%""
+    start "The Uprising Hunter - Frontend" cmd /c ^"%FRONTEND_COMMAND% 2^> ^"%FRONTEND_LOG%^"^"
 ) else (
     if exist "C:\Program Files\nodejs\npm.cmd" (
-        start "The Uprising Hunter - Frontend" cmd /c ""C:\Program Files\nodejs\npm.cmd" run dev 2> "%FRONTEND_LOG%""
+        start "The Uprising Hunter - Frontend" cmd /c ^"^\^"C:\Program Files\nodejs\npm.cmd^\^" run dev 2^> ^"%FRONTEND_LOG%^"^"
     ) else (
         echo [ERROR] npm command not found. >> "%LAUNCHER_LOG%"
         echo [ERROR] npm command not found.
     )
 )
+popd
 
 echo.
 echo [SUCCESS] Services launched! 

@@ -148,7 +148,7 @@ export default function LibraryPage() {
 
   const downloadFile = (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    window.open(`/api/proxy/api/v1/admin/library/documents/${id}/download`, "_blank")
+    window.open(`/api/proxy/api/v1/admin/library/documents/${id}/download`, "_blank", "noopener,noreferrer")
   }
 
   return (

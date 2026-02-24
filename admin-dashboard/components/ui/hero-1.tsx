@@ -67,7 +67,7 @@ export function HeroSection() {
 
 				<div className="fade-in slide-in-from-bottom-10 flex animate-in flex-row flex-wrap items-center justify-center gap-3 fill-mode-backwards pt-4 delay-300 duration-500 ease-out z-20">
 					<Button className="rounded-full h-12 px-6" size="lg" variant="secondary" asChild>
-						<Link href="/login">
+						<Link href="/book-demo">
 							<PhoneCallIcon className="size-4 mr-2" />{" "}
 							Book a Demo
 						</Link>

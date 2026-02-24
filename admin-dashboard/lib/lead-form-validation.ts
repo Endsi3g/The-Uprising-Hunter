@@ -1,6 +1,7 @@
 export function isValidLeadEmail(email: string): boolean {
-  if (!email.trim()) return true;
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const trimmed = email.trim();
+  if (!trimmed) return true;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
 }
 
 export function isValidLeadPhone(phone: string): boolean {
