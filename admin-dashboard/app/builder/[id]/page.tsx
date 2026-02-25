@@ -203,7 +203,7 @@ export default function PageEditor() {
                     <Label htmlFor="hero_title">Titre principal</Label>
                     <Input
                       id="hero_title"
-                      value={formData.content.hero_title}
+                      value={formData.content?.hero_title || ""}
                       onChange={(e) => setFormData({
                         ...formData,
                         content: { ...formData.content, hero_title: e.target.value }
@@ -246,10 +246,10 @@ export default function PageEditor() {
                   <div className="rounded-xl border shadow-sm overflow-hidden bg-slate-50 min-h-[400px]">
                     <div className="p-8 text-center space-y-4">
                       <span className="text-xs font-bold uppercase tracking-wider text-blue-600">ClinicFlow IA</span>
-                      <h1 className="text-3xl font-extrabold tracking-tight">{formData.content.hero_title}</h1>
-                      <p className="text-slate-600 max-w-md mx-auto">{formData.content.hero_subtitle}</p>
+                      <h1 className="text-3xl font-extrabold tracking-tight">{formData.content?.hero_title || ""}</h1>
+                      <p className="text-slate-600 max-w-md mx-auto">{formData.content?.hero_subtitle || ""}</p>
                       <Button className="mt-4 bg-blue-600 hover:bg-blue-700">
-                        {formData.content.cta_text}
+                        {formData.content?.cta_text || "Bouton"}
                       </Button>
 
                       {formData.content.problem_statement && (

@@ -1,5 +1,29 @@
 [
   {
+    "hash": "c872a60",
+    "date": "2026-02-24",
+    "author": "Quebec SaaS",
+    "message": "security: tighten auth guards, data integrity, and launcher robustness"
+  },
+  {
+    "hash": "8b1219c",
+    "date": "2026-02-24",
+    "author": "Quebec SaaS",
+    "message": "security: harden proxy safety, auth guards, and operational robustness"
+  },
+  {
+    "hash": "8ed5322",
+    "date": "2026-02-24",
+    "author": "Quebec SaaS",
+    "message": "security: harden authentication, data integrity, and RAG service"
+  },
+  {
+    "hash": "7dce059",
+    "date": "2026-02-24",
+    "author": "Quebec SaaS",
+    "message": "Final cleanup, Discord error reporting, Site Builder fixes, and Realtime stabilization"
+  },
+  {
     "hash": "003d014",
     "date": "2026-02-20",
     "author": "Quebec SaaS",
@@ -274,29 +298,5 @@
     "date": "2026-02-12",
     "author": "Quebec SaaS",
     "message": "fix(db): add fallback to generic pooler for IPv4 forcing [skip netlify]"
-  },
-  {
-    "hash": "8db331c",
-    "date": "2026-02-12",
-    "author": "Quebec SaaS",
-    "message": "fix(db): restore db init & use hostaddr for IPv4 forcing [skip netlify]"
-  },
-  {
-    "hash": "f68cb69",
-    "date": "2026-02-12",
-    "author": "Quebec SaaS",
-    "message": "fix(db): force IPv4 resolution for Supabase to resolve Network Unreachable [skip netlify]"
-  },
-  {
-    "hash": "34e4785",
-    "date": "2026-02-12",
-    "author": "Quebec SaaS",
-    "message": "fix(cors): allow all netlify subdomains via regex & updates docs for port 6543"
-  },
-  {
-    "hash": "b28b01d",
-    "date": "2026-02-12",
-    "author": "Quebec SaaS",
-    "message": "fix(build): correct next-themes import & update supabase credentials"
   }
 ]
