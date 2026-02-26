@@ -1,4 +1,4 @@
-from .prompts import COLD_EMAIL_TEMPLATE, LINKEDIN_CONNECTION_TEMPLATE, LINKEDIN_MESSAGE_TEMPLATE
+from .prompts import COLD_EMAIL_TEMPLATE, LINKEDIN_CONNECTION_TEMPLATE
 from ..core.models import Lead
 from openai import OpenAI
 import os
